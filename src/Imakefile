@@ -1,0 +1,32 @@
+DEFS =
+
+SRCS = rasmol.c rasmol.h molecule.c molecule.h abstree.c abstree.h \
+       command.c command.h tokens.h transfor.c transfor.h render.c render.h \
+       x11win.c graphics.h pixutils.c pixutils.h outfile.c outfile.h
+
+OBJS = rasmol.o molecule.o abstree.o command.o transfor.o render.o x11win.o \
+       pixutils.o outfile.o
+
+#ifdef DIALBOX
+#ifdef SGI
+LIBS = -lm -lXi $(XLIB)
+#else
+LIBS = -lm -lXinput $(XLIB)
+#endif
+#else
+LIBS = -lm -lXi $(XLIB)
+#endif
+
+AllTarget(rasmol)
+
+NormalProgramTarget(rasmol,$(OBJS), , ,$(LIBS))
+
+InstallProgram(rasmol,$(BINDIR))
+InstallManPage(rasmol,$(MANDIR))
+
+DependTarget()
+LintTarget()
+
+clean::
+	rm *.o
+

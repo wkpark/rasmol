@@ -1,0 +1,143 @@
+To build RasMol version 2.3
+
+UNIX X11:
+==========
+[1] Modify the contents of the Makefile to determine your local C compiler,
+    compiler and linker options. The default set up is for an 8bit UNIX
+    workstation with the X11 shared memory extension, compiled using the
+    GNU C Compiler. Changing the line "CC=gcc" to "CC=cc" will use the
+    machines native compiler but will require changing "CFLAGS" for your
+    platform.
+
+    RasMol may be build for E&S workstations using the command "make esv".
+
+    Alternatively (or if the first method fails), type "xmkmf" to generate 
+    a Makefile for your particular system from the included Imakefile!
+
+    A common problem is that SUN OpenWindows keeps its include files in the
+    directory /usr/openwin/include/X11, hence the compiler directive 
+    -I/usr/openwin/include must be added to CFLAGS.
+
+[2] Modify the #defines in the file rasmol.h (see below)
+        Note: IBMPC should not be defined.
+[3] Compile the program using the UNIX make utility. (i.e. type "make")
+[4] Place the 'rasmol' executable on the execution PATH, i.e. /usr/local/bin
+[5] Install rasmol.hlp as /usr/local/lib/rasmol/rasmol.hlp (or at a loctaion
+    indicated by the environment variable RASMOLPATH).
+[6] If you have the UNIX utilities "uncompress" or "gunzip" ensure they are
+    on the user's default PATH.
+[7] Set the environment variable RASMOLPDBPATH to the directory containing
+    the Broohaven PDB database, if one exits.
+[8] Place any system wide initialisation parameters into the file "rasmolrc"
+    in the directory pointed to by RASMOLPATH.
+[9] It is possible to set-up RASMOLPATH and RASMOLPDBPATH each time the 
+    program is running by renaming rasmol to rasmol.exe, and using a script
+    similar to the following.
+[10] If appropriate place "rasmol.1" or "rasmol.0" in the appropriate place
+     for UNIX man pages, and optionally place "rasmol.html" somewhere in 
+     your WWW hierarchy (if available at your site).
+
+===========================================================================
+#!/bin/sh
+RASMOLPATH=/usr/common/lib/rasmol
+export RASMOLPATH
+
+RASMOLPDBPATH=/data/brookhaven 
+export RASMOLPDBPATH
+
+rasmol.exe $*
+===========================================================================
+
+
+MS Windows v3.1:
+================
+[1] Use Makefile.pc instead of Makefile, by copying it to MAKEFILE.
+[2] Modify the contents of the Makefile to determine your local C compiler,
+    compiler and linker options. 
+[3] Modify the #defines in the file rasmol.h (see below)
+        Note: EIGHTBIT, INVERT and IBMPC should all be defined
+              MITSHM, TERMIOS and DIALBOX should not be defined.
+[4] Compile the program using the Microsoft Optimizing C Compiler Version
+    7's (or Microsoft Visual C++'s) NMAKE program under MS-DOS.
+[5] Copy both the executable RASWIN.EXE, RASMOL.HLP and RASWIN.HLP to an
+    appropriate directory.
+[6] Install the program in MS Windows using the New option of the Program
+    Manager's File Menu. Set the Description of the Program to "RasWin v2.3"
+    and the Current Directory, to the directory containing the files.
+[7] Install the RasMol Help file using the New option of the Program
+    Manager's File Menu. Set the Description to "RasWin Manual", the
+    command to "C:\WINDOWS\WINHELP RASWIN.HLP" and the working directory
+    to the appropriate directory.
+
+
+
+VAX/VMS
+=======
+[1] Modify the #defines in the file rasmol.h (see below)
+        Note: IBMPC, MITSHM and TERMIOS should not be defined.
+[2] If your VAX site has an MMS license type the command "MMS",
+    otherwise use the DCL build script by typing "@build.com"
+[3] The program may be run by typing "RUN RASMOL.EXE", the X Windows
+    server is specified by a VMS command of the form:
+	SET DISPLAY/CREATE/TRANSPORT=TCPIP/NODE=<hostname>
+
+
+
+
+COMPILATION DIRECTIVES
+======================
+
+The file rasmol.h contains a number of #define directives that control
+the runtime behaviour of the program. The following directives may be
+defined or undefined to suite the local site.
+
+EIGHTBIT	This determines whether RasMol will display and produce
+		8bit or 32(24) bit output. By default this symbol is defined
+		producing images with up to 256 colours. This symbol must 
+                be defined if IBMPC is defined.
+
+DIALBOX		This enables the use of a dials box, that is connected 
+		using the X Window System XInput extension. This option
+		requires that the program be compiled with the Xinput and
+		Xext libraries. Note: libXinput is called libXi on SGI 
+		machines, so requires the compiler option -lXi!
+
+MITSHM 		This option enables the use of the X Window System MIT shared
+		memory extension. This enables images to be displayed faster
+		when RasMol and the X11 server are running on the same host.
+		This option requires the program be compiled with the Xext
+		library. This is now enabled by default.
+
+TERMIOS		This directive enables the command line processing on UNIXs
+		that support the termios terminal handling routines. By 
+		leaving this symbol undefined, RasMol omits the interactive
+		command line interface. Undefining is not recommended!
+
+INVERT          This determines whether the image should be rendered upside-
+		down or the right way up. Due to to wonders of MS Windows 
+		this must be defined in IBMPC is defined.
+
+ISQRT		This enables the use of the integer square root function in
+		the program. This is enabled by default. It was added to
+                avoid a compiler bug on SUN 386i machines. This should also
+		be commented out for DEC Alpha machines in native 64bit mode.
+
+IBMPC           This determines whether the program is intended to run on an
+                IBM PC or compatible under MS Windows or a UNIX workstation.
+                By default, this option is disabled. If this option is defined
+		the options EIGHTBIT and INVERT must be defined, and TERMIOS
+		undefined.
+
+
+PROBLEMS, BUGS AND SOLUTIONS
+============================
+
+If you have any comments on the installation and implementation of RasMol
+please send me e-mail "rasmol@dcs.ed.ac.uk" or to the contact address given
+in the README file. Any additional patches, fixes or code will gladly be
+included in the next release of RasMol. I'm particularly interested in the
+problems of sites with different hardware.
+
+
+Roger
+--

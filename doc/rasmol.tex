@@ -1,0 +1,2145 @@
+% RasMol V2.10 Manual
+% (c) Roger Sayle, May 1992
+% Biocomputing Research Unit
+% University of Edinburgh
+%
+
+\documentstyle[12pt,a4,lscape,makeidx]{article}
+\makeindex
+
+\newcommand{\up}[1]{\,$^{\underline{\hbox{\scriptsize\rm #1}}}$}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{2ex}
+
+\begin{document}
+
+\begin{center}
+\mbox{}\vspace{3in} \\
+{\huge\bf RasMol V2.2} \\
+\vspace{2ex}
+{\Large\bf A Molecular Visualisation Program} \\
+\vspace{3ex}
+\large
+Roger Sayle \\
+Biocomputing Research Unit \\
+University of Edinburgh \\
+\vspace{3ex}
+\normalsize
+last updated 14\up{th} October 1993
+\end{center}
+\newpage
+
+% A Touch of Humour!
+\index{Arguments!Circular|see{Circular Arguments}}
+\index{Circular Arguments|see{Arguments, Circular}}
+
+\small
+\mbox{}\vfill
+Copyright \copyright{} 1992,1993 Roger Sayle. \\
+All Rights Reserved.
+
+The information supplied in this document is believed to be true but
+no liability is assumed for its use or for the infringements of the
+rights of the others resulting from its use.
+
+Information in this document is subject to change without notice and does
+not represent a commitment on the part of the supplier. This package is
+sold/distributed subject to the condition that it shall not, by way of
+trade or otherwise, be lent, re-sold, hired out or otherwise circulated
+without the supplier's prior consent in any form of packaging or cover
+other than that in which it was produced. No part of this manual or
+accompanying software may be reproduced, stored in a retrieval system on
+optical or magnetic disk, tape or any other medium, or transmitted in any
+form or by any means, electronic, mechanical, photocopying, recording or
+otherwise for any purpose other than the purchaser's personal use.
+
+This product is not to be used in the planning, construction, maintenance,
+operation or use of any nuclear facility nor the flight, navigation or
+communication of aircraft or ground support equipment. The author shall
+not be liable, in whole or in part, for any claims or damages arising
+from such use, including death, bancruptcy or outbreak of war.
+
+\footnotesize
+The X Window System is a trademark of the Massachusetts Institute of 
+Technology \\ Alchemy is a trademark of Tripos Associates, Inc. \\
+PostScript is a registered trademark of Adobe Systems Incorporated. \\
+The Graphics Interchange Format\copyright{} is the Copyright property of
+CompuServe Incorporated. \\ 
+GIF is a Service Mark property of CompuServe Incorporated.
+\normalsize
+\newpage
+
+\tableofcontents\clearpage
+
+\section{Introduction}
+\index{Introduction}
+\label{Introduction}
+
+RasMol is an menu- and command-driven interactive utility for the 
+visualisation of molecular structures. The program will run on any BSD-like 
+UNIX system, optionally displaying frames to either an 8 bit or 24 bit 
+colour frame buffer available over the X Window System. Support is also 
+provided for a dials box (via the XInput extensions) if one is connected 
+to the system. 
+
+RasMol v2.1 accepts atomic co-ordinates in the standard Brookhaven Protein 
+Data Bank (PDB) format, optionally supplemented David Bacon's Raster3D 
+colour scheme specifications. The program interactively displays the
+molecule on the screen in a variety of representations, including wireframe,
+backbone, union-of-spheres, sticks and ball-and-stick. Different portions
+of the molecule may be rendered in any representation and colour independent
+of the rest of the model. The molecule may be rotated, translated, zoomed
+and z-clipped interactively, either from the keyboard, scroll bars or dials
+attached to the workstation. Finally, the rendered image may be written to
+a file in a variety of file formats.
+\index{RasMol}
+
+\section{General Operation}
+\index{General Operation}
+\label{General}
+
+\subsection{Running RasMol}
+\index{Running RasMol}
+\label{Running}
+To invoke the RasMol molecular visualisation tool, the user should type
+the command `{\tt rasmol}' from the unix prompt. Immediately upon starting,
+the program displays the following message to identify the version number
+of the running program:
+
+\begin{verbatim}
+        RasMol Molecular Renderer
+        Roger Sayle, June 1991
+        Version 2.1B
+\end{verbatim}
+
+Immediately underneath this banner message, appears the program's command
+line prompt `{\tt RasMol>~}'. If the program is being executed under the
+X Window System, the program determines the type of the display being used.
+If the screen has either an 8 bit or 24 bit colour frame buffer, RasMol
+creates another window, which is used to display menu options and the
+rendered images. If a suitable screen is not available, RasMol may only be
+used from the command line. Commands may be typed to manipulate the model,
+and to output the generated image to a raster file.
+\index{X Windows|see{X Window System}}
+\index{X Window System}
+\index{Raster files}
+
+If an optional argument is given on the unix command line, this is taken
+to be a Brookhaven Protein Data Bank (PDB) file which is automatically
+loaded by the program (see the {\tt load} command). If the file is found,
+the program displays the usual statistics after reading in the file,
+otherwise the error message `{\tt Error: File not found!}' is displayed,
+before the user is presented the RasMol prompt.
+\index{Brookhaven Protein Data Bank|see{PDB files}}
+\index{PDB files}
+
+
+In order to leave RasMol, the user can type the command {\tt quit} or 
+{\tt exit} at the RasMol prompt, and the program will return the user to
+the familiar unix prompt. Alternatively, if a prompt other than the main
+RasMol prompt is being displayed, the user may hit control-C (\verb"^C")
+to leave the program. The message `{\tt *** Quit ***}' will be output to
+the terminal, before the usual unix prompt is redisplayed. The program may
+also be terminated by selecting the {\bf Quit} menu option, on the bottom
+of the main menu.
+\index{Quit}
+\index{Exit}
+
+
+\subsection{Display Window}
+\index{Display Window}
+\label{Window}
+If the program is run under the X Window System environment with a suitable
+colour screen, RasMol creates an additional window to display the rendered
+molecule interactively, as it is manipulated. This window is subdivided into
+three main regions. The left hand side of the window, called the `canvas',
+is used to draw the images of the molecule. By default this area initially
+displays a black background.  Both below and to the right of the canvas are
+two scroll bars used to rotate the molecule interactively. Finally, to the
+far right of the window are the buttons that form the menu.
+\index{X Window System}
+\index{Canvas}
+\index{Scroll bars}
+\index{Menu}
+
+While the mouse pointer is located within the canvas area of the display
+window, the mouse pointer is drawn as a cross-hair cursor, to enable the
+`picking' of objects being displayed (see later); otherwise the mouse pointer
+is drawn as an arrowhead. Any characters that are typed at the keyboard
+while the display window is in `focus' are redirected to the command line
+in the terminal window.
+
+The display window may be resized at any point during the session. This has
+the effect of simply rescaling the image displayed on the canvas. RasMol
+imposes limits on the size of the display window such that the window must
+be large enough to display the menu and scroll bars and yet small enough to 
+fit on a single screen. Attempts to enlarge the screen may fail owing to
+insufficient memory on the host machine, in which case RasMol reports the
+error message `{\tt Renderer Error: Unable to allocate frame buffer!}' or
+some similar error.
+\index{Display Window!size of}
+
+On eight bit displays, when the number of colours required by the program
+exceeds the number of free colours on the screen, the program uses its
+own colourmap. This has the effect of temporarily displaying all windows
+other than the display window in false colours while the mouse pointer is
+within the display windows. If the mouse pointer is moved outside the
+display windows, the original colours of the other windows return, and the
+image on the canvas is shown in `false colour'. Once the number of colours
+required by the program drops again, the presentation of colours returns
+to normal.
+
+\subsection{Scroll Bars}
+\index{Scroll bars}
+\label{Scroll}
+The scroll bar across the bottom of the canvas area is used to rotate the
+molecule about the y-axis, i.e. to spin the nearest point on the molecule
+left or right; and the scroll bar to the right of the canvas rotates the
+molecule about the x-axis, i.e. the nearest point up or down. Each scroll
+bar has a `indicator' to denote the relative orientation of the molecule,
+which is initially positioned in the centre of the scroll bar. These scroll
+bars may be operated in either of two ways. The first is by clicking any mouse
+button on the dotted scroll bar background to indicate a direct rotation
+relative to the current indictor position; the second is by clicking one of
+the arrows at either end of the scroll bar to rotate the molecule in fixed
+sized increments. Rotating the molecule by the second method may cause the
+indicators on the scroll bars to wrap around from one end of the bar to the
+other. A complete revolution is indicated by the indicator travelling the 
+length of the scroll bar. The angle rotated by using the arrows depends
+upon the current size of the display window. No facility is provided for
+depressing the mouse button and `dragging' the indicator along the scroll 
+bar.
+\index{Rotating the molecule}
+
+\subsection{Menu Buttons}
+\index{Menu buttons}
+\label{Menu}
+The menu consists of a vertical column of large buttons that are selected
+by depressing and releasing any of the mouse buttons while the mouse
+pointer is over a menu button. Each menu option either directly changes
+the system options, or displays a submenu from which the user can select a
+further option. The number of menu buttons displayed on the screen varies 
+from menu to menu. Most menus have the option {\bf Cancel} to allow the 
+user to return to the menu without affecting any of the current options. 
+When selection of a menu option causes the program to prompt the user for 
+additional information in the terminal window, the current command line 
+being edited is erased (see later). When RasMol first starts executing,
+the menu area of the display window presents the main menu. The bottom
+option from this menu, {\bf Quit}, allows the user to terminate the 
+program directly, and return to the UNIX prompt.
+\index{Menu}
+\index{Submenu}
+\index{Cancel}
+\index{Main Menu}
+\index{Quit}
+
+\subsection{Picking}
+\index{Picking}
+\label{Picking}
+In order to identify a particular atom or bond being displayed, RasMol
+allows the users to `pick' objects on the screen. The mouse is used to
+position the cross-hair cursor over the appropriate item, and then any of
+of the mouse button is depressed. Provided that the pointer is located 
+close enough to a visible object, the program determines the identity of 
+the nearest atom to the point identified.
+\index{Atom!indentification of}
+
+The program will display, in the terminal window, the atom's type, serial
+number, residue name and residue number. If the atom is a member of a
+named chain, the chain identifier is also displayed. Two examples of the
+output generated by selecting an atom are displayed below:
+\index{Residue type}
+\index{Residue number}
+\index{Chain identifier}
+
+\begin{verbatim}
+        Atom: CA 349  Group: SER 70
+        Atom: O  526  Hetero: HOH 205  Chain: P
+\end{verbatim}
+
+The first line describes the alpha carbon of the serine-70 amino acid in
+a protein. The unique Brookhaven serial number for this atom is 349. The
+following line describes the oxygen atom in a water molecule attached to the
+P chain of the main molecule. The word `Hetero' distinguishes heterogenous
+molecules (such as cofactors) from the residues in the main molecule, noted
+by `Group'. [These two atoms are referred to by the two atom expressions 
+``{\tt SER70.CA}'' and ``{\tt HOH205P.O}'', respectively, when using the 
+RasMol commands {\tt select} and {\tt restrict}.]
+\index{Atom expression}
+
+\subsection{Dials Box}
+\index{Dials box}
+\label{Dials}
+If RasMol detects a `dials box' attached to the user's workstation, it
+also allows the molecule to be manipulated interactively by the dials.
+Once RasMol starts up, it labels the LED displays above each dial,
+``ROTATE~X'', ``ROTATE~Y'', ``ROTATE~Z'' and ``ZOOM'' across the top
+row from left to right, and ``TRANS~X'', ``TRANS~Y'', ``TRANS~Z'' and
+``SLAB'' from left to right across the bottom row. Rotating any of the
+knobs will automatically transform and redisplay the molecule 
+interactively. The dials only have effect while the mouse pointer is
+within the display window. If more than one application is using the
+dials box at a time, care must be taken to remember the dial labels
+assigned by each program, as each application may overwrite the 
+dial-label LEDs.
+\index{Rotating the molecule}
+\index{Rotate!dial}
+\index{Trans!dial}
+\index{Zoom!dial}
+\index{Slab!dial}
+
+The rotation about the X and Y axes automatically updates the indicators 
+on the appropriate scroll bars. All the rotation dials rotate the molecule 
+$180^{\mbox{o}}$ for a complete revolution of the dial. All the remaining 
+dials clamp their values to permissible ranges; turning these dials past 
+their limits has no effect. 
+\index{Scroll bars}
+
+The ``ZOOM'' dial allows the interactive zooming of the molecule between 
+10\% and 200\% of the original default magnification. Rotating the dial 
+clockwise magnifies the molecule and anticlockwise shrinks it. A complete 
+revolution of the dial corresponds to a 100\% change in scale.
+\index{Zoom!dial}
+
+The ``SLAB'' dial, which is only effective when slabbing is enabled, allows
+the user to move the front z-clipping plane from the nearest point on the
+molecule to the furthest. A complete rotation of the SLAB dial corresponds
+to moving the clipping plane half the distance between the front and back of
+the molecule. Turning the SLAB knob clockwise moves the clipping plane
+closer to the viewer (increasing the number of objects displayed), and turning
+it anticlockwise moves it further away (preventing more objects from being
+displayed). Slabbing mode is enabled by selecting the {\bf Slab} menu button 
+on the {\bf Options} menu, or by using the {\tt slab} command on the command 
+line. 
+\index{Options submenu}
+\index{Slab!dial}
+\index{Slab}
+
+The translation along the X and Y axis allows the centre of the molecule 
+to be moved within the canvas area of the screen. Rotation and zooming are 
+still performed relative to the centre of the molecule, which may often not 
+be at the centre of the canvas. The TRANS Z dial currently has no effect.
+\index{Trans!dial}
+
+\subsection{Command Line Interface}
+\index{Command Line Interface}
+\label{Command}
+RasMol allows the execution of interactive commands typed at the RasMol
+prompt in the terminal window. Characters typed into either the terminal 
+or the display window are processed on the command line. Each command must
+be given on a separate line terminated by a newline or carriage return
+character. Keywords are case insensitive and may be entered in both lower
+and upper case letters. All whitespace (space, tab and formfeed) characters
+are ignored, except to separate the keyword and the arguments of a command. 
+Blank lines (those containing only whitespace) are ignored. There is an
+internal restriction that command lines are limited to a maximum of 256
+characters. Strings may be delimited by matching single or double quotation 
+marks. Placing a hash `{\tt \#}' character anywhere outside quotes 
+terminates the line. RasMol will ignore the rest of the line, which may 
+be used to comment on the command.
+\index{Commands}
+\index{Strings}
+\index{Quotation marks}
+\index{Hash Character}
+\index{Comments}
+
+If a syntax error is detected on entering an interactive command, RasMol
+indicates the location of the error on the command line by placing the
+`\verb"^"' character under the offending word or character, and writing an
+error message on the following line. If a command is not recognised by
+RasMol, the program will generate an `{\tt Unrecognised command!}' error
+and redisplay the main prompt. If surplus information is given at the end
+of a command line, RasMol will execute the recognised command, but issue
+the warning message `{\tt Warning: Ignoring rest of command!}'. Some 
+commands may prompt the user for more information. These commands display
+a different prompt and are discussed in the command reference. 
+\index{syntax error}
+
+Whenever RasMol outputs diagnostic or error messages to the screen owing
+to selecting options from the menu or picking objects on the screen, the 
+current command line is cleared. And the prompt redisplayed after any text 
+has been displayed.
+
+\subsection{Command Line Editing}
+\index{Command Line Editing}
+\label{Editing}
+RasMol allows basic editing of the command line. Pressing either backspace,
+delete or \verb"^H" will delete the previous character, and the key \verb"^D"
+may be used to delete the character under the cursor. Several characters
+may be used to move the cursor along the command line. The characters
+\verb"^B", \verb"^F", \verb"^A" and \verb"^E" move the cursor back a single
+character, forward a single character, to the beginning of the line and to
+the end of the line, respectively. When the cursor is not at the end of the
+command line, typed characters are inserted into the line and do not 
+overwrite existing characters. After a command line has been edited, a 
+newline or carriage return will enter the entire line, regardless of where
+the cursor is positioned. Because RasMol is unable to move the cursor up to 
+the previous line, care must be taken when editing commands that wrap over
+several lines. In the event that another process overwrites or corrupts the 
+command line, the character \verb"^L" may be used to redisplay the line on 
+the screen.
+\index{Editing of commands}
+
+RasMol maintains a history of recently used commands, so the that the user
+never needs to type the same commands repeatedly. Typing \verb"^P" on the 
+command line will display the previous command in the history and \verb"^N" 
+will display the following command. These commands may be edited
+using the features described above. Moving forward or backward through
+the command history undoes the modifications made to the current line. The
+number of commands retained in the history depends upon their length.
+RasMol can retain more short command lines and fewer long ones.
+\index{Command history}
+\index{History}
+
+For users of ``vt100'' and compatible terminals (such as an ``xterm''), RasMol
+also understands the cursor control characters on the keyboard. The right 
+and left cursor keys have the same affect as \verb"^F" and \verb"^B", moving
+the cursor forward and back a single character respectively. Similarly, the
+up and down cursor keys have the same function as \verb"^P" and \verb"^N",
+producing the previous and next entries in the command history respectively.
+\index{Cursor Control Characters}
+
+
+\subsection{Start-up File}
+\index{Initialisation File}
+\index{Start-up File}
+
+When RasMol is first run, it searches for an initialisation file of commands
+to run before the command prompt is presented to the user. The file is 
+called {\bf {.}rasmolrc} on UNIX systems, and {\bf RASMOL.INI} on MS-DOS
+and Microsoft Windows Systems. The format and execution of the this file
+is identical to that of the {\tt script} command described in 
+section~\ref{CScript} of this manual. 
+
+RasMol first looks for the initialisation file in the current directory,
+and if it is not found will look for it in the user's home directory. On
+MSDOS systems the environment variable `{\tt HOME}' may be used name the
+appropriate directory. Unlike the command `{\tt script ".rasmolrc"}', the
+program will not generate an error message if the file is not found.
+
+
+\section{Menu Options}
+\index{Menu options}
+\label{Options}
+
+\subsection{Main Menu}
+\index{Main Menu}
+\label{Main}
+When RasMol is started up at the beginning of a session, the menu area
+on the right hand side of the display window presents the main menu. This
+is the root menu for the RasMol menu system, and this menu is redisplayed
+after each operation selected from a menu is performed.
+\index{Menu}
+
+The main menu of RasMol Version 2.1 contains six options. 
+
+\subsubsection{Load}
+\index{Load submenu}
+\label{MLoad}
+This option allows the user to specify the Brookhaven Protein Data Bank 
+(PDB) file to be read in. The function of this button is identical to the 
+interactive command `{\tt load}' typed from the RasMol command line. The 
+PDB file contains the Cartesian co-ordinates of each atom in the molecule 
+to be displayed. A complete description of the PDB file format and records 
+understood by the program (including the Raster3D colour scheme records) 
+are given in section~\ref{Scheme} of this document. If a molecule has 
+already been loaded from a PDB file, clicking the {\bf Load} option has no 
+effect.
+\index{PDB files}
+\index{Load}
+
+On pressing {\bf Load} the user is prompted by the message `{\tt PDB file 
+name:}' in the terminal window. The filename must be a valid UNIX filename
+without wildcard characters, and must be entered without string delimiters. 
+Entering an empty filename will abort the operation and return the user to 
+the main menu and RasMol command line prompt. If the file exists it is 
+loaded by the program, otherwise RasMol outputs the error message `{\tt 
+Error: File not found!}', before returning the user to the main menu and 
+the RasMol command line prompt.
+
+Once the PDB file is loaded, the RasMol program determines the connectivity
+of the molecule by proximity of atoms: Two atoms within an appropriate
+interval of one another are considered to be bonded. Once these calculations
+have been performed, the program outputs statistics on the molecule together
+with any appropriate information found in the PDB file. Once all the 
+required preprocessing has been performed, RasMol `selects' all the atoms in
+the molecule and displays a monochrome depth-cued wireframe representation
+on the display window canvas. The exact details of the molecule preprocessing
+steps are discussed under the `{\tt load}' command, section~\ref{CLoad} in 
+the command reference section of this document.
+\index{Connectivity!of atoms}
+\index{Atom!connectivity}
+\index{Connectivity}
+
+
+\subsubsection{Display}
+\index{Display submenu}
+\label{MDisplay}
+Selecting the {\bf Display} menu button from the RasMol main menu presents
+the user with the RasMol display options submenu. This submenu allows the
+current representation of the molecule to be changed. The operation of the
+options on this submenu is described in detail in section~\ref{ODisplay},
+``Display Menu''. These options allow the molecule to be represented as 
+wireframe, alpha carbon backbone, stick bonds, space filling union-of-spheres 
+or ball-and-stick models.
+
+\subsubsection{Colours}
+\index{Colours submenu}
+\label{MColours}
+Clicking the {\bf Colours} option on the RasMol main menu displays the
+colour submenu in the display window. These submenu options allow the user
+to modify the colour scheme of the atoms and bonds in the currently 
+displayed molecule. The function of the buttons on the colour submenu are
+described in detail in section~\ref{OColours}, ``Colours Menu''. The options 
+allow the molecule to be shown in monochrome or coloured according to atom 
+type, amino acid type, residue number, polypeptide chain, temperature factor 
+or a user-defined colouring scheme supplied in the molecule's PDB file.
+
+\subsubsection{Options}
+\index{Options submenu}
+\label{MOptions}
+The {\bf Options} menu is used to access the RasMol miscellaneous options
+submenu. This submenu allows the user to modify the state of the regularly
+used RasMol variables. Details of each of the options available via the
+RasMol options menu are described in depth in section~\ref{OOptions}, 
+``Options Menu''. These options are used to turn slabbing mode, shadowing
+and specular highlights on and off. In addition, the inclusion/exclusion of
+hydrogren atoms and heterogenous groups from the display may be altered by
+buttons on this submenu.
+\index{Miscellaneous options submenu}
+
+\subsubsection{Save}
+\index{Save submenu}
+\label{MSave}
+The {\bf Save} menu option on the RasMol main menu is for writing the
+currently displayed image to an output raster file. The functionality of
+this menu option is also available through the commands `{\tt write~gif}',
+`{\tt write epsf}', `{\tt write~ppm}' and `{\tt write~sunrle}'. Selecting 
+the {\bf Save} button displays a submenu of raster file formats in which
+the current image may be stored. This menu has the five options {\bf GIF},
+{\bf EPSF}, {\bf PPM}, {\bf Rast} and {\bf Cancel}. The last option allows
+the user to abort writing the current image to a file, and return to the 
+main menu. The first four options specify the file format to be used in 
+writing the current frame, which correspond to compuserve GIF format, 
+Encapsulated PostScript, raw portable pixmap format and run length encoded 
+SUN rasterfile format. 
+\index{Write}
+\index{GIF files}
+\index{SUN rasterfiles}
+\index{Encapsulated PostScript files}
+\index{Portable Pixmap files}
+\index{PPM files}
+\index{Output raster file}
+\index{Raster files}
+
+Selecting any one of these three format options causes RasMol to prompt 
+the user `{\tt Output file name:}'. The filename must be a valid UNIX 
+filename without wildcard characters and must be entered without string
+delimiters. Entering a empty filename causes the program to abort the save
+operation and redisplay the main menu and RasMol command prompt. 
+Conventionally, GIF images have the filename extension `.gif', PostScript
+files have the extension `.ps', raw PPM files have the extension `.ppm' 
+and RLE SUN rasterfile images the extension `.ras'. If the program is unable 
+to create the given filename for writing, RasMol aborts the command with 
+the error message `{\tt Output Error: Unable to create file `$\cdots$'!}'. 
+Once the file has been written (which may take a short time) the main menu 
+and command line prompt are automatically redisplayed.
+\nocite{Adobe85a,Adobe85b}
+\index{PostScript files}
+
+
+If the 8-bit version of RasMol version 2.1 is running, all four file formats
+may be output; however, the 24-bit versions of RasMol 2.1 may only output 
+EPSF, PPM and SUN rasterfile formats. If the user attempts to write out a 
+24-bit GIF image, the program warns the user with the message `{\tt Output 
+Error: 24 bit GIF files unsupported!}'. Although the portable pixmap format 
+represents raster images with three bytes per pixel, the eight bit version 
+of RasMol produces a maximum of 250 unique RGB triples.
+\index{24-bit version}
+\index{8-bit version}
+
+
+\subsubsection{Quit}
+\index{Quit}
+\label{MQuit}
+The bottom button on the RasMol main menu is {\bf Quit}. The function of
+this button is identical to that of the commands `{\tt quit}' and `{\tt exit}'
+from the command line. {\bf Quit} terminates the RasMol program and 
+returns the user to the UNIX prompt. When exiting, RasMol closes the 
+display window and the image currently being displayed is lost. If a dials
+box is attached to the workstation, all the LED labels above each knob
+are turned off.
+
+
+
+\subsection{Display Menu}
+\index{Display submenu}
+\label{ODisplay}
+The display submenu allows the current representation of the molecule to 
+be changed. This submenu is displayed by selecting the option {\bf Display}
+on the RasMol main menu. The display submenu contains seven menu options.
+The first six change the representation of the current active zone (see
+section~\ref{CSelect} on the {\tt select} command) and the final option,
+{\bf Cancel}, is used to return the user to the main menu without modifying
+the current display.
+
+\subsubsection{Wireframe}
+\index{Wireframe}
+\label{OWireframe}
+This menu option displays the current active zone of the molecule as a
+depth-cued wireframe model. Each bond is represented as a narrow line 
+between bonded atoms. Bonds nearer the viewer are brighter than those
+towards the back of the molecule, providing an impression of depth. The
+colour of a bond, or {\tt none}, may be set with the {\tt colour bond}
+command (section~\ref{CColour}). If the bond has no colour of its own, it 
+is represented as two half bond segments, each of which is given the colour 
+of the nearest bonded atom. This menu option is equivalent to the RasMol 
+commands {\tt spacefill off}, {\tt backbone off} and {\tt wireframe on}.
+\index{Depth-cueing}
+
+\subsubsection{Backbone}
+\index{Backbone}
+\label{OBackbone}
+The {\bf Backbone} menu option displays the current active zone of the
+molecule as a set of cylinders connecting the alpha carbons along the
+polypeptide backbone of the protein. Each `bond' is drawn as a 0.48\AA\
+diameter cylinder. The colour of the backbone may be set using the RasMol
+{\tt colour backbone} command (section~\ref{CColour}). If the colour of
+the backbone segment is set to {\tt none}, the two halves of the cylinder
+are drawn the colours of the alpha carbon atoms that they join. This 
+representation is especially useful for revealing the secondary structure and
+folding of a protein. This menu option is equivalent to the RasMol command 
+sequence {\tt spacefill off}, {\tt wireframe off} and {\tt backbone 80}.
+
+
+\subsubsection{Sticks}
+\index{Sticks}
+\label{OSticks}
+The {\bf Sticks} menu option displays the current active zone of the 
+molecule as a set of sticks model. Each bond is represented as a cylinder
+of 0.48\AA\ diameter. The colour of a bond, or {\tt none}, may be altered 
+with the {\tt colour bond} command (section~\ref{CColour}). If the bond 
+has no colour of its own, it is represented as two half bond cylinders, 
+each of which is given the colour of the nearest bonded atom. This menu 
+option is equivalent to the two RasMol commands {\tt spacefill off} and 
+{\tt backbone off}, followed by the command {\tt wireframe 80}.
+
+\subsubsection{Spacefill}
+\index{Spacefill}
+\label{OSpacefill}
+This command represents the current active zone of the molecule as a 
+union-of-spheres surface. Each atom is represented as a sphere of the
+appropriate van der Waals radius centred at the atom's position. The
+colours of the atoms may be changed by either the {\bf Colours} submenu
+(section~\ref{OColours}) or the RasMol {\tt colour atom} command 
+(section~\ref{CColour}). This menu option is equivalent to the RasMol 
+commands {\tt spacefill} and {\tt wireframe off}, {\tt backbone off}.
+\index{Van der Waals radius}
+\index{Union-of-spheres}
+
+\subsubsection{Ball \& Stick}
+\index{Ball and Stick@Ball \& Stick}
+\label{OBallStick}
+The RasMol {\bf Ball \& Stick} menu option draws the current active zone of 
+the molecule as a ball-and-stick model.  Each atom is represented as a 
+sphere of 0.48\AA\ radius, and each bond is represented as a narrow cylinder 
+of 0.16\AA\ radius. This representation is combination of both a spacefilling 
+and stick bond models. The colours of the atoms and bonds may be altered with
+the {\tt colour atom} and {\tt colour bond} commands respectively. This menu 
+option is equivalent to the four RasMol commands {\tt spacefill 120}, 
+{\tt wireframe 40}, {\tt backbone off} and {\tt ribbons off}.
+
+\subsubsection{Ribbons}
+\index{Ribbons}
+\label{ORibbons}
+The RasMol {\bf Ribbons} menu option draws the current active zone of the
+molecule as a ribbon model. This menu option is equivalent to the four
+RasMol commands {ribbons 380}, {\tt spacefill off}, {\tt wireframe off}
+and {backbone off}.
+
+
+\subsection{Colours Menu}
+\index{Colours submenu}
+\label{OColours}
+The colours submenu options allow the user to modify the colour scheme of 
+the atoms and bonds in the currently displayed molecule. This submenu is
+displayed by selecting the option {\bf Colours} on the RasMol main menu.
+The colours submenu contains eight menu options. The first seven select a
+colour scheme for the currently active zone (see section~\ref{CSelect} on
+the {\tt select} command) and the final option, {\bf Cancel}, is used to 
+return the user to the main menu without modifying the current colouring.
+
+\subsubsection{Mono}
+\index{Mono}
+\label{OMono}
+The top menu button on the RasMol colours menu, {\bf Mono}, is used to
+colour the current active zone of the molecule monochrome white. This is
+the default colour scheme on loading a PDB file using the {\tt load}
+command. This menu option is equivalent to the command `{\tt colour white}'.
+
+\subsubsection{CPK}
+\index{CPK colours}
+\label{OCPK}
+The {\bf CPK} option on the colours submenu is used to shade the current
+active zone of the molecule by atom type, using the Corey, Pauling and 
+Kultun (CPK) colouring scheme. These are the colours commonly used by
+chemists to denote atom type. In this scheme, carbon appears light grey,
+hydrogen appears white, oxygen appears red, sulphur appears yellow, 
+nitrogen appears light blue and phosphorous appears pink. Any unrecognised 
+element is displayed in magenta. This menu option is equivalent to the 
+command `{\tt colour cpk}'.
+\index{Corey, Pauling and Kultun colours|see{CPK colours}}
+\index{Colour!by atom type|see{CPK colours}}
+
+
+\subsubsection{Shapely}
+\index{Shapely colours}
+\label{OShapely}
+The {\bf Shapely} menu button on the colours submenu, changes the colour of
+each atom in the current active zone to a shade determined by the atom's
+residue type. For nucleic acids, each base is given a unique colour;
+for proteins, each amino acid sidechain is given a unique colour, and the
+the atoms of the polypeptide backbone are drawn in light grey. This is the 
+colour scheme used by ``Shapely models''. This menu option is equivalent 
+to the command `{\tt colour shapely}'.
+\index{Colour!by residue|see{Shapely colours}}
+
+\subsubsection{Group}
+\index{Group colouring}
+\label{OGroup}
+The menu button {\bf Group} on the RasMol colours submenu colours each
+atom of the current active zone in a colour based on its position along
+the macromolecule chain it belongs to. The actual colours use a `ramped'
+colour map, beginning with dark blue at the start of each chain then slowly
+changing through cyan, green and yellow to red at the opposite end of
+the chain. 
+\index{Colour!by position along chain}
+
+The matching of atom to colour is dependent upon the current status of the 
+RasMol {\tt hetero} variable (see the {\tt set hetero} command). When the
+{\tt hetero} variable is reset, and heterogenous groups are 
+excluded from the default active zone, the colours are based directly on
+their position along the chain. Hence the N-terminal residue of proteins 
+and the $5'$-terminus of nucleic acids are coloured blue, and the C-terminal
+of proteins and $3'$-terminus of nucleic acids are coloured red. If the 
+{\tt hetero} variable is set, and HETATM atoms are included in the default 
+active zone, each heterogenous molecule associated with a chain is coloured
+as if it were appended to the end of the chain. Hence the last heterogenous 
+molecule in the PDB file for each chain is drawn in red, and all atoms are
+coloured based on residue number.
+\index{Hetero variable}
+\index{HETATM|see{Heterogenous atoms}}
+
+Currently the functionality of this menu option is not replicated in the
+RasMol command line interface.
+
+\subsubsection{Chain}
+\index{Chain colouring}
+\label{OChain}
+The {\bf Chain} menu option on the colours submenu colours each atom in
+the current active zone using a colour based on the macromolecular chain 
+to which it belongs, or with which it is assocaited. The chains are 
+coloured arbitrarily by choosing the appropriate number of colours from 
+a blue-to-red colour map as described in section~\ref{OGroup} above.
+\index{Colour!by macromolecule chain}
+
+Currently the functionality of this menu option is not replicated in the
+RasMol command line interface.
+
+\subsubsection{Temperature}
+\index{Temperature colouring}
+\label{OTemp}
+The colours menu option {\bf Temperature} is used to colour the currently
+active atoms of a molecule in a colour based on their anisotropic temperature
+factors, as defined in the PDB file from which it was read. The actual 
+colours use a `ramped' colour map, beginning with the `coldest' atoms drawn 
+in dark blue, then slowly changing through the colours cyan, green and yellow 
+to red, as the atoms get warmer, with red representing the `hottest' atoms 
+in the file.
+\index{Colour!by temperature factor}
+\index{Anisotropic temperature factors}
+\index{Temperature factors}
+
+The matching of atom to colour depends upon the current value of the
+RasMol {\tt hetero} variable (see section~\ref{OHetero} and 
+section~\ref{CSet} on the {\tt set hetero} command). If the heterogenous 
+atoms are currently excluded from the default active zone, i.e. the {\tt 
+hetero} variable has the value {\tt false}, the temperature of the red 
+and blue atoms are determined by the maximum and minimum temperature 
+factors of the atoms in the main molecule. Otherwise, if heterogenous 
+groups are included in the default active zone because the {\tt hetero} 
+variable has the value {\tt true}, then the colours are taken from the 
+temperature range of all the atoms in the PDB file.
+\index{Hetero variable}
+
+Currently the functionality of this menu option is not replicated in the
+RasMol command line interface.
+
+\subsubsection{User}
+\index{User colouring}
+\label{OUser}
+The last colouring option on the RasMol colours submenu, {\bf User}, allows
+the current active zone of the molecule to be coloured according to a 
+user-defined colour scheme. This colour scheme is provided by including
+additional `COLO' records in the PDB file containing the molecule. These
+colour records, which are not supported by Brookhaven National Laboratories,
+are based upon those used by David Bacon's Raster3D program~\cite{Bacon88b}
+and specify the colours of individual atoms by using a pattern matching 
+algorithm. The exact format of these supplemental records is described in 
+detail in section~\ref{Scheme} of this document.
+\index{Colour!by user schema}
+\index{Raster3D}
+
+This menu option is equivalent to the command `{\tt colour user}'.
+
+
+\subsection{Options Menu}
+\index{Options submenu}
+\label{OOptions}
+
+The options submenu allows user to alter commonly used display options and
+parameters used in rendering molecules. This menu option is presented by
+clicking the {\bf Options} menu button on the RasMol main menu. The options
+submenu displays six menu options. The first five are used to toggle the
+values of parameters and the final option, {\bf Cancel}, may be used to
+exit the options submenu without modifying the current state of the program.
+
+\subsubsection{Slab}
+\index{Slab!option}
+\label{OSlab}
+The {\bf Slab} menu option on the RasMol options submenu is used to toggle
+the front z-clipping function, slabbing. When slabbing is enabled, RasMol
+only renders those objects (atoms and bonds) that are greater than a given
+distance from the viewer. This allows the user to `cut away' the front part
+of the molecule to reveal internal or occluded detail. All wireframe bonds
+that intersect the clipping plane are subdivided, such that only the portion
+behind the z-clipping plane is drawn. The representation of spheres that
+intersect the clipping plane is governed by the {\tt slabmode} variable
+(see section~\ref{CSet} on the {\tt set~slabmode} command). By default, 
+{\tt slabmode} has the value {\tt solid} which depicts clipped atoms as 
+solid filled spheres.
+\index{Slabmode variable}
+\index{Z-clipping}
+
+When RasMol is first started, the position of the z-clipping mode is 50\% 
+of the way through the molecule (drawing only the furthest half of the
+structure), with slabbing switched off. The current position of the z-clipping
+plane may be altered by executing a {\tt slab} command, or by using the
+``SLAB'' dial on the dials box (if attached). The position of the slabbing
+plane is moved by turning the ``SLAB'' dial even when slabbing is disabled.
+
+This menu button works as a toggle button, alternatively turning on and off
+slabbing depending on the current setting. The user should avoid setting the
+position of the slab plane to the value 100, as the operation of the {\bf 
+Slab} will appear ineffective, since the whole molecule remains displayed.
+Similarly, because there is a performance degradation associated with 
+rendering z-clipped images, it is recommended that slabbing is switched off, 
+rather than moving the slabbing plane in front of the molecule. Shadowing may
+not be performed while slabbing is enabled, so shadowing is automatically 
+disabled when slabbing is switched on. This menu option performs the same 
+task as the two RasMol commands {\tt slab~on} and {\tt slab~off}.
+
+\subsubsection{Hydrogen}
+\index{Hydrogen option}
+\label{OHydrogen}
+The {\bf Hydrogen} option on the options menu allows the user to enable
+and disable the display of hydrogen atoms from the menu interface. Normally
+hydrogen atoms are not resolved by X-ray crystallography and only appear
+in data files generated by energy minimization programs. In order to enable
+the underlying structure of the molecule to be visualised, it is often
+necessary to disable the large number of hydrogen atoms that obscure the 
+molecule. This is done by changing the current value of the {\tt hydrogen}
+variable and selecting or restricting the current active zone as required.
+By default, the {\tt hydrogen} variable has the value {\tt true} and all
+hydrogen atoms and bonds are displayed along with the rest of the model.
+The default active zone, as defined by the {\tt select} and {\tt restrict}
+commands without parameters, relies on the current setting of {\tt hydrogen}.
+\index{Hydrogen variable}
+\index{Atom!hydrogen}
+
+If {\bf Hydrogen} is clicked when RasMol is currently permitting the
+display of hydrogen atoms, then the {\tt hydrogen} variable is assigned the
+value {\tt false}, the {\tt restrict} command is used to force only
+the default active zone to be rendered and the message `{\tt Hydrogens
+removed!}' is output to the terminal window. The {\tt restrict} command
+causes all objects (atoms and bonds) not in the default active zone to be
+removed from the display. In normal operation, this means that all the
+hydrogen atoms/bonds disappear from the screen. If the {\tt hetero} flag
+is currently {\tt false}, any displayed heterogenous groups will also 
+disappear from the display. This has the same effect as the command 
+sequence {\tt set~hydrogen~off} followed by the command {\tt restrict}.
+
+If the RasMol {\tt hydrogen} variable is {\tt false} when the {\bf Hydrogen}
+menu option is clicked, then the {\tt hydrogen} flag is set to {\tt true}, 
+the {\tt select} command is used to set the current active zone to the new
+default active zone and the message `{\tt Hydrogens selected!}' is written
+to the terminal window. The actual image drawn in the display window canvas
+does not change, but all subsequent representation and colouring commands
+will affect the molecule's hydrogen atoms. If the {\tt hetero} variable is 
+currently true, all heterogenous atoms will also be `selected'. This has 
+the same effect as the command sequence {\tt set~hydrogen~true} followed by 
+the command {\tt select}.
+
+\subsubsection{Het Atoms}
+\index{Het Atoms option}
+\label{OHetero}
+The option menu {\bf Het Atoms} button allows the user to enable and disable
+the display of heterogenous groups from the menu interface. Typically 
+water atoms and cofactors are also resolved by X-ray crystallography, along
+with the atoms of the protein or nucleic acid. Sometimes these heterogenous
+groups are important in the functioning of the macromolecule, but more 
+generally they are solvent moieties that co-crystallize with the main
+molecule. The {\bf Het Atoms} option allows the user to define whether
+these atoms, contained as HETATM records in the PDB file, should currently be
+displayed. This is done by changing the current value of the {\tt hetero}
+variable and selecting or restricting the current active zone as required.
+By default, the {\tt hetero} variable has the value {\tt true}, and all
+heterogenous atoms and bonds are displayed along with the rest of the model.
+The default active zone, as defined by the {\tt select} and {\tt restrict}
+commands without parameters, relies on the current setting of {\tt hetero}.
+\index{Cofactors|see{Heterogenous atoms}}
+\index{Atom!heterogenous}
+\index{Heterogenous atoms}
+\index{Select}
+\index{Restrict}
+
+If {\bf Het Atoms} is clicked when RasMol is currently permitting the
+display of heterogenous atoms, then the {\tt hetero} variable is reset to the
+value {\tt false}, the {\tt restrict} command is used to limit the display
+of objects to the default active zone and the message `{\tt HETA atoms
+selected!}' is printed below the RasMol prompt. The {\tt restrict} command
+causes all objects (atoms and bonds) not in the default active zone to be
+removed from the display.  In normal operation, this means all the
+heterogenous atoms/bonds disappear from the screen. If the {\tt hydrogen} 
+variable is currently {\tt false}, any displayed hydrogen atoms will also 
+disappear from the display. This has the same effect as the command 
+sequence {\tt set~hetero~off} followed by the command {\tt restrict}.
+
+If the RasMol {\tt hetero} variable is {\tt false} when the {\bf Het Atoms}
+menu option is clicked, then the {\tt hetero} flag is assigned {\tt true},
+the {\tt select} command is used to set the current active zone to the new
+default active zone and the `{\tt HETA atoms selected!}' diagnostic is 
+displayed in the terminal window. The actual image drawn on the display 
+window canvas does not change, but all subsequent representation and 
+colouring commands will affect the molecule and the associated hetero
+groups. If the RasMol {\tt hydrogen} variable is set, all hydrogen atoms 
+will also be `selected'. This menu option is identical to the command 
+sequence {\tt set~hetero~true} followed by the command {\tt select}.
+
+\subsubsection{Specular}
+\index{Specular option}
+\label{OSpecular}
+This menu option performs the same task as the two RasMol commands {\tt
+set specular on} and {\tt set specular off}.
+\index{Highlights}
+
+\subsubsection{Shadow}
+\index{Shadow option}
+\label{OShadow}
+The {\bf Shadow} button on the RasMol options menu toggles the value of 
+the {\tt shadow} variable. When this parameter has the value {\tt true},
+the macromolecular structure is rendered with cast shadows from a single
+light source, otherwise the shadowing is not calculated. Although by
+comparison RasMol is extremely fast at rendering shadowed images, testing
+which parts of a molecule are occluded from the light source is
+computationally expensive. It is recommended that, on slower machines, 
+the correct orientation of the molecule is performed using the normal 
+lighting model and then, once the desired position is determined, shadowing 
+is enabled.
+
+Slabbing may not be performed while shadowing is enabled, and so slabbing
+is automatically disabled when shadowing is switched on.
+
+This menu option performs the same task as the two RasMol commands {\tt
+set shadow on} and {\tt set shadow off}.
+
+
+
+\section{Atom Expressions}
+\index{Atom expressions}
+\label{Expressions}
+\index{Expressions}
+
+\subsection{Primitive Expressions}
+\index{Primitive expressions}
+\label{Primitives}
+The main constituent of an atom expression is the primitive expression. A
+primitive expression uniquely identifies a related group of atoms within a
+molecule. A primitive expression consists of four major fields, only the
+first of which is compulsory. The first field specifies the residue type,
+the second specifies the residue number, the third identifies the chain (if
+applicable) and the final field identifies the atoms within the residue.
+A primitive expression may not contain any whitespace. Each of the fields
+is described in detail below.
+\index{Residue number}
+\index{Residue type}
+\index{Chain}
+
+
+Syntax: \quad \verb"<residue-type>{<residue-number>}{<chain>}{.<atom-type>}"
+
+The first field consists of one to three alphabetic or question mark
+(`{\tt ?}') characters that identify the type of residue to be selected.
+The characters are matched against the residue name of each atom in the
+molecule, with the question mark acting as a wildcard character that
+matches any letter. For proteins, this means that the three letter codes
+for amino acids must be used. This field is case insensitive with all 
+characters being converted to uppercase before the comparison is performed.
+A single asterisk (`{\tt *}') character may be used as a abbreviation for 
+the field ``{\tt ???}''. It is recommended that the asterisk is used 
+whenever possible, for efficiency reasons. Unfortunately, residue names
+containing digits, such as ``{\tt SO4}'', cannot be specified.
+\index{Wildcards}
+
+The second field contains a number that identifies the residue number
+within the molecule. This field may be any number of numeric characters, or
+a single asterisk to match all residues. Normally, the first field contains
+an asterisk if this field is given. A numeric value in this field uniquely
+identifies a single residue (base or amino acid) in the macromolecule, and 
+hence a residue type given in addition would be redundant.
+
+The third field is a single alphabetic character used to identify a chain
+of the molecule (if appropriate), or either an asterisk or a question mark
+to indicate that all chains should be used in the match. If a character is
+specified, this is converted to uppercase before any comparison. If the
+residue number field is an asterisk, a digit may be used in this field
+if the chains are denoted by numerals.
+
+The final field is a period or full-stop (`{\tt .}') character followed by
+one to four alphabetic or question mark characters that identify the atom
+types within a residue. All alphabetic characters are converted to capitals,
+and an asterisk character may be used in place of four question mark 
+characters. Because spaces are not permitted in atom types, care must be 
+taken in distinguishing ambiguities, such as {\tt *.CA} meaning all alpha 
+carbons or calcium atoms.
+
+
+All fields that are specified in a primitive expression have to match
+a given atom in order for that atom to be selected. The flexabilty permitted
+by this kind of pattern-based template, allows the user to specify areas 
+of interest in a molecule very quickly.
+
+Examples:
+\begin{quote}\begin{tabular}{ll}
+ {\tt *}        & All atoms                             \\
+ {\tt CYS}      & Atoms in cysteines                    \\
+ {\tt AS?}      & Atoms in asparagine and aspartic acid \\
+ {\tt *120}     & Atoms in residue 120                  \\
+ {\tt *P}       & Atoms in chain P                      \\
+ {\tt *.N? }    & Nitrogen atoms                        \\
+ {\tt CYS.S?}   & Sulphur atoms in cysteines            \\
+ {\tt SER70.C?} & Carbon atoms in serine-70 
+\end{tabular}\end{quote}
+
+
+\subsection{Predefined Sets}
+\index{Predefined Sets}
+\label{Sets}
+In addition to the primitive expression, RasMol atom expressions may also
+contain predefined sets. These sets are single keywords that represent
+portions of the molecule of interest. Using predefined sets is a way of
+abbreviating primitive expressions, and in some cases of selecting areas
+of a molecule that would otherwise be difficult to distinguish. Each of
+the currently implemented predefined sets is described below.
+\index{Sets}
+
+\begin{description}
+\item[acidic]
+The set of acidic amino acids. These are the residues Asp, Glu and Tyr.
+
+\item[alpha]
+This set contains all the $\alpha$-carbons in the protein molecule.
+
+\item[amino]
+This set contains all the atoms contained in amino acid residues. This
+is useful for distinguishing the protein and DNA subunits in the current
+molecule database.
+\index{Amino set}
+
+\item[backbone]
+This set contains the four atoms of each amino acid that form the 
+polypeptide N-C-C-O backbone for proteins, or the sugar-phosphate backbone
+of nucleic acids.
+\index{Backbone set}
+
+\item[basic]
+The set of basic amino acids. These are the residues Lys, Arg and His.
+\index{Basic amino acids}
+\index{Amino acids!basic}
+\index{Basic set}
+
+\item[cystine]
+Once the disulphide bridges of a protein have been determined (using the
+RasMol {\tt ssbond} command) this set contains all the atoms of cysteine
+groups that are disulphide bonded, i.e. half cystines. The set off free
+cysteines may be found using the expression `{\tt cys and not cystine}'.
+\index{Disulphide bridges}
+\index{Cysteine!free}
+\index{Cysteine!half}
+\index{Cystine set}
+\index{SSBond}
+
+\item[hetero]
+This set contains all the heterogenous atoms in the molecule. These are all
+the atoms specified by HETATM entries in the PDB file. These typically 
+contain cofactors and other ligands.
+\index{Atom!heterogenous}
+\index{Heterogenous atoms}
+\index{Hetero set}
+\index{PDB files}
+
+\item[hydrogen]
+This predefined set contains all the hydrogen and deuterium atoms in the 
+molecule. 
+\index{Hydrogen set}
+
+\item[hydrophobic]
+This set contains all the hydrophobic amino acids. These are the amino acids
+Ala, Leu, Val, Ile, Pro, Phe, Met and Trp.
+\index{Hydrophobic amino acids}
+\index{Amino acids!hydrophobic}
+\index{Hydrophobic set}
+
+\item[neutral]
+The set of neutral amino acids. These are all the residues that are
+{\tt amino} but are neither {\tt acidic} nor {\tt basic}.
+\index{Neutral amino acids}
+\index{Amino acids!neutral}
+\index{Neutral set}
+
+\item[polar]
+The set of polar amino acids. These are all the residues that are in the
+set {\tt amino} but not {\tt hydrophobic}.
+\index{Polar amino acids}
+\index{Amino acids!polar}
+\index{Polar set}
+
+\item[purine]
+The set of purine ribonucleotides. These are the bases adenosine and
+guanosine (A and G respectively).
+\index{Purine set}
+
+\item[pyrimidine]
+The set of pyrimidine ribonucleotides. These are the bases cytidine and
+thymidine (C and T respectively).
+\index{Pyrimidine set}
+
+\item[selected]
+This set contains the set of atoms that are members of the current active
+zone. These are defined by the previous {\tt select} or {\tt restrict}
+commands, and not by any part of the given expression.
+\index{Selected set}
+\index{Restrict}
+\index{Select}
+
+
+\item[sidechain]
+The functional side chain of the amino acid. This set contains the atoms
+not in the N-C-C-O polypeptide backbone of proteins or the sugar-phosphate
+backbone of nucleic acids. This predefined set is equivalent to the RasMol
+expression {\tt (not backbone)}.
+\index{Sidechain set}
+
+\end{description}
+
+\input{table.tex}
+
+\subsection{Comparison Operators}
+\index{Comparison operators}
+\label{Operators}
+Different portions of the molecule may also be described by the use of
+equality, inequality and ordering operators on some of their properties.
+The format for these comparison expressions is a property name followed
+by a comparison operator, and then by an numeric value.
+
+The atom properties that may be used in RasMol atom expressions are
+{\tt atomno} for the PDB atom serial number, {\tt resno} for the residue
+number, {\tt radius} for the displayed radius of an atom (or zero if the
+atom is not represented as a sphere) and {\tt temperature} for the 
+anisotropic temperature factor in the PDB file (the value given in the
+comparison is actually 100 times the value specified in the file, to
+ensure the value is an integer).
+\index{Atom!radius}
+\index{Temperature factor}
+\index{Radius property}
+\index{Residue number}
+\index{PDB files}
+
+
+The equality operator is denoted either `\verb"="' or `\verb"=="' and 
+the inequality operator as either `\verb"<>"', `\verb"!="' or `\verb"/="'. 
+The ordering operators are then `\verb"<"' for less than, `\verb">"' for 
+greater than, `\verb"<="' for less than or equal to, and `\verb">="' for 
+greater than or equal to.
+
+
+Examples:
+\begin{verbatim}
+        resno < 23
+        temperature >= 900
+        atomno == 487
+\end{verbatim}
+
+
+\subsection{Logical Connectives}
+\index{Logical connectives}
+\label{Logical}
+All three of the previous forms of query may be combined using the standard
+boolean connectives {\bf and}, {\bf or} and {\bf not}. Both {\bf and} and
+{\bf or} keywords are infix binary operators and the keyword {\bf not} is
+a unary prefix operator. The order of precedence of these operators gives
+logical negation the highest priority, then conjunction and finally 
+disjunction has the lowest priority. Brackets, (`{\tt (}' and `{\tt )}') 
+may also be used to change the order of evaluation. Both the conjunction 
+and disjunction are short circuit operators, hence the ordering of 
+expressions may affect the performance of queries.
+\index{Not operator}
+\index{And operator}
+\index{Or operator}
+
+The characters `{\tt \&}' and `{\tt |}' may be used to represent the
+keywords {\tt and} and {\tt or} respectively. For notational convenience
+the comma (`{\tt ,}') character may also be used for disjunction, thus
+allowing a comma separated list of queries to be treated as the union of
+the selected sets. The characters `\verb"~"' and `\verb"!"' may be used
+to represent the keyword {\tt not}.
+
+Examples:
+\begin{verbatim}
+        backbone and not alpha
+        not (hydrogen or hetero)
+        not *.FE and hetero
+        arg, his, lys
+\end{verbatim}
+
+
+\section{Command Reference}
+\label{Reference}
+
+\subsection{Backbone}
+\index{Backbone}
+\label{CBackbone}
+
+The RasMol {\tt backbone} command permits the representation of a polypeptide
+backbone as a series of bonds connecting the adjacent alpha carbons of each 
+amino acid in a chain. The display of these backbone `bonds' is turned on and 
+off by the command paramater the same as the wireframe command. The command 
+{\tt backbone off} turns off the selected `bonds', and {\tt backbone on} or 
+with a number turns them on. The number can be used to determine the cylinder 
+radius of the representation in 0.004\AA\ units. Backbone objects may be 
+coloured using the RasMol {\tt colour backbone} command.
+\index{Polypeptide backbone}
+
+Syntax:
+\begin{verbatim}
+        backbone {<boolean>}
+        backbone <value>
+\end{verbatim}
+
+The maximum permitted backbone radius is 2\AA. A parameter value of 500 or 
+above results in an `{\tt Error: Integer argument too large!}' error. 
+
+The reserved work backbone is also used as a predefined set (see section 
+\ref{Sets}) and as a parameter to the `set hbond' and `set ssbond' 
+commands.
+
+
+\subsection{Colour}
+\index{Colour}
+\label{CColour}
+
+Syntax:
+\begin{verbatim}
+        colour {<object>} <colour>
+        color {<object>} <colour>
+\end{verbatim}
+
+The current list of objects for the colour command includes {\tt atom} for
+each space filling sphere, {\tt bond} for each bond between two atoms,
+{\tt backbone} the backbone `bond' between alpha carbons, {\tt hbond} for
+hydrogen bonds and {\tt ssbond} for disulphide bridges. If no object 
+specification is given on the command line the default object is assumed 
+to be {\tt atom}.
+\index{Backbone}
+\index{SSBond}
+\index{HBond}
+\index{Atom}
+\index{Bond}
+
+The predefined colour values of the RasMol program are {\tt blue}, {\tt
+black}, {\tt cyan}, {\tt green}, {\tt greenblue}, {\tt magenta}, {\tt orange},
+{\tt purple}, {\tt red}, {\tt redorange}, {\tt violet}, {\tt white} and
+{\tt yellow}. In additional to these predefined colours the user may specify
+the exact colour as an RGB (Red-Green-Blue) triple. The syntax of an RGB
+triple is a comma separated list of three numbers in square brackets. Each
+of these values must lie in the range 0 to 255 inclusive and denotes the
+relative amount of red, green and blue in the final colour respectively. As
+an example, the following table gives the RGB equivalent to each of the
+predefined colours.
+\index{Colour!predefined}
+
+\begin{center}\begin{tabular}{|c|c|} \hline
+{\bf Keyword} & {\bf RGB triple} \\ \hline
+{\tt blue}      & \verb"[0,0,255]"     \\
+{\tt black}     & \verb"[0,0,0]"       \\
+{\tt cyan}      & \verb"[0,255,255]"   \\
+{\tt green}     & \verb"[0,255,0]"     \\
+{\tt greenblue} & \verb"[46,139,87]"   \\ 
+{\tt magenta}   & \verb"[255,0,255]"   \\
+{\tt orange}    & \verb"[255,165,0]"   \\
+{\tt purple}    & \verb"[160,32,240]"  \\
+{\tt red}       & \verb"[255,0,0]"     \\
+{\tt redorange} & \verb"[255,69,0]"    \\
+{\tt violet}    & \verb"[238,130,238]" \\
+{\tt white}     & \verb"[255,255,255]" \\
+{\tt yellow}    & \verb"[255,255,0]"   \\ \hline
+\end{tabular}\end{center}
+
+If a colour is not recognised as being one of the RasMol predefined colours
+the program consults the X Window System server colour database. If the
+appropriate colour is not found by the server, RasMol displays the error
+message `{\tt Error: Unknown or incorrect colour!}'.
+
+
+The {\tt cpk} colouring scheme is based upon the popular plastic space
+filling models, which were invented by Corey and Pauling and later 
+improved by Kultun. These models consist of plastic truncated sphere
+parts, which can be fitted together to form union-of-spheres surfaces
+with rotatable joints. In this scheme, hydrogen appears white, oxygen 
+appears red, sulphur appears yellow and nitrogen appears light blue. 
+The standard molecular graphics alteration to the original colour 
+scheme redefines carbon to appear as light grey instead of black. 
+(Traditionally molecules are displayed on black backgrounds). The {\tt
+cpk} colour scheme can not be used to colour {\tt bond} or {\tt backbone}
+objects.
+\index{CPK colours}
+
+The {\tt shapely} scheme is based upon Bob Fletterick's `Shapely Models', 
+and colours atoms according to the type of the residue in which they 
+appear. The backbone atoms of proteins and polypeptides are rendered in 
+light grey. Each of the atoms in the side chains is coloured according to
+its parent amino acid. For nucleic acids, each base type is given a unique 
+colour. The {\tt shapely} colour scheme can not be used to colour {\tt bond}
+or {\tt backbone} objects.
+\index{Shapely colours}
+
+The {\tt none} option allows bonds, hbonds, ssbonds and backbone segments 
+to be coloured according to the (alpha carbon) atoms which they connect. 
+When a bond has no colour of its own, each half of its length is drawn in 
+the colour of the atom to which it is connected, otherwise the `bonds' are 
+drawn in the specified colour. The {\tt none} colour option can not be
+used to colour {\tt atom} objects.
+
+\subsection{HBond}
+\index{HBond}
+\label{CHbond}
+
+The RasMol `{\tt hbond}' command is used to represent the hydrogen bonding of 
+the protein molecule's backbone. This information is useful in assessing
+the protein's secondary structure. Hydrogen bonds are represented as
+dotted lines between the donor and acceptor residues. The first time that 
+the `{\tt hbond}' command is used, the program searches the structure of the 
+molecule to find hydrogen bonded residues and reports the number of bonds 
+to the user. The command `{\tt hbond on}' displays the selected `{\tt bonds}' 
+as dotted lines, and the `{\tt hbond off}' turns off their display. The colour 
+of hbond objects may be changed by the `{\tt colour hbond}' command. 
+Initially, the dotted line has the colours of its connected atoms.
+
+By default the dotted lines are drawn between the accepting oxygen and 
+the donating nitrogen. By using the `{\tt set hbond}' command the alpha 
+carbon positions of the appropriate residues may be used instead. This is 
+especially usefull when examining backbone structures.
+
+Syntax:
+\begin{verbatim}
+        hbond {<boolean>}
+\end{verbatim}
+
+RasMol uses Kabsch and Sander's algorithm for determining the main chain
+hydrogen bonds of proteins, as implemented by their DSSP computer program.
+There is no generally corrected H bond definition, as there is no sharp
+border between the quantum-mechanical and electrostatic regimes (wave 
+function overlap dominates at short distances and electrostatic interaction 
+at larger distnaces) and no discontinuity of the interaction energy as a
+function of distance or alignment.
+
+Main chain hydrogen bonds, used in determining secondary structure, may
+be described by an electrostatic model. The electrostatic interaction
+energy between two H-bonding groups is calculated by placing patial charges
+on the C, O $(+q_1,-q_1)$ and N, H $(+q_2,-q_2)$ atoms. This produces the
+energy equation
+\[ E = q_1 q_2 ( 1/r(\mbox{ON}) + 1/r(\mbox{CH}) 
+               - 1/r(\mbox{OH}) - 1/r(\mbox{CN}) ) * f \]
+with $q_1 = 0.42e$ and $q_2 = 0.20e$, $e$ being the unit electron charge
+and $r(\mbox{AB})$ the interatomic distance from A to B. In chemical units,
+$r$ is in angstroms, the dimension factor $f = 322$, and $E$ is in kcal/mol.
+Typically a good hydrogen bond has a binding energy of -3 kcal/mol.
+
+The default cutoff value is -0.5 kcal/mol, as described in Kabsch and 
+Sander's paper~\cite{Kabsch83}. This generous limit permits bifurcated H 
+bonds and errors in coordinates.  
+
+\subsection{Load}
+\index{Load}
+\label{CLoad}
+
+This command allows the user to specify the Brookhaven Protein Data Bank 
+(PDB) file to be read in. The PDB file contains the Cartesian co-ordinates 
+of each atom in the molecule to be displayed. A complete description of the 
+PDB file format and records understood by the program (including the Raster3D 
+colour scheme records) is given in section~\ref{Formats} of this document. If 
+a molecule has already been loaded from a PDB file, this command displays the
+error message `{\tt Error: Molecule database loaded!}'.
+\index{Raster3D}
+\index{PDB files}
+
+Syntax:
+\begin{verbatim}
+        load {"<input-file>"}
+\end{verbatim}
+
+The name of the file to load is given as a string parameter delimited by
+matching single or double quotes. If a filename string is not given, the
+user is prompted by the message `{\tt PDB file name:}' in the terminal 
+window. The required filename may be entered without string delimiters. 
+If the user enters a blank line, the {\tt load} command is aborted. The 
+filename must be a valid UNIX filename without wildcard characters. If 
+the file exists it is loaded by the program, otherwise RasMol outputs the 
+error message `{\tt Error: File not found!}', before returning the user to 
+the RasMol command line prompt.
+
+Once the PDB file is loaded, the RasMol program determines the connectivity
+of the molecule by proximity of atoms: two atoms within an appropriate
+interval of one another are considered to be bonded. Currently two non-%
+hydrogen atoms are considered to be bonded if they lie between 1.0\AA\ and
+1.9\AA\ of one another, and an atom is considered bonded to a hydrogen if 
+it is between 0.7\AA\ and 1.2\AA\ of the hydrogen's centre.
+\index{Connectivity!of atoms}
+\index{Atom!connectivity}
+\index{Connectivity}
+
+
+Once all the required preprocessing has been performed, RasMol `selects' 
+(see section~\ref{CSelect}) all the atoms in the molecule and displays a 
+monochrome depth-cued wireframe representation on the display window canvas. 
+
+The RasMol {\tt load} command displays status information on the contents
+of the file. An example of this output is presented below. The program
+determines the molecule name, classification and Brookhaven code from the
+appropriate records in the PDB file. A count of the number of chains, groups, 
+atoms and bonds in the main molecule is displayed. If the data file contains 
+heterogenous atoms, such as cofactors, the number of hetero atoms and groups
+are not included in these totals but presented in brackets after the main
+values.
+
+\begin{verbatim}
+        Molecule name ..... CRAMBIN
+        Classification .... PLANT SEED PROTEIN
+        Brookhaven Code ... 1CRN
+        Number of Groups .. 46
+        Number of Atoms ... 327
+        Number of Bonds ... 379
+\end{verbatim}
+
+If the {\tt load} command is followed by anything other than a string, the
+program outputs a `{\tt Error: Filename string expected!}' error message.
+
+\subsection{Exit}
+\index{Exit}
+\label{CExit}
+The {\tt exit} command is used to terminate a RasMol session. The behaviour
+of the {\tt exit} command is identical to that of the {\tt quit} command. 
+When either an {\tt exit} or a {\tt quit} command is executed from the
+command line, the program closes the display window if the program is being
+used with a colour X Windows display and clears the LED labels on the dials
+box (if one is connected to the workstation), before terminating. Both the
+{\tt exit} and {\tt quit} commands finish executing the current script file
+when executed in either a script file or the `.rasmolrc' startup file. This
+command may also be executed by selecting the {\bf Quit} option on the
+RasMol main menu.
+
+\subsection{Quit}
+\index{Quit}
+\label{CQuit}
+The {\tt quit} command is used to terminate a RasMol session. The behaviour
+of the {\tt quit} command is identical to that of the {\tt exit} command.
+See section~\ref{CExit}.
+
+
+\subsection{Restrict}
+\index{Restrict}
+\label{CRestrict}
+The {\tt restrict} command is used to limit the display of the molecule to
+a specified portion. This command is similar to the {\tt select} command
+(see section~\ref{CSelect}), except that any object not in the active zone
+after the command is executed is removed from the display.
+\index{Active Zone}
+
+Syntax:
+\begin{verbatim}
+        restrict {<expression>}
+\end{verbatim}
+
+
+\subsection{Rotate}
+\index{Rotate}
+\label{CRotate}
+The {\tt rotate} command is used to rotate the molecule on the screen. The
+molecule may be rotated about its centre around any of the three co-ordinate
+axes X, Y and Z. The first parameter of the {\tt rotate} command specifies
+which axis to rotate. The final parameter to the {\tt rotate} command is an
+integer specifying the angle to be transformed (in degrees). This value may 
+be prefixed by a single unary minus sign to rotate the molecule in the 
+opposite sense. For positive angles, rotating about X moves the closest 
+point on the molecule down, rotating about Y moves the closest point to the 
+right, and rotation about Z spins the molecule clockwise. Whitespace may 
+appear between the unary minus and the first digit of the value. A unary 
+minus is allowed to prefix a zero value.
+\index{Rotating the molecule}
+
+If the RasMol program is being used interactively, the model may also be
+rotated by the two scroll bars to the right of and below the canvas area of
+the display window. The {\tt rotate} command updates the position of the
+scroll bar indicators.
+\index{Scroll bars}
+
+If there is a dials box attached to the workstation, the first three dials
+on the top row may also be used to rotate the molecule about the X, Y and
+Z axes respectively. Turning these dials rotates the molecule relative to
+its current position.
+
+Syntax:
+\begin{verbatim}
+        rotate <axis> {-} <value>
+\end{verbatim}
+
+An axis parameter other than `{\tt x}', `{\tt y}' and `{\tt z}' generates
+an `{\tt Invalid command syntax!}' error. A missing or non-numeric integer
+value parameter causes an `{\tt Integer value expected!}' error. Extremely
+large numeric values are internally truncated to 32 bit values.
+
+
+\subsection{Script}
+\index{Script}
+\label{CScript}
+
+The RasMol `{\tt script}' command executes a set of commands that are 
+contained in a text file as if they had been typed in interactively. Each
+command is placed on its own line in the text file terminated by a 
+carriage return or newline character. The comment character, `{\tt \#}'
+may be used to place to annotate the file of commands, as described in
+section~\ref{Command}. The behaviour of the RasMol commands `{\tt exit}'
+and `{\tt quit}' within a script file cause, the program to cease 
+execution of that file rather than terminate the RasMol program. RasMol
+{\tt script} commands may be contained within script files, allowing
+command files to be nested upto a maximum of ten deep.
+
+If any error occurs with a command within a script file, the error 
+messages generated by RasMol are annotated with the name of the current
+script file and the line number in that file of the incorrect command.
+
+Syntax:
+\begin{verbatim}
+        script <filename>
+\end{verbatim}
+
+Omitting the filename parameter from after the {\tt script} command
+produces a `{\tt Filename string expected}' error message. If RasMol is 
+unable to find and open the specified script file, they program will 
+display the error message `{\tt Cannot open script file '{\rm\it name}'!}', 
+where {\it name} is the name of the file given on the command line.
+
+If the command file contains any lines that contain more than 255
+characters, the program issues the error message `{\tt Script command
+line too long!}'. Any commands on this line are ignored and execution
+of the file resumes on the following line of the file. If the nesting
+of script files exceeds the maximum depth, RasMol generates the error
+message `{\tt Script command stack too deep!}'.
+
+
+\subsection{Select}
+\index{Select}
+\label{CSelect}
+The {\tt select} command is used to define the active zone of a molecule. The 
+active zone of a molecule is that portion of the molecule model that is
+affected by commands that alter the representation and colour of atoms
+and bonds. The select command does not change the image displayed on the
+screen.
+\index{Active Zone}
+
+Syntax:
+\begin{verbatim}
+        select {<expression>}
+\end{verbatim}
+
+
+\subsection{Set}
+\label{CSet}
+
+The RasMol {\tt set} command allows the user to alter various internal 
+parameters of the rendering process. The syntax of an {\tt set} statement
+specifies a `variable' or `parameter' to be modified followed by the value
+to be assigned to that parameter. The effects of each of these internal
+parameters is discussed separately in the following paragraphs.
+
+Syntax:
+\begin{verbatim}
+        set ambient [<value>]
+        set background <colour>
+        set bondzone <zonemode>
+        set hetero <boolean>
+        set hydrogen <boolean>
+        set shadow <boolean>
+        set slabmode <slabmode>
+        set specular <boolean>
+        set specpower <value>
+\end{verbatim}
+\index{Hydrogen variable}
+\index{Hetero variable}
+\index{Specular option}
+\index{Highlights}
+\index{Shadow}
+
+\subsubsection*{Set Ambient}
+The RasMol {\tt ambient} parameter is used to determine the amount of
+ambient light in the scene. Ambient light is the pervasive light not
+emitted from the primary light source. This is used to determine the
+intensity of surfaces that face away from the light, or areas hidden in
+shadow. The permisible integer values, betweem 0 and 100 inclusive, give
+the ambient light as a percentage of the primary light intensity. Omitting
+the argument returns the parameter to its default value.
+
+\subsubsection*{Set Background}
+The RasMol {\tt set background} command is used to change the colour of the
+canvas window background. By default, this colour is initially black. The
+background may be changed to any of the `generic' colour values used by the
+{\tt colour} command (see section~\ref{CColour}). These colours include the
+predefined colours, RGB colour triples and entries in the X Window System 
+server's colour database. Non-generic colours, such as {\tt cpk}, {\tt none}
+and {\tt user} may not be specified. This command is usefull in preparing
+overhead slides from RasMol images that require light background colours.
+\index{Background colour}
+
+\subsubsection*{Set BondZone}
+A RasMol bond zone mode is either `{\tt and}' ({\tt false}) or `{\tt or}' 
+({\tt true}). An `{\tt and}'' value selects a bond if if both bonded atoms 
+are currently selected, whereas an `{\tt or}' value selects a bond if either 
+of the connected atoms is in the current active zone.
+\index{Bond!selection}
+\index{Bond zone mode}
+\index{And operator}
+\index{Or operator}
+
+\subsubsection*{Set Slabmode}
+The current RasMol slab modes are {\tt reject}, {\tt half}, {\tt hollow},
+{\tt solid} and {\tt section}. In {\tt reject} slab mode, any atom that is 
+intersected by the z-clipping plane when slabbing is enable is not displayed 
+at all.  In {\tt half} slab mode, each atom is represented as the front half
+of a hollow sphere. This allows atoms to be visible through the cut away
+section of a sliced atom. Slab mode {\tt hollow} treats each atom as a full
+hollow sphere, and sliced atoms reveal the inside surfaces of their `shell'.
+Finally, the {\tt solid} slab mode represents the spheres as solid spheres:
+any sphere cut by the slabbing plane reveals a solid cross section of the
+interior. The colour of the cross-section is taken from the closest atom,
+hence two intersecting spheres have a colour boundry through their cross
+section. The {\tt section} slab mode is identical to {\tt solid} mode 
+except that only the cross sections of atoms intersecting the slab plane
+are drawn. This gives a two dimensional slice through the molecule.
+\index{Slabmode variable}
+\index{Slab!representation}
+\index{Cross Section}
+\index{Atom}
+
+\subsubsection*{Set SpecPower}
+The RasMol {\tt specpower} variable describes the shininess of surfaces 
+in the scene when the specular highlights are enabled by the {\tt set
+specular} command. The larger the integer argument the shinier (or more
+reflective) the surfaces become. Low values produce large white dots on
+spheres (like those seen on plastic), while larger values produce smaller
+white dots (like those observed on metal or glass). Ommiting the argument
+from this command returns the {\tt specpower} variable to its default 
+setting.
+
+\subsubsection*{Set Specular}
+The RasMol {\tt specular} variable determines whether surfaces are to be
+rendered as shiny or diffuse surfaces. When the {\tt specular} variable 
+has the value {\tt true} or {\tt on}, all surfaces are considered shiny
+with typically a small white dot representing the reflection of the light
+source on the surface. If {\tt specular} is {\tt false} or {\tt off} all
+surfaces are rendered with only diffuse lighting. The `shininess' of the
+surface is determined by the value of the {\tt specpower} variable.
+
+
+\subsection{Show}
+\index{Show}
+\label{CShow}
+
+The RasMol `{\tt show}' command displays usefull information about the
+currently loaded molecule. The `{\tt show sequence}' command lists the 
+sequence of residues that form the macromolecule; amino acids for protein 
+and nucleotides for nucleic acids. The `{\tt show info}' command displays
+the name of the molecule, the number of groups, atoms and bonds it contains
+together with some of the header information stored in the PDB file.
+
+
+Syntax:
+\begin{verbatim}
+        show sequence
+        show info
+\end{verbatim}
+
+The {\tt show sequence} command is particularly usefull for displaying the
+residue type and residue numbers of a macromoecule in order to prepare an
+atom expression for the required portion of the molecule. If the current
+macromolecule contains more than one chain, each the internal name of each
+chain is displayed on a separate line followed by the sequence that makes 
+up that chain. The sequences are displayed ten residues to a line, giving 
+the full residue name followed by its residue number. An example output
+for the protein {\em crambin} is given below.
+
+\begin{small}
+\begin{verbatim}
+THR1   THR2   CYS3   CYS4   PRO5   SER6   ILE7   VAL8   ALA9   ARG10  
+SER11  ASN12  PHE13  ASN14  VAL15  CYS16  ARG17  LEU18  PRO19  GLY20  
+THR21  PRO22  GLU23  ALA24  ILE25  CYS26  ALA27  THR28  TYR29  THR30  
+GLY31  CYS32  ILE33  ILE34  ILE35  PRO36  GLY37  ALA38  THR39  CYS40  
+PRO41  GLY42  ASP43  TYR44  ALA45  ASN46  
+\end{verbatim}
+\end{small}
+
+The {\tt show information} command displays the details of the size of the
+current molecule to the user. It presents data on the molecule's name, 
+classification and brookhaven code (from the appropriate records in the PDB
+file), the number of chains, groups, atoms and bonds. If the data file
+contains any heterogenous groups, such as cofactors, these group and their
+atoms are not included in the above totals, but presented in brackets after
+the main values. An example output for the protein {\em crambin} is given
+below.
+
+\begin{verbatim}
+        Molecule name ..... CRAMBIN
+        Classification .... PLANT SEED PROTEIN
+        Brookhaven Code ... 1CRN
+        Number of Groups .. 46
+        Number of Atoms ... 327
+        Number of Bonds ... 379
+\end{verbatim}
+
+Giving an option other than {\tt sequence}, {\tt info} or {\tt information}
+after the {\tt show} command results in a RasMol ``{\tt Invalid command 
+argument!}'' error message.
+
+
+\subsection{Slab}
+\index{Slab}
+\label{CSlab}
+
+The RasMol {\tt slab} command may be used to turn z-clipping on and off,
+and positioning the z-clipping plane. Slabbing involves removing all the
+objects on the screen that are closer than a given distance from the viewer.
+This position is referred to as the location of the (front) z-clipping plane.
+When slabbing is enabled, all wireframe bonds that intersect the clipping
+plane are split, and only the section of the line furthest from the viewer is
+drawn. The representation of spheres that intersect the clipping plane is
+governed by the {\tt slabmode} variable (see the {\tt set~slabmode} command).
+By default, {\tt slabmode} is set to the value {\tt solid} which depicts 
+clipped atoms as solid filled spheres.
+\index{Z-clipping}
+
+The position of the z-clipping (or slabbing) plane is represented as a 
+value between 0 and 100. This represents a linear scale from the very back 
+of the molecule to the front. This value may also be considered the 
+percentage visibility, for example, a value of 25 typically only display 
+one quarter of the atoms/bonds in the molecule. When RasMol is first started 
+up, the initial value of the clipping plane is 50 (drawing only the back 
+half of the molecule) and the slabbing mode is disabled.
+
+There is a performance degradation associated with rendering images with 
+slabbing enabled, hence it is recommended that slabbing is turned off rather
+than the position of the z-clipping plane being set to 100 (in front of the 
+molecule). Similarly, the user should be aware that a blank screen may be
+caused by a low value of the slabbing plane while slabbing is enabled.
+
+When the {\tt slab} command followed by a boolean value, RasMol enables or
+disables slabbing without affecting the value of the clipping plane. Hence,
+if the {\tt slab} command is followed by the keyword {\tt on} or {\tt true}
+slabbing is switched on, and if it is followed by either {\tt off} or {\tt
+false}, then slabbing is turned off. Executing the {\tt slab} command with 
+no arguments ensures that slabbing is currently enabled.
+
+The {\tt slab} command may also be given with a numeric parameter to specify
+the exact position of the slabbing plane. The value of this parameter must
+lie between 0 and 100. A slab value of 0 displays none of the molecule, a 
+value of 50 displays the back half of it and a value of 100 shows all of it. 
+Specifying a value to the slab command, automatically enables slabbing.
+
+If there is a dials box connected to the workstation, the bottom right hand
+dial, labelled ``SLAB'', may be used to interactively move the clipping plane
+when slabbing mode is enabled. Turning the dial moves the location of the
+clipping plane relative to its current setting. 
+
+
+Syntax:
+\begin{verbatim}
+        slab {<boolean>}
+        slab <value>
+\end{verbatim}
+
+An unrecognised parameter to a {\tt slab} command generates an `{\tt Invalid
+command syntax!}' error message. A numeric value greater than 100 produces
+an `{\tt Integer argument too large!}' error.
+
+
+\subsection{Spacefill}
+\index{Spacefill}
+\label{CSpacefill}
+
+The RasMol {\tt spacefill} command determines the radius of each atom in its
+spherical representation on the screen. The currently selected zone is
+represented space filling union-of-spheres model. An integer parameter may
+be used to specify the radius of each atom, given in 4nm units. The maximum
+permitted value is 500, which corresponds to a radius of 2\AA. If no 
+parameter is given, the radius is taken to be the Van der Waals radius of
+the appropriate atom.
+
+The temperature option is used to set the radius of each selected sphere
+to the value in the temperature field of the molecule file. A zero or
+negative value causes no change in the selected atom. Temperature values
+greater than 2.00 are truncated to the maximum 2\AA\ radius.
+
+\nocite{Lesk91,Iijima87}
+
+The user option allows the radius of the selected spheres to be determined
+by matching each atom against optional lines in the input data file. Details
+of the wildcard pattern matching used by Raster3D's COLOR records is given 
+in section~\ref{Scheme} of this document.
+
+Syntax:
+\begin{verbatim}
+        spacefill {<boolean>}
+        spacefill <value>
+        spacefill temperature
+        spacefill user
+\end{verbatim}
+
+A numeric argument over 500 results in the RasMol error `{\tt Integer 
+argument too large}'.
+
+
+\subsection{SSBond}
+\index{SSBond}
+\label{CSSBond}
+
+The RasMol `{\tt ssbond}' command is used to represent the disulphide bridges
+of the protein molecule as dotted lines between the connected cysteines.
+The first time that the `{\tt ssbond}' command is used, the program searches
+the structure of the molecule to find half-cysteine pairs and reports the
+number of bridges to the user. The command `{\tt ssbond on}' displays the 
+selected `bonds' as dotted lines, and the `{\tt ssbond off}' turns off their
+display. The colour of ssbond objects may be changed by the `{\tt colour
+ssbond}' command. Initially, the dotted line has the colours of its 
+connected atoms.
+
+By default the dotted lines are drawn between the sulphur atoms within
+the cysteine groups. By using the `{\tt set ssbond}' command the position of
+the cysteine's alpha carbons may be used instead. This is especially
+usefull when examining backbone structures.
+
+Syntax:
+\begin{verbatim}
+        ssbond {<boolean>}
+\end{verbatim}
+
+RasMol determines disulphide bonds, i.e. covalent links between the 
+S$^\gamma$ atoms of two Cys residues, to exist between two sulphur
+atoms separated by a distance of less than 3.0\AA.
+
+
+\subsection{Translate}
+\index{Translate}
+\label{CTranslate}
+
+The RasMol {\tt translate} command permits the molecule to be translated
+(shifted) along each of the three major axes. The integer argument specifies
+an absolute position along the given axis to move. Positive values move the
+molecule right and up for the `{\tt x}' and `{\tt y}' axes, and negative 
+values left and down for the `{\tt x}' and `{\tt y}' axes respectively. An
+absolute value of 100 moves the molecule completely off of the canvas window,
+an absolute value of 50 places the center of the molecule at the very edge of
+the screen and a zero parameter places the center of the molecule in the 
+middle of the screen with respect to the given axis.
+
+Syntax:
+\begin{verbatim}
+        translate <axis> {-} <value>
+\end{verbatim}
+
+An axis parameter other than `{\tt x}', `{\tt y}' and `{\tt z}' generates
+an `{\tt Invalid command syntax!}' error. A missing or non-numeric integer
+value parameter causes an `{\tt Integer value expected!}' error. Integer 
+values greater than 100 or less than -100 produce an `{\tt Integer argument
+too large!}' error.
+
+
+\subsection{Wireframe}
+\index{Wireframe}
+\label{CWireframe}
+
+The RasMol {\tt wireframe} command determines the representation and radius
+of each bond on the screen.
+
+Syntax:
+\begin{verbatim}
+        wireframe {<boolean>}
+        wireframe <value>
+\end{verbatim}
+
+
+\subsection{Write}
+\index{Write}
+\label{CWrite}
+
+The {\tt write} command is used to output the currently displayed image to 
+a raster file. RasMol allows the format of the generated output file to
+be set to one of several standard formats. This file format may be optionally 
+specified by following the {\tt write} command by the keyword {\tt gif}, 
+{\tt ppm}, {\tt sun}, {\tt sunrle} or {\tt ps}, which denote compuserve 
+GIF format, raw portable pixmap format, standard sun rasterfile, run length 
+encoded sun rasterfile and PostScript, respectively. If a file format is 
+not specified on the command line, the image is written in GIF file format.
+
+The final parameter to the write command is a string containing the filename
+to which the image should be written. This string must be delimited by 
+matching single or double quotation marks. If a filename is not given on the
+command line, the program prompts the user for the required filename with 
+the prompt `{\tt Output file name:}'. A filename typed into the terminal 
+window at this prompt should not be delimited by quotation marks. Entering 
+an empty filename at this prompt will cause RasMol to abort the {\tt write} 
+command. The filename must be a valid UNIX filename without any wildcard 
+characters. Conventionally GIF images have the filename extension `.gif', 
+raw PPM files have the extension `.ppm', SUN rasterfile images the extension
+`.ras' and PostScript files have the extension `.ps'.
+\index{GIF files}
+\index{SUN rasterfiles}
+\index{Encapsulated PostScript files}
+\index{Portable Pixmap files}
+\index{PPM files}
+\index{Output raster file}
+\index{Raster files}
+
+The resolution of the created image file is taken from the current size of
+the display window canvas area. Hence different sized images may be created 
+by resizing the window appropriately before executing the {\tt write} command.
+If the image is being prepared non-interactively (i.e. not from a suitable
+colour frame buffer), the image is generated at $576 \times 576$ resolution,
+which is the default size of the canvas area of the display window.
+
+The current 24 bit version of RasMol, version 2.1, is unable output into the
+compuserve GIF file format for technical reasons. If the user attempts to 
+write out a 24 bit GIF image, the program warns the user with the message 
+`{\tt Output Error: 24 bit GIF files unsupported!}'. Although the portable 
+pixmap format represents raster images with three bytes per pixel, the eight 
+bit version of RasMol only produces a maximum of 250 unique RGB triples.
+
+Syntax:
+\begin{verbatim}
+        write {<format>} {"<output-file>"}
+\end{verbatim}
+
+If the {\tt write} command is followed by an unrecognised file format, or if
+the output filename is not a valid string, RasMol issues a `{\tt Filename 
+string expected!}' error message. If the program is unable to write to the 
+given file, RasMol aborts the command with the error message `{\tt Output 
+Error: Unable to create file `$\cdots$'!}'. 
+
+
+\subsection{Zoom}
+\index{Zoom}
+\label{CZoom}
+
+The {\tt zoom} command is used to modify the magnification of the molecule
+being displayed. The molecule is always magnified with respect to its centre.
+The zoom parameter may be used to scale the molecule between
+10\% and 200\% of its default magnification. The default scale of
+the molecule is chosen to allow the molecule to be rotated about any angle
+and still fit within the display canvas (i.e. not require clipping). There
+is a performance degradation with displaying molecules that clip the edges
+of the screen.
+\index{Scale|see{Zoom}}
+
+The {\tt zoom} command without any parameters or followed by the keywords
+{\tt off} or {\tt false}, turns off the magnification of the molecule and
+sets the scale to its initial value. The {\tt zoom} command followed by
+the keyword {\tt on} or {\tt true} magnifies the molecule to 1.5 times its
+initial scale.
+
+The {\tt zoom} command may also be given with a numeric parameter to specify
+the exact magnification required. The value of this parameter must lie 
+between 0 and 200. This value represents the percentage magnification 
+required, with a value of 100 representing the default scale of the molecule 
+and a value of 200 rendering the molecule twice its normal size. Numeric 
+values less than or equal to 10 generate minimum scale images at one tenth 
+the size of the original. The command `{\tt zoom on}' has the same effect 
+as the command `{\tt zoom 150}'.
+
+If there is a dials box connected to the workstation, the top right hand
+dial, labelled ``ZOOM'', may be used to magnify the molecule interactively.
+Turning the dial alters the magnification of the molecule relative to its
+current setting.
+
+
+Syntax: 
+\begin{verbatim}
+        zoom {<boolean>}
+        zoom <value>
+\end{verbatim}
+
+An unrecognised parameter to a {\tt zoom} command generates an `{\tt Invalid
+command syntax!}' error message. A numeric value greater than 200 produces
+an `{\tt Integer argument too large!}' error.
+
+
+\section{File Formats}
+\index{File formats}
+\label{Formats}
+
+\subsection{Brookhaven Data Bank Files}
+\index{PDB files}
+\label{Brookhaven}
+
+If you do not have the Brookhaven documentation, you may find the following
+summary of the PDB file format useful. The Protein Data Bank is a computer-%
+based archival database for macromolecular structures~\cite{Bernstein77}.
+The database was established in 1971 by the Brookhaven National Laboratory,
+New York, as a public domain repository for resolved crystallographic
+structures. The Bank uses a uniform format to store atomic co-ordinates 
+and partial bond connectivities as derived from crystallographic studies. 
+
+PDB file entries consist of records of 80 characters each. Using the
+punched card analogy, columns 1 to 6 contain a record-type identifier,
+the columns 7 to 70 contain data. Columns 71 to 80 are normally blank,
+but may contain sequence information added by library management 
+programs. The first four characters of the record identifier are 
+sufficient to identify the type of record uniquely, and the syntax of
+each record is independent of the order of records within any entry
+for a particular macromolecule.
+
+The only record types that are of major interest to the RasMol program
+are the ATOM and HETATM records (apart from COLO record type not
+sanctioned by Brookhaven), which describe the position of each
+atom. ATOM/HETATM records contain standard atom names and residue
+abbreviations, along with sequence identifiers, co-ordinates
+in Angstrom units, occupancies and thermal motion factors. The exact
+details are given below as a FORTRAN format statement.
+
+\begin{center}
+{\tt FORMAT(6A1,I5,1X,A4,A1,A3,1X,A1,I4,A1,3X,3F8.3,2F6.2,1X,I3)}
+\end{center}
+
+\begin{center}\begin{tabular}{|c|l|} \hline
+{\bf Column} & \multicolumn{1}{c|}{\bf Content} \\ \hline
+1-6   & `ATOM' or `HETATM' \\
+7-11  & Atom serial number (may have gaps) \\
+13-16 & Atom name, in IUPAC standard format \\
+17    & Alternate location indicator indicated by A,B or C \\
+18-20 & Residue name, in IUPAC standard format \\
+23-26 & Residue sequence number (order as below) \\
+27    & Code for insertions of residues (i.e. 66A \& 66B) \\
+31-38 & X co-ordinate \\
+39-46 & Y co-ordinate \\
+47-54 & Z co-ordinate \\
+55-60 & Occupancy \\
+61-66 & Temperature factor \\
+68-70 & Footnote number \\ \hline
+\end{tabular}\end{center}
+
+Residues occur in order of their sequence numbers, which always increase
+starting from the N-terminal residue for proteins and $5'$-terminus for
+nucleic acids. If the residue sequence is known, certain atom serial
+numbers may be omited to allow for future insertion of any missing atoms.
+Within each residue, atoms are ordered in a standard manner, starting with
+the backbone (N-C-C-O for proteins) and proceeding in increasing remoteness
+from the alpha carbon, along the side chain. 
+
+HETATM records are used to define post-translational modifications and
+cofactors associated with the main molecule. Optional TER records are
+interpreted as breaks in the main molecule's backbone.
+
+If present, RasMol also inspects HEADER, COMPND and END records. Information
+such as the name, Brookhaven code, revision date and classification of the 
+molecule are extracted from HEADER and COMPND records, and the end of the 
+file may be indicated by an END record.
+
+
+\subsection{PDB Colour Scheme Specification}
+\index{Colour scheme format}
+\label{Scheme}
+The RasMol v2.1 program also accepts the supplementary record-type COLO
+in the PDB file format. The record was introduced by David Bacon's 
+Raster3D program for specifying the colour scheme to be used when 
+rendering the molecule~\cite{Bacon88b,Bacon88a}. This extension to 
+the standard file format is not currently supported by Brookhaven.
+\index{Raster3D}
+
+The COLO record has the same basic record type as the ATOM and HETATM
+records described above, but with COLO in the first four columns:
+
+\begin{center}\begin{tabular}{|c|l|} \hline
+{\bf Column} & \multicolumn{1}{c|}{\bf Content} \\ \hline
+1-6   & `COLO' \\
+7-30  & Mask (described below) \\
+31-38 & Red component \\
+39-46 & Green component \\
+47-54 & Blue component \\
+55-60 & Sphere radius in Angstroms \\
+61-80 & Comments \\ \hline
+\end{tabular}\end{center}
+
+Note that the Red, Green and Blue components are in the same positions
+as the X, Y, and Z components of an ATOM or HETA record, and the van
+der Waals radius goes in the place of the Occupancy. The Red, Green and
+Blue components must all be in the range 0 to 1.
+
+Colours are assigned to atoms using a matching process. The Mask field
+is used in the matching process as follows. First RasMol reads in and
+remembers all the ATOM, HETA and COLO records in input order. When the
+user-defined (`User') colour scheme is selected, RasMol goes through each 
+remembered ATOM/HETA record in turn, and searches for a COLO record 
+that matches in all of columns 7 through 30. The first such COLO record
+to be found determines the colour and radius of the atom.
+
+In order that one COLO record can provide colour and radius specifications
+for more than one atom (e.g. based on residue, atom type, or any other
+criterion for which labels can be given somewhere in columns 7 through 
+30), a `don't-care' character, the hash mark ``\#'' (pound sign, number sign,
+sharp sign) is used. This character, when found in a COLO record, matches 
+any character in the corresponding column in a ATOM/HETA record. All other 
+characters must match identically to count as a match. As an extension to 
+the specification, any atom that fails to match a COLO record is displayed 
+in white.
+\index{Hash character}
+\index{Wildcards}
+
+
+\section{Contact}
+\label{Contact}
+If you have any questions, problems, comments, complaints or suggestions
+please do not hesitate to call or write to the author:
+
+\begin{center}\begin{tabular}{ll}
+Roger Sayle  & \\
+Biocomputing Research Unit & Phone: (+44) (0)31 650 5163 \\
+Room 707, Darwin Building  & EMail: \verb"ros@biocomp.ed.ac.uk" \\
+University of Edinburgh & \\
+Mayfield Road & \\
+Edinburgh EH9 3JR & \\
+\quad\quad UK &
+\end{tabular}\end{center}
+
+\nocite{Max83}
+
+\nocite{Sayle90,Sayle92}
+\bibliographystyle{plain}
+\bibliography{rasmol}
+\printindex
+\end{document}

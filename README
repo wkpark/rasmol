@@ -1,0 +1,74 @@
+
+                            RasMol 2.3
+              Molecular Graphics Visualisation tool.
+
+                           Roger Sayle 
+                  BioMolecular Structures Group
+                   Glaxo Research & Development
+                     Greenford, Middlesex, UK.
+                          February 1994
+
+
+    RasMol is an X Window System tool intended for the visualisation of 
+proteins and nucleic acids. It reads Brookhaven Protein Databank (PDB) 
+files and interactively renders them in a variety of formats on either an 
+8bit or 24/32bit colour display. The complete source code and user 
+documentation for the UNIX/X11, IBM PC/MSWindows and the VMS/DecWindows
+versions may be obtained by anonymous ftp from ftp.dcs.ed.ac.uk 
+[129.215.160.5] in the directory /pub/rasmol. All the source code is
+contained in the file RasMol2.tar.Z and the MS Windows source code and
+executable in the file raswin.zip. Both of these files include on-line 
+help, hypertext documentation and the previous (dated) version of the 
+PostScript user reference manual.
+
+    Please remember to use "binary" mode when transferring files between
+UNIX and MSDOS systems. Check that the file size is the same before and
+after transfer. The MSWindows error "No Memory for Application" is
+symptomatic of transfering "raswin.exe" in ASCII mode (corrupting it).
+
+    The program is intended for teaching and generating publication 
+quality images. The program has both a menu system and a full featured
+command line interface. Different parts and representations of the 
+molecule may be coloured or displayed in a number of formats independently.
+Currently supported formats include wireframe, ball and stick, backbone,
+space filling spheres and solid or strands ribbon models. The space filling 
+spheres may even be shadowed. The molecule may be manipulated using the
+mouse, the scroll bars, the interactive command line or from a dials box 
+(if one is attached). The resulting image may be saved at any point in 
+PostScript, GIF, PPM, Sun rasterfile or Microsoft BMP formats.  For more 
+details see the RasMol user reference. On a SparcStation, it can shadow 
+a 10,000 atom spacefilling protein in less than 10 seconds.
+
+    The current version of the program has been tested on sun3, sun4, 
+sun386i, SGI, DEC & E&S mips based machines, DEC Alpha (OSF/1 and OpenVMS),
+VAX VMS (under Dec Windows), IBM RS/6000, hp9000, sequent compiled under 
+both gcc and (typically) the native compiler. The version for Microsoft 
+Windows requires version 7 of the Microsoft Optimizing C Compiler or
+Visual C++ Compiler and the Microsoft Software Development Kit (SDK). 
+
+    The source code is public domain and freely distributable provided that
+the original author is suitably acknowledged. Any comments, suggestions or 
+questions about the package may be directed to either "rasmol@dcs.ed.ac.uk"
+or "rasmol@ggr.co.uk".
+
+    Thank you for acquiring a copy of the RasMol distribution. I hope you
+enjoy it! If you like the program and decide to use it, *Please* send me a
+short email message to that effect, together with any comments or suggestions
+for improving the program. If you appreciate the large amount of work that 
+has gone into creating RasMol, a small donation of $40 US or #25 GBP to the 
+address below would be welcome.
+
+Contact Address:
+                Roger Sayle,
+                Department of Computer Science
+                University of Edinburgh
+                The King's Buildings,
+                Mayfield Road,
+                Edinburgh  EH9 3JZ
+		    SCOTLAND
+
+                Tel: (+44) 081 966 3567
+                     (+44) 031 650 5163
+
+		EMail: ros@dcs.ed.ac.uk
+

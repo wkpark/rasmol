@@ -1,0 +1,93 @@
+CC = gcc
+#CFLAGS_sun4    = -O4
+#CFLAGS_sun3    = -O4 -f68881
+#CFLAGS_hp9000  = -O +bfpa
+#CFLAGS_sequent = -O -f1167
+#CFLAGS_mips    = -O2 -Olimit 600
+#CFLAGS_gcc2.0  = -O2 -funroll-all-loops
+#CFLAGS_esv     = -O2 -Olimit 600 -systype bsd43
+#CFLAGS_gcc = -O -fomit-frame-pointer -fstrength-reduce -finline-functions
+
+CFLAGS = -g -O2 -finline-functions
+
+
+#LIBS_imp = -lm -lXi -lXext -lX11
+#LIBS_ext = -lm -lXext -lX11
+#LIBS_std = -lm -lX11
+
+EXTLIBS = -lm -lXi -lXext -lX11
+LIBS = -lm -lXext -lX11
+
+
+# LFLAGS = -s
+LFLAGS =
+
+
+
+# X Windows Release 5 Libraries
+# CFLAGS = $(CFLAGS) -I/usr/local/share/X11R5/include
+# LFLAGS = $(LFLAGS) -L/usr/local/lib/X11R5
+
+# Sun OpenWindows Include Directory
+# CFLAGS = $(CFLAGS) -I/usr/openwin/include
+
+
+
+SRCS = rasmol.c molecule.c transfor.c command.c abstree.c render.c \
+       x11win.c pixutils.c outfile.c
+
+OBJS = rasmol.o molecule.o transfor.o command.o abstree.o render.o \
+       x11win.o pixutils.o outfile.o
+
+
+rasmol:		$(OBJS)
+		$(CC) -o rasmol $(LFLAGS) $(OBJS) $(LIBS)
+		chmod 755 rasmol
+
+rasmol.o:	rasmol.c rasmol.h molecule.h transfor.h command.h \
+		abstree.h render.h graphics.h pixutils.h outfile.h
+		$(CC) -c $(CFLAGS) rasmol.c
+
+molecule.o:	molecule.c molecule.h rasmol.h abstree.h transfor.h render.h
+		$(CC) -c $(CFLAGS) molecule.c
+
+transfor.o:	transfor.c transfor.h rasmol.h molecule.h command.h \
+		render.h graphics.h
+		$(CC) -c $(CFLAGS) transfor.c
+
+command.o:	command.c command.h rasmol.h tokens.h abstree.h \
+		molecule.h transfor.h render.h graphics.h pixutils.h \
+                outfile.h
+		$(CC) -c $(CFLAGS) command.c
+
+abstree.o:	abstree.c abstree.h rasmol.h molecule.h
+		$(CC) -c $(CFLAGS) abstree.c
+
+render.o:	render.c render.h rasmol.h molecule.h transfor.h \
+		command.h graphics.h pixutils.h
+		$(CC) -c $(CFLAGS) render.c
+
+x11win.o:	x11win.c graphics.h rasmol.h bitmaps.h command.h
+		$(CC) -c $(CFLAGS) x11win.c
+
+pixutils.o:	pixutils.c pixutils.h rasmol.h render.h graphics.h
+		$(CC) -c $(CFLAGS) pixutils.c
+
+outfile.o:	outfile.c outfile.h rasmol.h molecule.h command.h \
+		transfor.h render.h graphics.h pixutils.h
+		$(CC) -c $(CFLAGS) outfile.c
+
+
+esv:		rasmol.c rasmol.h molecule.c molecule.h transfor.c \
+                transfor.h command.c command.h abstree.c abstree.h \
+		render.c render.h x11win.c graphics.h pixutils.c \
+		pixutils.h outfile.c outfile.h tokens.h
+		cc -systype bsd43 -O3 -Olimit 600 -s -o rasmol \
+		-I/bsd43/usr/include -I/usr/include $(SRCS) $(EXTLIBS)
+		rm *.u
+
+cflow:
+		cflow -I/usr/local/include $(SRCS)
+
+clean:
+		rm -f rasmol $(OBJS)

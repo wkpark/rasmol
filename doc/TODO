@@ -1,0 +1,5 @@
+[1] Add XMOL XYZ format files, input and output.
+[2] Improve method used to atomic determine bonding.
+[3] Improve MolScript format script files for image.
+[4] Improve RasMol Vector PostScript(tm) output.
+[5] Vector fonts and labelling commands.

@@ -1,0 +1,76 @@
+% File PROJECTS
+% RasMol2, Roger Sayle
+% University of Edinburgh
+% Last Modified 9/11/93
+
+[A] Machine Independent
+=======================
+
+    [1] Zaphod (Stereo) Mode Transformation
+            UPDATE LEFT | RIGHT | BOTH | STEREO
+            SET STEREO [[-] <value>]
+	    ZAPHOD [<boolean>]
+
+    [2] Extended Data File Format Support, CIF?
+	Ref: Allen et al. (1983), Accounts of Chemstry Research,
+        	Volume 16, page 146.
+
+    [4] Group Spheres Representation 
+    [5] Shadow Casting from Cylinders (IA & Quadric).
+    [6] Bichromal Stereo effect for line drawings
+    [7] Improved Quality Cylinder Rendering
+    [8] Improved Dashed Vector Implementation
+    [11] Back Slabbing/Clipping Plane
+    [12] Flat Capped Cylinder Representation
+    [13] Priestle-style Structure Smoothing
+    [14] Richardson/Lesk Arrow Representation
+    [16] Sphere Dot Surface Representation
+    [17] Shadow Casting from Ribbon Polygons
+    [18] Solid Extruded Ellipse Representation
+    [19] Connolly Solvent Accessible Surface
+    [20] Shadow Casting on Solvent Access. Surface
+    [21] Write out secondary structure to PDB files
+    [22] Interactively check distances & angles.
+    [23] User specified bonds and bond removal.
+		ADD/CREATE id1 id2, DELETE/REMOVE id1,id2
+    [24] Read and use PDB connectivity data.
+    [25] Read default SSBOND from PDB file.
+    [26] Apple Mac PICT format output files.
+    [27] Ortep Style thermal ellipsoid Graphics.
+    [28] Crystallographic Symmetry operators.
+    [29] RESIZE command to set screen resolution.
+    [30] Save current molecule representation (ID3)
+    [31] Increased support for MolScript expressions.
+    [33] Priestle "Ribbons" for alpha carbon backbones.
+    [34] Develop Monochrome/4-bit plane dithered variant.
+    [35] Rewrite Manual and develop tutorial introduction.
+    [36] Develop Monochrome XDrawLine version of RasMol.
+
+[B] UNIX & X11 Window System
+============================
+
+    [1] FileOpen and FileSave Dialog Boxes
+    [2] X Windows Resource Database (XDefaults)
+    [3] Command line options (-fn -script etc...)
+    [3] Graphics Tablet and Spaceball Input
+
+
+[C] MS-DOS & MS Windows 3.1
+===========================
+
+    [1] Writing of Paintbrush (.PCX) Files
+    [2] MS Windows WINDOWS.INI File Processing
+    [4] DDE Transfer of Image and Valuators
+    [5] Develop 24bit version of RasWin
+
+[D] Apple Mac
+=============
+
+    [1] Macintosh version of RasMol.
+
+[E] VAX/AXP VMS
+===============
+
+    [1] Improved filename parsing and expansion!
+    [2] Spawn process to uncompress files.
+
