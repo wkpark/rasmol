@@ -1,9 +1,9 @@
 /***************************************************************************
- *                            RasMol 2.7.1.1                               *
+ *                              RasMol 2.7.1                               *
  *                                                                         *
  *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                            17 January 2001                              *
+ *                              22 June 1999                               *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -15,11 +15,11 @@
  *                      Version 2.6x1, May 1998                            *
  *                   Copyright (C) Arne Mueller 1998                       *
  *                                                                         *
- *      Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein         *
+ *           Version 2.7.0, 2.7.1 Mods by Herbert J. Bernstein             *
  *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
  *                      yaya@bernstein-plus-sons.com                       *
- *         2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 January 2001         *
- *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *                    2.7.0 March 1999, 2.7.1 June 1999                    *
+ *              Copyright (C) Herbert J. Bernstein 1998-1999               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    *
@@ -81,8 +81,6 @@
 /* #define EIGHTBIT     */
 #endif
 
-/* #define XPROCARCH    */
-
 
 /*========================*/
 /*  Default User Options! */
@@ -115,29 +113,15 @@
 #define TIME
 #endif
 
-/*===============================*/
-/*  Fix for acos/asin problems   */
-/*===============================*/
-
-#include <math.h>
-#ifdef asin
-#undef asin
-#endif
-#ifdef acos
-#undef acos
-#endif
-
-#define acos(x) (atan2(sqrt(1.-(x)*(x)),(x)))
-#define asin(x) (atan2((x),sqrt(1.-(x)*(x))))
 
 /*==============================*/
 /*  Application-wide Constants  */
 /*==============================*/
 
 #define MAIN_COPYRIGHT "Copyright (C) Roger Sayle 1992-1999"
-#define VERSION "2.7.1.1"
-#define VER_COPYRIGHT "Copyright (C) Herbert J. Bernstein 1998-2001"
-#define VER_DATE "January 2001"
+#define VERSION "2.7.2.1"
+#define VER_COPYRIGHT "Copyright (C) Herbert J. Bernstein 1998-1999"
+#define VER_DATE "April 2001"
 
 
 #ifndef True

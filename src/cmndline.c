@@ -1,9 +1,9 @@
 /***************************************************************************
- *                            RasMol 2.7.1.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
- *                                RasMol                                   *
+ *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                            17 January 2001                              *
+ *                              14 April 2001                              *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -11,15 +11,34 @@
  *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
  *                   Copyright (C) Roger Sayle 1992-1999                   *
  *                                                                         *
- *                  and Based on Mods by Arne Mueller                      *
- *                      Version 2.6x1, May 1998                            *
- *                   Copyright (C) Arne Mueller 1998                       *
+ *                          and Based on Mods by                           *
+ *Author             Version, Date             Copyright                   *
+ *Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       *
+ *Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  *
+ *Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   *
  *                                                                         *
- *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
- *                      yaya@bernstein-plus-sons.com                       *
- *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
- *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   *
+ *                                                                         *
+ *Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    * 
+ *Bernstein          RasMol 2.7.1   Jun 99         1998-2001               *
+ *                   RasMol 2.7.1.1 Jan 01                                 *
+ *                   RasMol 2.7.2   Aug 00                                 *
+ *                   RasMol 2.7.2.1 Apr 01                                 *
+ *                                                                         *
+ *                    and Incorporating Translations by                    *
+ *  Author                               Item                      Language*
+ *  Isabel Serván Martínez,                                                *
+ *  José Miguel Fernández Fernández      2.6   Manual              Spanish *
+ *  José Miguel Fernández Fernández      2.7.1 Manual              Spanish *
+ *  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish *
+ *  Jean-Pierre Demailly                 2.7.1 menus and messages  French  *
+ *  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          *
+ *  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian *
+ *                                                                         *
+ *                             This Release by                             *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
+ *                       yaya@bernstein-plus-sons.com                      *
+ *               Copyright(C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    *
@@ -77,9 +96,13 @@
 #define CMNDLINE
 #include "cmndline.h"
 #include "molecule.h"
+#include "abstree.h"
 #include "command.h"
 #include "render.h"
+#include "transfor.h"
 #include "graphics.h"
+#include "vector.h"
+#include "wbrotate.h"
 #include "langsel.h"
 
 
@@ -95,11 +118,13 @@
 #define MM_TRNY   0x05
 #define MM_ZOOM   0x06
 #define MM_CLIP   0x07
+#define MM_DEPT   0x08
 
 #define MM_PICK   0x01
 #define MM_NEXT   0x02
 #define MM_LABL   0x03
 #define MM_SELE   0x04
+#define MM_PREV   0x05
 
 
 
@@ -117,40 +142,47 @@ typedef struct {
  *  Z Rotation:    Shift (and Control) Middle or Right Buttons
  *  Clipping:      Control Left (and any other) Button
  */
+
+#ifdef INVERT
+#define	INV	1
+#else
+#define INV 0
+#endif
+ 
  
 static MouseMapping MouseRasMol[32] = {
-        { MM_NONE, 0, MM_NONE, 0, MM_PICK },  /*                     */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_PICK },  /* Lft                 */
-        { MM_TRNX, 0, MM_TRNY, 0, MM_PICK },  /*     Mid             */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_PICK },  /* Lft+Mid             */
-        { MM_TRNX, 0, MM_TRNY, 0, MM_PICK },  /*         Rgt         */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_PICK },  /* Lft    +Rgt         */
-        { MM_TRNX, 0, MM_TRNY, 0, MM_PICK },  /*     Mid+Rgt         */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_PICK },  /* Lft+Mid+Rgt         */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /*             Sft     */
-        { MM_NONE, 0, MM_ZOOM, 0, MM_NEXT },  /* Lft        +Sft     */
-        { MM_ROTZ, 0, MM_NONE, 0, MM_NEXT },  /*     Mid    +Sft     */
-        { MM_NONE, 0, MM_ZOOM, 0, MM_NEXT },  /* Lft+Mid    +Sft     */
-        { MM_ROTZ, 0, MM_NONE, 0, MM_NEXT },  /*         Rgt+Sft     */
-        { MM_NONE, 0, MM_ZOOM, 0, MM_NEXT },  /* Lft    +Rgt+Sft     */
-        { MM_ROTZ, 0, MM_NONE, 0, MM_NEXT },  /*     Mid+Rgt+Sft     */
-        { MM_NONE, 0, MM_ZOOM, 0, MM_NEXT },  /* Lft+Mid+Rgt+Sft     */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /*                 Ctl */
-        { MM_NONE, 0, MM_CLIP, 0, MM_NEXT },  /* Lft            +Ctl */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /*     Mid        +Ctl */
-        { MM_NONE, 0, MM_CLIP, 0, MM_NEXT },  /* Lft+Mid        +Ctl */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /*         Rgt    +Ctl */
-        { MM_NONE, 0, MM_CLIP, 0, MM_NEXT },  /* Lft    +Rgt    +Ctl */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /*     Mid+Rgt    +Ctl */
-        { MM_NONE, 0, MM_CLIP, 0, MM_NEXT },  /* Lft+Mid+Rgt    +Ctl */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /*             Sft+Ctl */
-        { MM_NONE, 0, MM_ZOOM, 0, MM_NEXT },  /* Lft        +Sft+Ctl */
-        { MM_ROTZ, 0, MM_NONE, 0, MM_NEXT },  /*     Mid    +Sft+Ctl */
-        { MM_NONE, 0, MM_ZOOM, 0, MM_NEXT },  /* Lft+Mid    +Sft+Ctl */
-        { MM_ROTZ, 0, MM_NONE, 0, MM_NEXT },  /*         Rgt+Sft+Ctl */
-        { MM_NONE, 0, MM_ZOOM, 0, MM_NEXT },  /* Lft    +Rgt+Sft+Ctl */
-        { MM_ROTZ, 0, MM_NONE, 0, MM_NEXT },  /*     Mid+Rgt+Sft+Ctl */
-        { MM_NONE, 0, MM_ZOOM, 0, MM_NEXT },  /* Lft+Mid+Rgt+Sft+Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_PICK },  /*                     */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PICK },  /* Lft                 */
+        { MM_TRNX, 0, MM_TRNY, INV, MM_PICK },  /*     Mid             */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PICK },  /* Lft+Mid             */
+        { MM_TRNX, 0, MM_TRNY, INV, MM_PICK },  /*         Rgt         */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PICK },  /* Lft    +Rgt         */
+        { MM_TRNX, 0, MM_TRNY, INV, MM_PICK },  /*     Mid+Rgt         */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PICK },  /* Lft+Mid+Rgt         */
+        { MM_NONE, 0, MM_NONE, INV, MM_NEXT },  /*             Sft     */
+        { MM_NONE, 0, MM_ZOOM, INV, MM_NEXT },  /* Lft        +Sft     */
+        { MM_ROTZ, 0, MM_NONE, INV, MM_NEXT },  /*     Mid    +Sft     */
+        { MM_NONE, 0, MM_ZOOM, INV, MM_NEXT },  /* Lft+Mid    +Sft     */
+        { MM_ROTZ, 0, MM_NONE, INV, MM_NEXT },  /*         Rgt+Sft     */
+        { MM_NONE, 0, MM_ZOOM, INV, MM_NEXT },  /* Lft    +Rgt+Sft     */
+        { MM_ROTZ, 0, MM_NONE, INV, MM_NEXT },  /*     Mid+Rgt+Sft     */
+        { MM_NONE, 0, MM_ZOOM, INV, MM_NEXT },  /* Lft+Mid+Rgt+Sft     */
+        { MM_NONE, 0, MM_NONE, INV, MM_PREV },  /*                 Ctl */
+        { MM_NONE, 0, MM_CLIP, INV, MM_PREV },  /* Lft            +Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_PREV },  /*     Mid        +Ctl */
+        { MM_NONE, 0, MM_CLIP, INV, MM_PREV },  /* Lft+Mid        +Ctl */
+        { MM_NONE, 0, MM_DEPT, INV, MM_PREV },  /*         Rgt    +Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_PREV },  /* Lft    +Rgt    +Ctl */
+        { MM_NONE, 0, MM_DEPT, INV, MM_PREV },  /*     Mid+Rgt    +Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_PREV },  /* Lft+Mid+Rgt    +Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_NEXT },  /*             Sft+Ctl */
+        { MM_NONE, 0, MM_ZOOM, INV, MM_NEXT },  /* Lft        +Sft+Ctl */
+        { MM_ROTZ, 0, MM_NONE, INV, MM_NEXT },  /*     Mid    +Sft+Ctl */
+        { MM_NONE, 0, MM_ZOOM, INV, MM_NEXT },  /* Lft+Mid    +Sft+Ctl */
+        { MM_ROTZ, 0, MM_NONE, INV, MM_NEXT },  /*         Rgt+Sft+Ctl */
+        { MM_NONE, 0, MM_ZOOM, INV, MM_NEXT },  /* Lft    +Rgt+Sft+Ctl */
+        { MM_ROTZ, 0, MM_NONE, INV, MM_NEXT },  /*     Mid+Rgt+Sft+Ctl */
+        { MM_NONE, 0, MM_ZOOM, INV, MM_NEXT },  /* Lft+Mid+Rgt+Sft+Ctl */
     };        
            
            
@@ -158,38 +190,38 @@ static MouseMapping MouseRasMol[32] = {
  *     Needs to be verified!
  */
 static MouseMapping MouseInsight[32] = {
-        { MM_NONE, 0, MM_NONE, 0, MM_PICK },  /*                     */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_PICK },  /* Lft                 */
-        { MM_TRNX, 0, MM_TRNY, 0, MM_PICK },  /*     Mid             */
-        { MM_ZOOM, 0, MM_ZOOM, 0, MM_PICK },  /* Lft+Mid             */
-        { MM_NONE, 0, MM_NONE, 0, MM_PICK },  /*         Rgt         */
-        { MM_ROTZ, 0, MM_ROTZ, 0, MM_PICK },  /* Lft    +Rgt         */
-        { MM_NONE, 0, MM_NONE, 0, MM_PICK },  /*     Mid+Rgt         */
-        { MM_CLIP, 0, MM_CLIP, 0, MM_PICK },  /* Lft+Mid+Rgt         */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /*             Sft     */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_NEXT },  /* Lft        +Sft     */
-        { MM_TRNY, 0, MM_TRNY, 0, MM_NEXT },  /*     Mid    +Sft     */
-        { MM_ZOOM, 0, MM_ZOOM, 0, MM_NEXT },  /* Lft+Mid    +Sft     */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /*         Rgt+Sft     */
-        { MM_ROTZ, 0, MM_ROTZ, 0, MM_NEXT },  /* Lft    +Rgt+Sft     */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /*     Mid+Rgt+Sft     */
-        { MM_CLIP, 0, MM_CLIP, 0, MM_NEXT },  /* Lft+Mid+Rgt+Sft     */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /*                 Ctl */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_NEXT },  /* Lft            +Ctl */
-        { MM_TRNX, 0, MM_TRNY, 0, MM_NEXT },  /*     Mid        +Ctl */
-        { MM_ZOOM, 0, MM_ZOOM, 0, MM_NEXT },  /* Lft+Mid        +Ctl */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /*         Rgt    +Ctl */
-        { MM_ROTZ, 0, MM_ROTZ, 0, MM_NEXT },  /* Lft    +Rgt    +Ctl */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /*     Mid+Rgt    +Ctl */
-        { MM_CLIP, 0, MM_CLIP, 0, MM_NEXT },  /* Lft+Mid+Rgt    +Ctl */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /*             Sft+Ctl */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_NEXT },  /* Lft        +Sft+Ctl */
-        { MM_TRNX, 0, MM_TRNY, 0, MM_NEXT },  /*     Mid    +Sft+Ctl */
-        { MM_ZOOM, 0, MM_ZOOM, 0, MM_NEXT },  /* Lft+Mid    +Sft+Ctl */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /*         Rgt+Sft+Ctl */
-        { MM_ROTZ, 0, MM_ROTZ, 0, MM_NEXT },  /* Lft    +Rgt+Sft+Ctl */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /*     Mid+Rgt+Sft+Ctl */
-        { MM_CLIP, 0, MM_CLIP, 0, MM_NEXT },  /* Lft+Mid+Rgt+Sft+Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_PICK },  /*                     */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PICK },  /* Lft                 */
+        { MM_TRNX, 0, MM_TRNY, INV, MM_PICK },  /*     Mid             */
+        { MM_ZOOM, 0, MM_ZOOM, INV, MM_PICK },  /* Lft+Mid             */
+        { MM_NONE, 0, MM_NONE, INV, MM_PICK },  /*         Rgt         */
+        { MM_ROTZ, 0, MM_ROTZ, INV, MM_PICK },  /* Lft    +Rgt         */
+        { MM_NONE, 0, MM_NONE, INV, MM_PICK },  /*     Mid+Rgt         */
+        { MM_CLIP, 0, MM_CLIP, INV, MM_PICK },  /* Lft+Mid+Rgt         */
+        { MM_NONE, 0, MM_NONE, INV, MM_NEXT },  /*             Sft     */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_NEXT },  /* Lft        +Sft     */
+        { MM_TRNY, 0, MM_TRNY, INV, MM_NEXT },  /*     Mid    +Sft     */
+        { MM_ZOOM, 0, MM_ZOOM, INV, MM_NEXT },  /* Lft+Mid    +Sft     */
+        { MM_NONE, 0, MM_NONE, INV, MM_NEXT },  /*         Rgt+Sft     */
+        { MM_ROTZ, 0, MM_ROTZ, INV, MM_NEXT },  /* Lft    +Rgt+Sft     */
+        { MM_NONE, 0, MM_NONE, INV, MM_NEXT },  /*     Mid+Rgt+Sft     */
+        { MM_CLIP, 0, MM_CLIP, INV, MM_NEXT },  /* Lft+Mid+Rgt+Sft     */
+        { MM_NONE, 0, MM_NONE, INV, MM_PREV },  /*                 Ctl */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PREV },  /* Lft            +Ctl */
+        { MM_TRNX, 0, MM_TRNY, INV, MM_PREV },  /*     Mid        +Ctl */
+        { MM_ZOOM, 0, MM_ZOOM, INV, MM_PREV },  /* Lft+Mid        +Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_PREV },  /*         Rgt    +Ctl */
+        { MM_ROTZ, 0, MM_ROTZ, INV, MM_PREV },  /* Lft    +Rgt    +Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_PREV },  /*     Mid+Rgt    +Ctl */
+        { MM_CLIP, 0, MM_CLIP, INV, MM_PREV },  /* Lft+Mid+Rgt    +Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_NEXT },  /*             Sft+Ctl */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_NEXT },  /* Lft        +Sft+Ctl */
+        { MM_TRNX, 0, MM_TRNY, INV, MM_NEXT },  /*     Mid    +Sft+Ctl */
+        { MM_ZOOM, 0, MM_ZOOM, INV, MM_NEXT },  /* Lft+Mid    +Sft+Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_NEXT },  /*         Rgt+Sft+Ctl */
+        { MM_ROTZ, 0, MM_ROTZ, INV, MM_NEXT },  /* Lft    +Rgt+Sft+Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_NEXT },  /*     Mid+Rgt+Sft+Ctl */
+        { MM_CLIP, 0, MM_CLIP, INV, MM_NEXT },  /* Lft+Mid+Rgt+Sft+Ctl */
     };        
 
 
@@ -197,38 +229,38 @@ static MouseMapping MouseInsight[32] = {
  *     Needs to be verified!
  */
 static MouseMapping MouseQuanta[32] = {
-        { MM_NONE, 0, MM_NONE, 0, MM_PICK },  /*                     */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_PICK },  /* Lft                 */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_PICK },  /*     Mid             */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_PICK },  /* Lft+Mid             */
-        { MM_ROTZ, 0, MM_NONE, 0, MM_PICK },  /*         Rgt         */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_PICK },  /* Lft    +Rgt         */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_PICK },  /*     Mid+Rgt         */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_PICK },  /* Lft+Mid+Rgt         */
-        { MM_NONE, 0, MM_ZOOM, 0, MM_NEXT },  /*             Sft     */
-        { MM_NONE, 0, MM_CLIP, 0, MM_NEXT },  /* Lft        +Sft     */
-        { MM_TRNX, 0, MM_TRNY, 0, MM_NEXT },  /*     Mid    +Sft     */
-        { MM_NONE, 0, MM_CLIP, 0, MM_NEXT },  /* Lft+Mid    +Sft     */
-        { MM_TRNX, 0, MM_TRNY, 0, MM_NEXT },  /*         Rgt+Sft     */
-        { MM_NONE, 0, MM_CLIP, 0, MM_NEXT },  /* Lft    +Rgt+Sft     */
-        { MM_TRNX, 0, MM_TRNY, 0, MM_NEXT },  /*     Mid+Rgt+Sft     */
-        { MM_NONE, 0, MM_CLIP, 0, MM_NEXT },  /* Lft+Mid+Rgt+Sft     */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /*                 Ctl */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_NEXT },  /* Lft            +Ctl */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_NEXT },  /*     Mid        +Ctl */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_NEXT },  /* Lft+Mid        +Ctl */
-        { MM_ROTZ, 0, MM_NONE, 0, MM_NEXT },  /*         Rgt    +Ctl */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_NEXT },  /* Lft    +Rgt    +Ctl */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_NEXT },  /*     Mid+Rgt    +Ctl */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_NEXT },  /* Lft+Mid+Rgt    +Ctl */
-        { MM_NONE, 0, MM_ZOOM, 0, MM_NEXT },  /*             Sft+Ctl */
-        { MM_NONE, 0, MM_CLIP, 0, MM_NEXT },  /* Lft        +Sft+Ctl */
-        { MM_TRNX, 0, MM_TRNY, 0, MM_NEXT },  /*     Mid    +Sft+Ctl */
-        { MM_NONE, 0, MM_CLIP, 0, MM_NEXT },  /* Lft+Mid    +Sft+Ctl */
-        { MM_TRNX, 0, MM_TRNY, 0, MM_NEXT },  /*         Rgt+Sft+Ctl */
-        { MM_NONE, 0, MM_CLIP, 0, MM_NEXT },  /* Lft    +Rgt+Sft+Ctl */
-        { MM_TRNX, 0, MM_TRNY, 0, MM_NEXT },  /*     Mid+Rgt+Sft+Ctl */
-        { MM_NONE, 0, MM_CLIP, 0, MM_NEXT },  /* Lft+Mid+Rgt+Sft+Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_PICK },  /*                     */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PICK },  /* Lft                 */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PICK },  /*     Mid             */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PICK },  /* Lft+Mid             */
+        { MM_ROTZ, 0, MM_NONE, INV, MM_PICK },  /*         Rgt         */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PICK },  /* Lft    +Rgt         */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PICK },  /*     Mid+Rgt         */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PICK },  /* Lft+Mid+Rgt         */
+        { MM_NONE, 0, MM_ZOOM, INV, MM_NEXT },  /*             Sft     */
+        { MM_NONE, 0, MM_CLIP, INV, MM_NEXT },  /* Lft        +Sft     */
+        { MM_TRNX, 0, MM_TRNY, INV, MM_NEXT },  /*     Mid    +Sft     */
+        { MM_NONE, 0, MM_CLIP, INV, MM_NEXT },  /* Lft+Mid    +Sft     */
+        { MM_TRNX, 0, MM_TRNY, INV, MM_NEXT },  /*         Rgt+Sft     */
+        { MM_NONE, 0, MM_CLIP, INV, MM_NEXT },  /* Lft    +Rgt+Sft     */
+        { MM_TRNX, 0, MM_TRNY, INV, MM_NEXT },  /*     Mid+Rgt+Sft     */
+        { MM_NONE, 0, MM_CLIP, INV, MM_NEXT },  /* Lft+Mid+Rgt+Sft     */
+        { MM_NONE, 0, MM_NONE, INV, MM_PREV },  /*                 Ctl */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PREV },  /* Lft            +Ctl */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PREV },  /*     Mid        +Ctl */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PREV },  /* Lft+Mid        +Ctl */
+        { MM_ROTZ, 0, MM_NONE, INV, MM_PREV },  /*         Rgt    +Ctl */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PREV },  /* Lft    +Rgt    +Ctl */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PREV },  /*     Mid+Rgt    +Ctl */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PREV },  /* Lft+Mid+Rgt    +Ctl */
+        { MM_NONE, 0, MM_ZOOM, INV, MM_NEXT },  /*             Sft+Ctl */
+        { MM_NONE, 0, MM_CLIP, INV, MM_NEXT },  /* Lft        +Sft+Ctl */
+        { MM_TRNX, 0, MM_TRNY, INV, MM_NEXT },  /*     Mid    +Sft+Ctl */
+        { MM_NONE, 0, MM_CLIP, INV, MM_NEXT },  /* Lft+Mid    +Sft+Ctl */
+        { MM_TRNX, 0, MM_TRNY, INV, MM_NEXT },  /*         Rgt+Sft+Ctl */
+        { MM_NONE, 0, MM_CLIP, INV, MM_NEXT },  /* Lft    +Rgt+Sft+Ctl */
+        { MM_TRNX, 0, MM_TRNY, INV, MM_NEXT },  /*     Mid+Rgt+Sft+Ctl */
+        { MM_NONE, 0, MM_CLIP, INV, MM_NEXT },  /* Lft+Mid+Rgt+Sft+Ctl */
     };        
                  
 /* Tripos Sybyl 6.2 Mouse Bindings:
@@ -242,38 +274,38 @@ static MouseMapping MouseQuanta[32] = {
  */
  
 static MouseMapping MouseSybyl[32] = {
-        { MM_NONE, 0, MM_NONE, 0, MM_PICK },  /*                     */
-        { MM_NONE, 0, MM_NONE, 0, MM_PICK },  /* Lft                 */
-        { MM_TRNX, 0, MM_TRNY, 0, MM_PICK },  /*     Mid             */
-        { MM_NONE, 0, MM_NONE, 0, MM_PICK },  /* Lft+Mid             */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_PICK },  /*         Rgt         */
-        { MM_ROTZ, 0, MM_NONE, 0, MM_PICK },  /* Lft    +Rgt         */
-        { MM_ZOOM, 0, MM_ZOOM, 0, MM_PICK },  /*     Mid+Rgt         */
-        { MM_NONE, 0, MM_NONE, 0, MM_PICK },  /* Lft+Mid+Rgt         */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /*             Sft     */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /* Lft        +Sft     */
-        { MM_TRNX, 0, MM_TRNY, 0, MM_NEXT },  /*     Mid    +Sft     */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /* Lft+Mid    +Sft     */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_NEXT },  /*         Rgt+Sft     */
-        { MM_ROTZ, 0, MM_NONE, 0, MM_NEXT },  /* Lft    +Rgt+Sft     */
-        { MM_ZOOM, 0, MM_ZOOM, 0, MM_NEXT },  /*     Mid+Rgt+Sft     */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /* Lft+Mid+Rgt+Sft     */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /*                 Ctl */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /* Lft            +Ctl */
-        { MM_TRNX, 0, MM_TRNY, 0, MM_NEXT },  /*     Mid        +Ctl */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /* Lft+Mid        +Ctl */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_NEXT },  /*         Rgt    +Ctl */
-        { MM_ROTZ, 0, MM_NONE, 0, MM_NEXT },  /* Lft    +Rgt    +Ctl */
-        { MM_ZOOM, 0, MM_ZOOM, 0, MM_NEXT },  /*     Mid+Rgt    +Ctl */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /* Lft+Mid+Rgt    +Ctl */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /*             Sft+Ctl */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /* Lft        +Sft+Ctl */
-        { MM_TRNX, 0, MM_TRNY, 0, MM_NEXT },  /*     Mid    +Sft+Ctl */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /* Lft+Mid    +Sft+Ctl */
-        { MM_ROTY, 0, MM_ROTX, 0, MM_NEXT },  /*         Rgt+Sft+Ctl */
-        { MM_ROTZ, 0, MM_NONE, 0, MM_NEXT },  /* Lft    +Rgt+Sft+Ctl */
-        { MM_ZOOM, 0, MM_ZOOM, 0, MM_NEXT },  /*     Mid+Rgt+Sft+Ctl */
-        { MM_NONE, 0, MM_NONE, 0, MM_NEXT },  /* Lft+Mid+Rgt+Sft+Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_PICK },  /*                     */
+        { MM_NONE, 0, MM_NONE, INV, MM_PICK },  /* Lft                 */
+        { MM_TRNX, 0, MM_TRNY, INV, MM_PICK },  /*     Mid             */
+        { MM_NONE, 0, MM_NONE, INV, MM_PICK },  /* Lft+Mid             */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PICK },  /*         Rgt         */
+        { MM_ROTZ, 0, MM_NONE, INV, MM_PICK },  /* Lft    +Rgt         */
+        { MM_ZOOM, 0, MM_ZOOM, INV, MM_PICK },  /*     Mid+Rgt         */
+        { MM_NONE, 0, MM_NONE, INV, MM_PICK },  /* Lft+Mid+Rgt         */
+        { MM_NONE, 0, MM_NONE, INV, MM_NEXT },  /*             Sft     */
+        { MM_NONE, 0, MM_NONE, INV, MM_NEXT },  /* Lft        +Sft     */
+        { MM_TRNX, 0, MM_TRNY, INV, MM_NEXT },  /*     Mid    +Sft     */
+        { MM_NONE, 0, MM_NONE, INV, MM_NEXT },  /* Lft+Mid    +Sft     */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_NEXT },  /*         Rgt+Sft     */
+        { MM_ROTZ, 0, MM_NONE, INV, MM_NEXT },  /* Lft    +Rgt+Sft     */
+        { MM_ZOOM, 0, MM_ZOOM, INV, MM_NEXT },  /*     Mid+Rgt+Sft     */
+        { MM_NONE, 0, MM_NONE, INV, MM_NEXT },  /* Lft+Mid+Rgt+Sft     */
+        { MM_NONE, 0, MM_NONE, INV, MM_PREV },  /*                 Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_PREV },  /* Lft            +Ctl */
+        { MM_TRNX, 0, MM_TRNY, INV, MM_PREV },  /*     Mid        +Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_PREV },  /* Lft+Mid        +Ctl */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_PREV },  /*         Rgt    +Ctl */
+        { MM_ROTZ, 0, MM_NONE, INV, MM_PREV },  /* Lft    +Rgt    +Ctl */
+        { MM_ZOOM, 0, MM_ZOOM, INV, MM_PREV },  /*     Mid+Rgt    +Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_PREV },  /* Lft+Mid+Rgt    +Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_NEXT },  /*             Sft+Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_NEXT },  /* Lft        +Sft+Ctl */
+        { MM_TRNX, 0, MM_TRNY, INV, MM_NEXT },  /*     Mid    +Sft+Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_NEXT },  /* Lft+Mid    +Sft+Ctl */
+        { MM_ROTY, 0, MM_ROTX, INV, MM_NEXT },  /*         Rgt+Sft+Ctl */
+        { MM_ROTZ, 0, MM_NONE, INV, MM_NEXT },  /* Lft    +Rgt+Sft+Ctl */
+        { MM_ZOOM, 0, MM_ZOOM, INV, MM_NEXT },  /*     Mid+Rgt+Sft+Ctl */
+        { MM_NONE, 0, MM_NONE, INV, MM_NEXT },  /* Lft+Mid+Rgt+Sft+Ctl */
     };        
 
 
@@ -290,7 +322,7 @@ static int CurPos,MaxPos;
 static MouseMapping *MouseBinding;
 static int PointX,PointY;
 static int InitX,InitY;
-static int HeldButton;
+
 
 
 
@@ -336,7 +368,7 @@ int ProcessCharacter( int ch )
     if( !ch ) return( False );
 
     if( IsPaused )
-    {   if( (ch==0x04) || (ch==0x1a) )
+    {   if( (ch==0x04) || (ch==0x1a) || (ch==0x1b) )
         {   InterruptPauseCommand();
         } else ResumePauseCommand();
         return( False );
@@ -476,13 +508,19 @@ static void ClampDial( int dial, Real value )
 {
     register Real temp;
 
-    temp = DialValue[dial] + value;
+    /* invert mouse for slabbing and backclipping */
+    if(dial==DialSlab || dial==DialBClip ) {
+      temp = DialValue[dial] - value;
+    } else {
+      temp = DialValue[dial] + value;
+    }
 
     if( temp > 1.0 )
-    {   DialValue[dial] = 1.0;
+    {   temp = 1.0;
     } else if( temp < -1.0 )
-    {   DialValue[dial] = -1.0;
-    } else DialValue[dial] = temp;
+    {   temp = -1.0;
+    }
+    DialValue[dial] = temp;
 }
 
 
@@ -507,16 +545,22 @@ void ProcessMouseDown( int x, int y, int stat )
     InitX = PointX = x;
     InitY = PointY = y;
     HeldButton = True;
+    if (PickMode == PickAtom ) {
+      DrawArea = True;
+    }
 }
 
 
 void ProcessMouseUp( int x, int y, int stat )
 {                      
     register MouseMapping *map;
+    register int area;
     
-    map = &MouseBinding[stat];
-    if( map->dxfunc || map->dyfunc )
-        SetMouseCaptureStatus(False);
+    area = DrawArea;
+    DrawArea = False;
+    
+    map = &MouseBinding[(stat&31)];
+    SetMouseCaptureStatus(False);
 
     if( !HeldButton )
         return;
@@ -524,22 +568,47 @@ void ProcessMouseUp( int x, int y, int stat )
     HeldButton = False;
                                   
     if( Database && IsClose(x,InitX) && IsClose(y,InitY) )
-    {   switch( map->click )
-        {   case(MM_PICK):  if( PickAtom(False,x,y) )
+    {
+    
+#ifdef INVERT
+      y = YRange - y;
+#endif
+
+      switch( map->click )
+        {   case(MM_PICK):  if( PickAtoms(False,x,y) )
                             {   AdviseUpdate(AdvPickNumber);
                                 AdviseUpdate(AdvPickAtom);
                                 AdviseUpdate(AdvPickCoord);
                             }
                             break;
                    
-            case(MM_NEXT):  if( PickAtom(True,x,y) )
+            case(MM_NEXT):  if( PickAtoms(1,x,y) )
                             {   AdviseUpdate(AdvPickNumber);
                                 AdviseUpdate(AdvPickAtom);
                                 AdviseUpdate(AdvPickCoord);
                             }
                             break;
-
+                            
+            case(MM_PREV):  if( PickAtoms(-1,x,y) )
+                              {   AdviseUpdate(AdvPickNumber);
+                                  AdviseUpdate(AdvPickAtom);
+                                  AdviseUpdate(AdvPickCoord);
+                              }
+                              break;
+            }
+        } else if( Database && area )
+    {   /*SelectArea treats inversion*/
+		switch( map->click )
+        {   case(MM_PICK):  SelectArea(0,True,InitX,InitY,x,y);
+                            break;
+                   
+            case(MM_NEXT):  SelectArea(1,True,InitX,InitY,x,y);
+                            break;
+                   
+            case(MM_PREV):  SelectArea(-1,True,InitX,InitY,x,y);
+                            break;
         }
+		ReDrawFlag |= RFRefresh;
     }
 }
 
@@ -555,10 +624,10 @@ void SetMouseMode( int mode )
     register int stat;
     
     switch( mode )
-    {   case(MMRasMol):  MouseBinding = MouseRasMol;  break;
-        case(MMInsight): MouseBinding = MouseInsight; break;
-        case(MMQuanta):  MouseBinding = MouseQuanta;  break;
-        case(MMSybyl):   MouseBinding = MouseSybyl;   break;
+    {   case(MMRasMol):  MouseBinding = MouseRasMol;  MouseMode = MMRasMol;    break;
+        case(MMInsight): MouseBinding = MouseInsight; MouseMode = MMInsight;   break;
+        case(MMQuanta):  MouseBinding = MouseQuanta;  MouseMode = MMQuanta; break;
+        case(MMSybyl):   MouseBinding = MouseSybyl;   MouseMode = MMSybyl;  break;
     }
 
     /* Should also test for BindingActive(MMSft|MMCtl)! */
@@ -570,34 +639,69 @@ void SetMouseMode( int mode )
 static void PerformMouseFunc( int func, int delta, int max )
 {
     switch( func )
-    {   case(MM_ROTX):  WrapDial( 0, (Real)(2*delta)/max );
+    {   case(MM_ROTX):  WrapDial( DialRX, (Real)(2*delta)/max );
                         ReDrawFlag |= RFRotateX;
                         break;
                         
-        case(MM_ROTY):  WrapDial( 1, (Real)(2*delta)/max );
+        case(MM_ROTY):  if ( (RotMode == RotBond) && BondSelected) {
+                          WrapDial( DialBRot, (Real)(2*delta)/max );
+                        } else {
+                          WrapDial( DialRY, (Real)(2*delta)/max );
+                        }
                         ReDrawFlag |= RFRotateY;
                         break;
                         
-        case(MM_ROTZ):  WrapDial( 2, (Real)(2*delta)/max );
+        case(MM_ROTZ):  WrapDial( DialRZ, (Real)(2*delta)/max );
                         ReDrawFlag |= RFRotateZ;
                         break;
                         
-        case(MM_ZOOM):  ClampDial( 3, (Real)(2*delta)/max );
+        case(MM_ZOOM):  ClampDial( DialZoom, (Real)(2*delta)/max );
                         ReDrawFlag |= RFZoom;
                         break;
                         
-        case(MM_TRNX):  ClampDial( 4, (Real)delta/max );
+        case(MM_TRNX):  ClampDial( DialTX, (Real)delta/max );
                         ReDrawFlag |= RFTransX;
                         break;
 
-        case(MM_TRNY):  ClampDial( 5, (Real)delta/max );
+        case(MM_TRNY):  ClampDial( DialTY, (Real)delta/max );
                         ReDrawFlag |= RFTransY;
                         break;
 
-        case(MM_CLIP):  ClampDial( 7, (Real)delta/max );
+        case(MM_CLIP):  ClampDial( DialSlab, (Real)delta/max );
                         ReDrawFlag |= RFSlab;
+                        UseSlabPlane = True;
+                        UseShadow = False;
+                        break;
+
+        case(MM_DEPT):  ClampDial( DialBClip, (Real)delta/max );
+                        ReDrawFlag |= RFRotate;
+                        UseDepthPlane = True;
                         break;
     }     
+}
+
+static void ReDial( double SaveValue[10] )
+{
+    int index;
+    
+    if ( !(RotMode == RotMol) ) {
+	  if ( (RotMode == RotBond) && BondSelected) {
+	    BondSelected->BRotValue = DialValue[DialBRot];
+	  } else if ( RotMode == RotAll ) {
+	    WRotValue[DialRX] = DialValue[DialRX];
+	    WRotValue[DialRY] = DialValue[DialRY];
+	    WRotValue[DialRZ] = DialValue[DialRZ];
+	    WTransX = DialValue[DialTX];
+	    WTransY = DialValue[DialTY];
+	    WTransZ = DialValue[DialTZ];
+
+	  }
+	  for (index = 0; index < 7; index++) {
+	    if (!(index == DialZoom))
+	    DialValue[index] = SaveValue[index];
+	  }
+	}
+	return;
 }
 
 
@@ -605,30 +709,86 @@ void ProcessMouseMove( int x, int y, int stat )
 {   
     register MouseMapping *map;
     register int dx,dy;
+    double SaveValue[10];
+    int index;
+
+    if (! ( RotMode == RotMol ) ) {
+      for (index=0; index<10; index++)
+          SaveValue[index] = DialValue[index];
+      if (( RotMode == RotBond ) && BondSelected)
+          DialValue[DialBRot] = BondSelected->BRotValue;
+      else if ( RotMode == RotAll ) {
+          DialValue[DialRX] = WRotValue[DialRX];
+          DialValue[DialRY] = WRotValue[DialRY];
+          DialValue[DialRZ] = WRotValue[DialRZ];
+	      DialValue[DialTX] = WTransX;
+	      DialValue[DialTY] = WTransY;
+	      DialValue[DialTZ] = WTransZ;
+      }
+    }
     
     map = &MouseBinding[stat];
-    if( map->dxfunc || map->dyfunc )
+    if( map->dxfunc || map->dyfunc || DrawArea)
     {   SetMouseCaptureStatus(True);
         if( !HeldButton )
         {   InitX = PointX = x;
             InitY = PointY = y;
             HeldButton = True;
+            ReDial( SaveValue );
             return;
         }
     
-        if( IsClose(x,InitX) && IsClose(y,InitY) )
-            return;                           
+        if( IsClose(x,InitX) && IsClose(y,InitY) ) {
+            ReDial( SaveValue );
+            return;
+        }                         
         
         if( map->dxinvrt )
         {      dx = PointX - x;
-        } else dx = x - PointX;  
+        } else {
+          dx = x - PointX;
+        }  
     
         if( map->dyinvrt )
         {      dy = PointY - y;
-        } else dy = y - PointY;
+        } else {
+          dy = y - PointY;
+        }
+
+        if( !DrawArea )
+        {  if( IsClose(x,InitX) && IsClose(y,InitY) ){
+             ReDial( SaveValue );
+             return;
+           }                         
     
-        if( dx ) PerformMouseFunc(map->dxfunc,dx,XRange);
-        if( dy ) PerformMouseFunc(map->dyfunc,dy,YRange);
+           if( dx ) PerformMouseFunc(map->dxfunc,dx,XRange);
+           if( dy ) PerformMouseFunc(map->dyfunc,dy,YRange);
+        } else {  
+          if( (x<0&&dx<0)||(y<0&&-dy<0)||(x>XRange&&dx>0)||(y>YRange&&-dy>0) )
+          {	
+             if( !IsClose(x,InitX) && dx ) PerformMouseFunc(MM_TRNX,-dx,XRange);
+             if( !IsClose(y,InitY) && dy ) PerformMouseFunc(MM_TRNY,-dy,YRange);
+               InitX -= dx;
+#ifdef INVERT	/*desinvert!*/
+               InitY += dy;
+#else
+               InitY -= dy;
+#endif		
+         }
+         
+         switch( map->click )
+         {   case(MM_PICK):  SelectArea(False,False,InitX,InitY,x,y);
+                             break;
+
+             case(MM_NEXT):  SelectArea(1,False,InitX,InitY,x,y);
+                             break;
+	           
+             case(MM_PREV):  SelectArea(-1,False,InitX,InitY,x,y);
+                             break;
+         }
+             ReDrawFlag |= RFRefresh;
+       }
+
     
         if( ReDrawFlag & (RFRotateX|RFRotateY) )
             UpdateScrollBars();
@@ -639,6 +799,9 @@ void ProcessMouseMove( int x, int y, int stat )
     {   SetMouseCaptureStatus(False);
         HeldButton = False;
     }
+
+    ReDial( SaveValue );
+    return;
 }
 
 

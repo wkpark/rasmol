@@ -1,9 +1,9 @@
 /***************************************************************************
- *                            RasMol 2.7.1.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
- *                                RasMol                                   *
+ *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                            17 January 2001                              *
+ *                              14 April 2001                              *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -11,15 +11,34 @@
  *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
  *                   Copyright (C) Roger Sayle 1992-1999                   *
  *                                                                         *
- *                  and Based on Mods by Arne Mueller                      *
- *                      Version 2.6x1, May 1998                            *
- *                   Copyright (C) Arne Mueller 1998                       *
+ *                          and Based on Mods by                           *
+ *Author             Version, Date             Copyright                   *
+ *Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       *
+ *Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  *
+ *Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   *
  *                                                                         *
- *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
- *                      yaya@bernstein-plus-sons.com                       *
- *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
- *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   *
+ *                                                                         *
+ *Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    * 
+ *Bernstein          RasMol 2.7.1   Jun 99         1998-2001               *
+ *                   RasMol 2.7.1.1 Jan 01                                 *
+ *                   RasMol 2.7.2   Aug 00                                 *
+ *                   RasMol 2.7.2.1 Apr 01                                 *
+ *                                                                         *
+ *                    and Incorporating Translations by                    *
+ *  Author                               Item                      Language*
+ *  Isabel Serván Martínez,                                                *
+ *  José Miguel Fernández Fernández      2.6   Manual              Spanish *
+ *  José Miguel Fernández Fernández      2.7.1 Manual              Spanish *
+ *  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish *
+ *  Jean-Pierre Demailly                 2.7.1 menus and messages  French  *
+ *  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          *
+ *  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian *
+ *                                                                         *
+ *                             This Release by                             *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
+ *                       yaya@bernstein-plus-sons.com                      *
+ *               Copyright(C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    *
@@ -50,6 +69,22 @@
 
 
 /* tokens.h
+ $Log: tokens.h,v $
+ Revision 1.2  2001/02/06 21:58:18  yaya
+ *** empty log message ***
+
+ Revision 1.1  2001/01/31 02:13:45  yaya
+ Initial revision
+
+ Revision 1.4  2000/08/26 18:13:01  yaya
+ Updates to header comments in all files
+
+ Revision 1.3  2000/08/21 21:08:08  yaya
+ semi-final ucb mods
+
+ Revision 1.2  2000/08/09 01:18:39  yaya
+ Rough cut with ucb
+
  */
 
 /* Lexeme Tokens */
@@ -69,44 +104,46 @@
 #define DashTok        267
 #define DefineTok      268
 #define DelayTok       269
-#define DisplayTok     270
-#define EchoTok        271
-#define ExitTok        272
-#define HelpTok        273
-#define LabelTok       274
-#define LoadTok        275
-#define LoopTok        276
-#define MonitorTok     277
-#define MoveTok        278
-#define PrintTok       279
-#define QuitTok        280
-#define RefreshTok     281
-#define RenumTok       282
-#define ResetTok       283
-#define ResizeTok      284
-#define RestoreTok     285
-#define RestrictTok    286
-#define RotateTok      287
-#define SaveTok        288
-#define ScriptTok      289
-#define SelectTok      290
-#define SetTok         291
-#define ShowTok        292
-#define SlabTok        293
-#define SourceTok      294
-#define SpacefillTok   295
-#define StarTok        296
-#define StructureTok   297
-#define SymmetryTok    298
-#define TitleTok       299
-#define TraceTok       300
-#define TranslateTok   301
-#define ViewTok        302
-#define WaitTok        303
-#define WireframeTok   304
-#define WriteTok       305
-#define ZapTok         306
-#define ZoomTok        307
+#define DepthTok       270
+#define DisplayTok     271
+#define EchoTok        272
+#define ExitTok        273
+#define HelpTok        274
+#define LabelTok       275
+#define LoadTok        276
+#define LoopTok        277
+#define MoleculeTok    278
+#define MonitorTok     279
+#define MoveTok        280
+#define PrintTok       281
+#define QuitTok        282
+#define RefreshTok     283
+#define RenumTok       284
+#define ResetTok       285
+#define ResizeTok      286
+#define RestoreTok     287
+#define RestrictTok    288
+#define RotateTok      289
+#define SaveTok        290
+#define ScriptTok      291
+#define SelectTok      292
+#define SetTok         293
+#define ShowTok        294
+#define SlabTok        295
+#define SourceTok      296
+#define SpacefillTok   297
+#define StarTok        298
+#define StructureTok   299
+#define SymmetryTok    300
+#define TitleTok       301
+#define TraceTok       302
+#define TranslateTok   303
+#define ViewTok        304
+#define WaitTok        305
+#define WireframeTok   306
+#define WriteTok       307
+#define ZapTok         308
+#define ZoomTok        309
 
 /* Predicate Tokens */
 #define IsPredTok(x)   (((x)>=310) && ((x)<=349))
@@ -219,6 +256,7 @@
 #define SSBondTok      405
 #define Ribbon1Tok     406
 #define Ribbon2Tok     407
+#define UnBondTok      408
 
 /* Expression Tokens */
 #define TrueTok        410
@@ -272,6 +310,7 @@
 #define ChargeTok      452
 
 /* Variable Tokens */
+#define ShadePowerTok  459
 #define AmbientTok     460
 #define AxesTok        461
 #define BackFadeTok    462
@@ -340,9 +379,18 @@
 #define FSTok          515
 #define PSTok          EPSFTok
 
+/* Clipboard Tokens */
+#define ImageTok       516
+#define PositionTok    517
+#define CopyTok        518
+#define PasteTok       519
+
 /* Language Tokens */
 #define EnglishTok     600
-#define SpanishTok     601
+#define FrenchTok      601
+#define GermanTok      602
+#define ItalianTok     603
+#define SpanishTok     604
 
 int LookUpKeyword( char *ptr );
 

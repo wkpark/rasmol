@@ -1,9 +1,9 @@
 /***************************************************************************
- *                            RasMol 2.7.1.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
- *                                RasMol                                   *
+ *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                            17 January 2001                              *
+ *                              14 April 2001                              *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -11,15 +11,34 @@
  *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
  *                   Copyright (C) Roger Sayle 1992-1999                   *
  *                                                                         *
- *                  and Based on Mods by Arne Mueller                      *
- *                      Version 2.6x1, May 1998                            *
- *                   Copyright (C) Arne Mueller 1998                       *
+ *                          and Based on Mods by                           *
+ *Author             Version, Date             Copyright                   *
+ *Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       *
+ *Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  *
+ *Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   *
  *                                                                         *
- *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
- *                      yaya@bernstein-plus-sons.com                       *
- *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
- *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   *
+ *                                                                         *
+ *Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    * 
+ *Bernstein          RasMol 2.7.1   Jun 99         1998-2001               *
+ *                   RasMol 2.7.1.1 Jan 01                                 *
+ *                   RasMol 2.7.2   Aug 00                                 *
+ *                   RasMol 2.7.2.1 Apr 01                                 *
+ *                                                                         *
+ *                    and Incorporating Translations by                    *
+ *  Author                               Item                      Language*
+ *  Isabel Serván Martínez,                                                *
+ *  José Miguel Fernández Fernández      2.6   Manual              Spanish *
+ *  José Miguel Fernández Fernández      2.7.1 Manual              Spanish *
+ *  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish *
+ *  Jean-Pierre Demailly                 2.7.1 menus and messages  French  *
+ *  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          *
+ *  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian *
+ *                                                                         *
+ *                             This Release by                             *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
+ *                       yaya@bernstein-plus-sons.com                      *
+ *               Copyright(C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    *
@@ -49,6 +68,31 @@
  ***************************************************************************/
 
 /* rasmol.c
+ $Log: rasmol.c,v $
+ Revision 1.2  2001/02/07 20:30:31  yaya
+ *** empty log message ***
+
+ Revision 1.1  2001/01/31 02:13:45  yaya
+ Initial revision
+
+ Revision 1.7  2000/08/26 18:12:39  yaya
+ Updates to header comments in all files
+
+ Revision 1.6  2000/08/26 03:14:06  yaya
+ Mods for mac compilations
+
+ Revision 1.5  2000/08/13 20:56:24  yaya
+ Conversion from toolbar to menus
+
+ Revision 1.4  2000/08/12 21:10:30  yaya
+ Minimal X windows mods
+
+ Revision 1.3  2000/08/09 01:18:11  yaya
+ Rough cut with ucb
+
+ Revision 1.2  2000/08/03 18:32:42  yaya
+ Parametrization for alt conformer bond radius
+
  */
 
 #ifndef sun386
@@ -75,6 +119,9 @@
 #include "repres.h"
 #include "pixutils.h"
 #include "outfile.h"
+#include "multiple.h" /* [GSG 11/9/95] */
+#include "vector.h"
+#include "wbrotate.h"
 #include "langsel.h"
 
 
@@ -188,7 +235,7 @@ static AdviseType AdviseMap[ItemCount] = {
         };
 
 static char AdviseBuffer[256];
-static int AdviseLen;
+static size_t AdviseLen;
 
 
 typedef struct {
@@ -212,7 +259,6 @@ static int InitialHigh;
 
 static char *FileNamePtr;
 static char *ScriptNamePtr;
-static int LabelOptFlag;
 static int FileFormat;
 static int ProfCount;
 static int LexState;
@@ -399,26 +445,26 @@ static int OpenSocket( void )
 }
 
 
-static int OpenIPCConnection( int socket )
+static int OpenIPCConnection( int xsocket )
 {
     register int i;
 
-    if( socket < 0 )
+    if( xsocket < 0 )
         return False;
 
     for( i=0; i<MaxIPCConvNum; i++ )
         if( !IPCConvData[i].protocol )
-        {   FD_SET(socket,&OrigWaitSet);
-            if( socket >= WaitWidth )
-                WaitWidth = socket+1;
+        {   FD_SET((long)xsocket,(fd_set *)&OrigWaitSet);
+            if( xsocket >= WaitWidth )
+                WaitWidth = xsocket+1;
 
             IPCConvData[i].protocol = ProtoRasMol;
-            IPCConvData[i].socket = socket;
+            IPCConvData[i].socket = xsocket;
             IPCConvData[i].advise = AMNone;
             return( True );
         }
 
-    close( socket );
+    close( xsocket );
     return( False );
 }
 
@@ -643,7 +689,7 @@ static int FetchCharacter( void )
             TimeOut.tv_sec = 1;
             TimeOut.tv_usec = 0;
             WaitSet = OrigWaitSet;
-#ifdef __hpux
+#ifdef HPUX_LEGACY
             status = select( WaitWidth, (int*)&WaitSet, (int*)NULL, 
                                         (int*)NULL, &TimeOut );
 #else
@@ -771,7 +817,7 @@ static void HandleMenu( int hand )
     {   case(0):  /* File Menu */
                   switch( item )
                   {   case(1):  /* Open */
-                                if( !Database )
+                                if( NumMolecules < MAX_MOLECULES )
                                     ResetCommandLine(2);
                                 break;
 
@@ -787,6 +833,14 @@ static void HandleMenu( int hand )
                       case(5):  /* Exit */
                                 RasMolExit();
                                 break;
+
+                      case(7):  /* Molecule 1 */
+                      case(8):  /* Molecule 2 */
+                      case(9):  /* Molecule 3 */
+                      case(10): /* Molecule 4 */
+                      case(11): /* Molecule 5 */
+                                SelectMolecule(item-7);
+                                break;
                   } 
                   break;
 
@@ -794,7 +848,7 @@ static void HandleMenu( int hand )
                   switch( item )
                   {   case(1):  /* Wireframe */
                                 DisableSpacefill();
-                                EnableWireframe(WireFlag,0);
+                                EnableWireframe(WireFlag,0,0);
                                 SetRibbonStatus(False,0,0);
                                 DisableBackbone();
                                 ReDrawFlag |= RFRefresh;
@@ -804,16 +858,16 @@ static void HandleMenu( int hand )
                                 DisableSpacefill();
                                 DisableWireframe();
                                 SetRibbonStatus(False,0,0);
-                                EnableBackbone(CylinderFlag,80);
+                                EnableBackbone(CylinderFlag,80,64);
                                 ReDrawFlag |= RFRefresh;
                                 break;
 
                       case(3):  /* Sticks */
                                 DisableSpacefill();
                                 if( MainAtomCount<256 )
-                                { EnableWireframe(CylinderFlag,40);
+                                { EnableWireframe(CylinderFlag,40,32);
                                 } else {
-                                  EnableWireframe(CylinderFlag,80);
+                                  EnableWireframe(CylinderFlag,80,64);
                                 }
                                 SetRibbonStatus(False,0,0);
                                 ReDrawFlag |= RFRefresh;
@@ -830,7 +884,7 @@ static void HandleMenu( int hand )
 
                       case(5):  /* Ball & Stick */
                                 SetRadiusValue(120, SphereFlag);
-                                EnableWireframe(CylinderFlag,40);
+                                EnableWireframe(CylinderFlag,40,32);
                                 SetRibbonStatus(False,0,0);
                                 DisableBackbone();
                                 ReDrawFlag |= RFRefresh;
@@ -947,7 +1001,12 @@ static void HandleMenu( int hand )
 
                       case(6):  /* Stereo */
                                 if( UseStereo )
-                                {   SetStereoMode(False);
+                                {   StereoAngle = -StereoAngle;
+                                    if ( StereoAngle > 0.0 ) {
+                                      SetStereoMode(False);
+                                    } else {
+                                       SetStereoMode(True);
+                                    }
                                 } else SetStereoMode(True);
                                 ReDrawFlag |= RFRefresh;
                                 break;
@@ -960,12 +1019,45 @@ static void HandleMenu( int hand )
                   }
                   break;
 
-        case(4):  /* Export Menu */
+        case(4):  /* Settings Menu */
+                   switch( item )
+                  {   case(1):  /* Pick Off */
+                                SetPickMode(PickNone); break;
+                      case(2):  /* Pick Ident */
+                                SetPickMode(PickIdent); break;
+                      case(3):  /* Pick Distance */
+                                SetPickMode(PickDist); break;
+                      case(4):  /* Pick Monitor */
+                                SetPickMode(PickMonit); break;
+                      case(5):  /* Pick Angle */
+                                SetPickMode(PickAngle); break;
+                      case(6):  /* Pick Torsion */
+                                SetPickMode(PickTorsn); break;
+                      case(7):  /* Pick Label */
+                                SetPickMode(PickLabel); break;
+                      case(8):  /* Pick Centre */
+                                SetPickMode(PickOrign); break;
+                      case(9):  /* Pick Coord */
+                                SetPickMode(PickCoord); break;
+                      case(10): /* Pick Bond */
+                                SetPickMode(PickBond); break;
+                      case(11): /* Rotate Bond */
+                                if ( BondSelected ) {
+                                  RotMode = RotBond; break;
+                                }
+                      case(12): /* Rotate Mol */
+                                RotMode = RotMol; UpdateScrollBars(); break;
+                      case(13): /* Rotate All */
+                                RotMode = RotAll; UpdateScrollBars(); break;
+                  }
+                  break;
+
+        case(5):  /* Export Menu */
                   ResetCommandLine(3);
                   StateOption = item;
                   break;
 
-        case(5):  /* Help Menu */
+        case(6):  /* Help Menu */
                   break;
     }
 }
@@ -1068,9 +1160,13 @@ static void PrepareIPCAdviseItem( int item )
                   if( !QAtom )
                   {   *dst++ = '\n'; *dst = '\0';
                   } else sprintf( dst, "%ld\t%ld\t%ld\n",
-                             (long)QAtom->xorg, 
-                             (long)QAtom->yorg, 
-                             (long)QAtom->zorg);
+                             (long)(QAtom->xorg+QAtom->fxorg),
+#ifdef INVERT
+                             -(long)(QAtom->yorg+QAtom->fyorg),
+#else
+                             (long)(QAtom->yorg+QAtom->fyorg),
+#endif 
+                             -(long)(QAtom->zorg+QAtom->fzorg));
                   break;
 
         default:  *dst++ = '\n';
@@ -1096,7 +1192,7 @@ void AdviseUpdate( int item )
     for( i=0; i<MaxIPCConvNum; i++ )
         if( IPCConvData[i].protocol && (IPCConvData[i].advise&mask) )
         {   if( !AdviseLen ) PrepareIPCAdviseItem(item);
-            send(IPCConvData[i].socket,AdviseBuffer,AdviseLen,0);
+            send(IPCConvData[i].socket,AdviseBuffer,(int)AdviseLen,0);
         }
     }
 #endif
@@ -1346,7 +1442,7 @@ int main( int argc, char *argv[] )
     register int done;
     register char ch;
     static char VersionStr[255];
-
+  
     Interactive = False;
     SwitchLang (English);
 
@@ -1399,6 +1495,10 @@ int main( int argc, char *argv[] )
     InitialiseOutFile();
     InitialiseRepres();
     InitHelpFile();
+    /* [GSG 11/9/95] Added InitialiseMultiple */
+    InitialiseMultiple();
+    /* InitialiseToolBar(); */
+    InitialiseWBRotate();
 
 #ifdef PROFILE
     if( ProfCount )
@@ -1420,7 +1520,7 @@ int main( int argc, char *argv[] )
         FakeSpecular = True;
         ScaleColourAttrib(GroupAttr);
         SetRibbonCartoons();
-        EnableWireframe(WireFlag,0);
+        EnableWireframe(WireFlag,0,0);
         RefreshScreen();
 
         /* Avoid Pending Events */

@@ -1,9 +1,9 @@
 /***************************************************************************
- *                            RasMol 2.7.1.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
- *                                RasMol                                   *
+ *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                            17 January 2001                              *
+ *                              14 April 2001                              *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -11,15 +11,34 @@
  *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
  *                   Copyright (C) Roger Sayle 1992-1999                   *
  *                                                                         *
- *                  and Based on Mods by Arne Mueller                      *
- *                      Version 2.6x1, May 1998                            *
- *                   Copyright (C) Arne Mueller 1998                       *
+ *                          and Based on Mods by                           *
+ *Author             Version, Date             Copyright                   *
+ *Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       *
+ *Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  *
+ *Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   *
  *                                                                         *
- *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
- *                      yaya@bernstein-plus-sons.com                       *
- *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
- *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   *
+ *                                                                         *
+ *Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    * 
+ *Bernstein          RasMol 2.7.1   Jun 99         1998-2001               *
+ *                   RasMol 2.7.1.1 Jan 01                                 *
+ *                   RasMol 2.7.2   Aug 00                                 *
+ *                   RasMol 2.7.2.1 Apr 01                                 *
+ *                                                                         *
+ *                    and Incorporating Translations by                    *
+ *  Author                               Item                      Language*
+ *  Isabel Serván Martínez,                                                *
+ *  José Miguel Fernández Fernández      2.6   Manual              Spanish *
+ *  José Miguel Fernández Fernández      2.7.1 Manual              Spanish *
+ *  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish *
+ *  Jean-Pierre Demailly                 2.7.1 menus and messages  French  *
+ *  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          *
+ *  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian *
+ *                                                                         *
+ *                             This Release by                             *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
+ *                       yaya@bernstein-plus-sons.com                      *
+ *               Copyright(C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    *
@@ -49,6 +68,34 @@
  ***************************************************************************/
 
 /* rasmac.c
+ $Log: rasmac.c,v $
+ Revision 1.2  2001/02/08 01:14:46  yaya
+ *** empty log message ***
+
+ Revision 1.1  2001/01/31 02:13:45  yaya
+ Initial revision
+
+ Revision 1.10  2000/08/27 00:54:42  yaya
+ create rotation bond database
+
+ Revision 1.9  2000/08/26 18:12:38  yaya
+ Updates to header comments in all files
+
+ Revision 1.8  2000/08/26 03:14:04  yaya
+ Mods for mac compilations
+
+ Revision 1.6  2000/08/18 16:40:32  yaya
+ *** empty log message ***
+
+ Revision 1.5  2000/08/13 20:56:22  yaya
+ Conversion from toolbar to menus
+
+ Revision 1.4  2000/08/09 01:18:10  yaya
+ Rough cut with ucb
+
+ Revision 1.3  2000/08/03 18:32:42  yaya
+ Parametrization for alt conformer bond radius
+
  */
 
 #define RASMOL
@@ -78,6 +125,7 @@
 #include <ToolUtils.h>
 #include <Resources.h>
 #include <DiskInit.h>
+#include <Printing.h>
 #include <OSUtils.h>
 #include <SegLoad.h>
 #include <Events.h>
@@ -107,6 +155,9 @@
 #include "render.h"
 #include "repres.h"
 #include "outfile.h"
+#include "multiple.h" /* [GSG 11/9/95] */
+#include "vector.h"   /* [GSG 11/13/95] */
+#include "wbrotate.h" /* [GSG 11/14/95] */
 #include "langsel.h"
 
 #include "rasmac.h"
@@ -142,7 +193,6 @@ static ControlHandle CmndScroll;
 static short RasMolResFile;
 static char Filename[1024];
 static int DialogFormat;
-static int LabelOptFlag;
 
 
 #ifdef __CONDITIONALMACROS__
@@ -478,6 +528,7 @@ void WriteChar( int ch )
                                      TermYPos*CharSkip);
                      break;
     }
+
 }
 
 
@@ -765,7 +816,30 @@ static void ConvertFilename( FSSpec *fss )
         *dst++ = fss->name[i];
     *dst = '\0';
 }
-
+ 
+static void HelpScreen()
+{
+    DialogPtr dlg;
+    short item;
+        
+    dlg = GetNewDialog(177,(Ptr)0,(WindowPtr)-1);
+    SetDialogDefaultItem(dlg,1);
+    
+    /* Display Dialog Box! */    
+    ShowWindow(dlg);
+    do {
+#ifdef __CONDITIONALMACROS__
+        ModalDialog((ModalFilterUPP)0,&item);
+#else
+        ModalDialog((ProcPtr)0,&item);
+#endif
+    } while( item != 1 );
+#ifdef USEOLDROUTINENAMES
+    DisposDialog(dlg);
+#else
+    DisposeDialog(dlg);
+#endif
+}
 
 static void HandleAboutDialog( void )
 {
@@ -1143,14 +1217,21 @@ static void HandleMenu( long hand )
         {   case(140):  /* Apple Menu */
                         if( item == 1 )
                         {   HandleAboutDialog();
-                        } else if( item>2 )
+                        } else {
+                          if (item ==2 ) {
+                            HelpScreen();
+                          } else {
+                            if( item > 3 ) {
                             HandleAppleMenu(item);
+                            }
+                          }
+                        }
                         break;
                       
             case(141):  /* File Menu */
                         switch( item )
                         {   case(1):  /* Open */
-                                      if( !Database )
+			              if( NumMolecules < MAX_MOLECULES )
                                           HandleFileOpen();
                                       break;
                             case(2):  /* Save As */
@@ -1178,13 +1259,22 @@ static void HandleMenu( long hand )
                                       
                             case(8):  /* Quit */
                                       RasMolExit();
+                                      
+                                      
+                            case(10): /* Molecule 1 */
+                            case(11): /* Molecule 2 */
+                            case(12): /* Molecule 3 */
+                            case(13): /* Molecule 4 */
+                            case(14): /* Molecule 5 */
+                                      SelectMolecule(item-10);
+
                         }
                         break;
                       
             case(142):  /* Edit Menu */
                         switch( item )
                         {   case(1):  /* Undo */
-                                      for( i=0; i<8; i++ )
+                                      for( i=0; i<10; i++ )
                                           DialValue[i] = 0.0;
                                       ReDrawFlag |= RFDials;
                                       ResetTransform();
@@ -1212,7 +1302,7 @@ static void HandleMenu( long hand )
                         switch( item )
                         {   case(1):  /* Wireframe */
                                       DisableSpacefill();
-                                      EnableWireframe(WireFlag,0);
+                                      EnableWireframe(WireFlag,0,0);
                                       SetRibbonStatus(False,0,0);
                                       DisableBackbone();
                                       ReDrawFlag |= RFRefresh;
@@ -1222,15 +1312,17 @@ static void HandleMenu( long hand )
                                       DisableSpacefill();
                                       DisableWireframe();
                                       SetRibbonStatus(False,0,0);
-                                      EnableBackbone(CylinderFlag,80);
+                                      EnableBackbone(CylinderFlag,80,64);
                                       ReDrawFlag |= RFRefresh;
                                       break;
                                       
                             case(3):  /* Sticks */
                                       DisableSpacefill();
                                       if( MainAtomCount<256 )
-                                      {   EnableWireframe(CylinderFlag,40);
-                                      } else EnableWireframe(CylinderFlag,80);
+                                      {   EnableWireframe(CylinderFlag,40,32);
+                                      } else {
+                                        EnableWireframe(CylinderFlag,80,64);
+                                      }
                                       SetRibbonStatus(False,0,0);
                                       DisableBackbone();
                                       ReDrawFlag |= RFRefresh;
@@ -1246,7 +1338,7 @@ static void HandleMenu( long hand )
                                       
                             case(5):  /* Ball & Stick */
                                       SetRadiusValue(120, SphereFlag );
-                                      EnableWireframe(CylinderFlag,40);
+                                      EnableWireframe(CylinderFlag,40,32);
                                       SetRibbonStatus(False,0,0);
                                       DisableBackbone();
                                       ReDrawFlag |= RFRefresh;
@@ -1364,7 +1456,12 @@ static void HandleMenu( long hand )
 
                             case(6):  /* Stereo */
                                       if( UseStereo )
-                                      {   SetStereoMode(False);
+                                      {   StereoAngle = -StereoAngle;
+                                          if ( StereoAngle > 0.0 ) {
+                                            SetStereoMode(False);
+                                          } else {
+                                            SetStereoMode(True);
+                                          }
                                       } else SetStereoMode(True);
                                       ReDrawFlag |= RFRefresh;
                                       break;
@@ -1377,18 +1474,53 @@ static void HandleMenu( long hand )
                         }
                         break;
                         
-            case(146):  /* Export Menu */
+            case(146):  /* Settings Menu */
+                        switch( item )
+                       {   case(1):  /* Pick Off */
+                                     SetPickMode(PickNone); break;
+                           case(2):  /* Pick Ident */
+                                     SetPickMode(PickIdent); break;
+                           case(3):  /* Pick Distance */
+                                     SetPickMode(PickDist); break;
+                           case(4):  /* Pick Monitor */
+                                     SetPickMode(PickMonit); break;
+                           case(5):  /* Pick Angle */
+                                     SetPickMode(PickAngle); break;
+                           case(6):  /* Pick Torsion */
+                                     SetPickMode(PickTorsn); break;
+                           case(7):  /* Pick Label */
+                                     SetPickMode(PickLabel); break;
+                           case(8):  /* Pick Centre */
+                                     SetPickMode(PickCentr); break;
+                           case(9):  /* Pick Coord */
+                                     SetPickMode(PickCoord); break;
+                           case(10): /* Pick Bond */
+                                     SetPickMode(PickBond); break;
+                           case(11): /* Rotate Bond */
+                                     if ( BondSelected ) {
+                                       RotMode = RotBond; break;
+                                     }
+                           case(12): /* Rotate Mol */
+                                     RotMode = RotMol; UpdateScrollBars(); break;
+                           case(13): /* Rotate All */
+                                     RotMode = RotAll; UpdateScrollBars(); break;
+                        }
+                        break;
+                        
+            case(147):  /* Export Menu */
                         if( Database )
                             HandleExportMenu( item );
                         break;
                         
-            case(147):  /* Windows Menu */
-                        if( item==1 )
+            case(148):  /* Windows Menu */
+                        if( item == 1 )
                         {   SelectWindow(CanvWin);
                             ShowWindow(CanvWin);
-                        } else /* item==2 */
-                        {   SelectWindow(CmndWin);
+                        } else {
+                          if( item == 2 ) {
+                            SelectWindow(CmndWin);
                             ShowWindow(CmndWin);
+                          }
                         }
                         break;
         }
@@ -1401,9 +1533,53 @@ static void AdjustMenus( void )
 {
     register MenuHandle menu;
     register WindowPtr win;
+    register int i;
+    register int curitems;
+    register unsigned char * src;
+    register unsigned char * dst;
+    unsigned char buffer[255];
     
     /* Refresh Menus */
     EnableMenus(!DisableMenu);
+    
+    /* Adjust File Menu */
+
+
+#ifdef USEOLDROUTINENAMES
+    menu = GetMHandle(141);
+    curitems = CountMItems(menu);
+    if (curitems > 8) {
+      for (i = curitems; i > 8; i--) {
+      /* warning -- this routine may not be available */
+      DeleteMItem(menu,i);
+      }
+    }
+#else
+    menu = GetMenuHandle(141);
+    curitems = CountMenuItems(menu);
+    if (curitems > 8) {
+      for (i = curitems; i > 8; i--) {
+      DeleteMenuItem(menu,i);
+      }
+    }
+#endif
+    if (NumMolecules > 0 ) {
+      DrawMoleculeList();
+      buffer[0]=1;
+      buffer[1]='-';
+      buffer[2]='\0';
+      AppendMenu(menu,(const unsigned char*)buffer);
+      for (i = 0; i < NumMolecules; i++) {
+        dst = buffer+1;
+        src = (unsigned char *)MolName[i];
+        while( *src && (dst<buffer+254) )
+          *dst++ = *((unsigned char *)src++);
+        buffer[0] = (unsigned char)((dst-buffer)-1);
+        *dst = (unsigned char)'\0';
+        AppendMenu(menu,(const unsigned char*)buffer);
+        CheckItem(menu,10+i,(i==MoleculeIndex));
+      }
+    }
     
     /* Options Menu */
 #ifdef USEOLDROUTINENAMES
@@ -1418,13 +1594,33 @@ static void AdjustMenus( void )
     CheckItem(menu,5,UseShadow);
     CheckItem(menu,6,UseStereo);
     CheckItem(menu,7,LabelOptFlag);
+    
+    /* Settings Menu */
+#ifdef USEOLDROUTINENAMES
+    menu = GetMHandle(146);
+#else
+    menu = GetMenuHandle(146);
+#endif
+    CheckItem(menu,1,(PickMode==PickNone));
+    CheckItem(menu,2,(PickMode==PickIdent));
+    CheckItem(menu,3,(PickMode==PickDist));
+    CheckItem(menu,4,(PickMode==PickMonit));
+    CheckItem(menu,5,(PickMode==PickAngle));
+    CheckItem(menu,6,(PickMode==PickTorsn));
+    CheckItem(menu,7,(PickMode==PickLabel));
+    CheckItem(menu,8,(PickMode==PickOrign));
+    CheckItem(menu,9,(PickMode==PickCoord));
+    CheckItem(menu,10,(PickMode==PickBond));
+    CheckItem(menu,11,(RotMode==RotBond));
+    CheckItem(menu,12,(RotMode==RotMol));
+    CheckItem(menu,13,(RotMode==RotAll));    
 
     /* Windows Menu */
     win = FrontWindow();
 #ifdef USEOLDROUTINENAMES
-    menu = GetMHandle(147);
+    menu = GetMHandle(148);
 #else
-    menu = GetMenuHandle(147);
+    menu = GetMenuHandle(148);
 #endif
     CheckItem(menu,1,(win==CanvWin));
     CheckItem(menu,2,(win==CmndWin));
@@ -1454,6 +1650,7 @@ static void ReSizeCanvWin( void )
 
     XRange = x-15;   WRange = XRange>>1;
     YRange = y-15;   HRange = YRange>>1;
+    ZRange = 20000;
     Range = MinFun(XRange,YRange);
     ReDrawFlag |= RFReSize;
     ClearImage();
@@ -1569,9 +1766,9 @@ static void GrowCmndWin( Point pos )
 
 #define ShiftModifier   0x2200
 #define CntrlModifier   0x9000
-#define LButtModifier   0x0080
-#define MButtModifier   0x0100  /* [Option]  */
-#define RButtModifier   0x4800  /* [Command] */
+#define LButtModifier   0x0080  /* set if Mouse button up */
+#define MButtModifier   0x0800  /* set if [Option] down  */
+#define RButtModifier   0x4100  /* set if [Command] down */
 
 static int GetStatus( int mask )
 {
@@ -1590,30 +1787,34 @@ static int GetStatus( int mask )
 }
 
 
-static void ClampDial( int dial, Real value )
+/* [GSG 11/16/95] */
+void SetHScroll(int pos)
 {
-    register Real temp;
-    
-    temp = DialValue[dial] + value;
-    
-    if( temp > 1.0 )
-    {   DialValue[dial] = 1.0;
-    } else if( temp < -1.0 )
-    {   DialValue[dial] = -1.0;
-    } else DialValue[dial] = temp;
+    float temp = (pos/50.0)-1.0;
+
+    if ( (RotMode == RotBond) && BondSelected) {
+	  BondSelected->BRotValue = temp;
+    } else {
+      if ( RotMode == RotAll ) {
+	    WRotValue[DialRY] = temp;
+      } else {
+	    DialValue[DialRY] = temp;
+	  }
+	}
+    ReDrawFlag |= RFRotateY;
 }
-
-
-static void WrapDial( int dial, Real value )
+  
+void SetVScroll(int pos)
 {
-    register Real temp;
-    
-    temp = DialValue[dial] + value;
-    while( temp < -1.0 )  temp += 2.0;
-    while( temp > 1.0 )   temp -= 2.0;
-    DialValue[dial] = temp;
-}
+    float temp = (pos/50.0)-1.0;
 
+    if ( RotMode == RotAll ) {
+	  WRotValue[DialRX] = temp;
+    } else {
+	  DialValue[DialRX] = temp;
+	}
+    ReDrawFlag |= RFRotateX;
+}
 
 pascal void CanvScrollProc( ControlHandle cntrl, short code )
 {   
@@ -1653,11 +1854,10 @@ pascal void CanvScrollProc( ControlHandle cntrl, short code )
 #endif
 
     if( cntrl == HScroll )
-    {   DialValue[1] = (pos/50.0)-1.0;
-        ReDrawFlag |= RFRotateY;
+    {   
+        SetHScroll(pos); /* [GSG 11/16/95] */
     } else /* cntrl == VScroll */
-    {   DialValue[0] = (pos/50.0)-1.0;
-        ReDrawFlag |= RFRotateX; 
+    {   SetVScroll(pos); /* [GSG 11/16/95] */
     }
     RefreshScreen();
 }
@@ -1692,11 +1892,13 @@ static void ClickCanvWin( EventRecord *ptr )
 #endif
 
             if( hand == HScroll )
-            {   DialValue[1] = (pos/50.0)-1.0;
-                ReDrawFlag |= RFRotateY;
+            {   SetHScroll(pos); /* [GSG 11/16/95] */
+	        /* DialValue[1] = (pos/50.0)-1.0;
+		   ReDrawFlag |= RFRotateY; */
             } else /* hand == VScroll */
-            {   DialValue[0] = (pos/50.0)-1.0;
-                ReDrawFlag |= RFRotateX; 
+            {   SetVScroll(pos); /* [GSG 11/16/95] */
+	        /* DialValue[0] = (pos/50.0)-1.0;
+		   ReDrawFlag |= RFRotateX; */
             }
             RefreshScreen();
         } else TrackControl(hand,ptr->where,
@@ -1843,12 +2045,16 @@ static void HandleMouseDownEvent( EventRecord *ptr )
 
         case(inContent):    if( win == CanvWin )
                             {   ClickCanvWin( ptr );
-                            } else if( win == CmndWin )
-                            {   ClickCmndWin( ptr );
+                            } else {
+                              if( win == CmndWin )
+                              {   ClickCmndWin( ptr );
+                              }
                             }
                             break;
         
-        case(inDrag):       if( (win==CanvWin) || (win==CmndWin) )
+        case(inDrag):       if( (win==CanvWin) 
+                              || (win==CmndWin) 
+                              )
 #ifdef __CONDITIONALMACROS__
                                 DragWindow(win,ptr->where,&qd.screenBits.bounds);
 #else
@@ -1862,7 +2068,9 @@ static void HandleMouseDownEvent( EventRecord *ptr )
                                 GrowCmndWin( ptr->where );
                             break;
         
-        case(inGoAway):     if( (win==CanvWin) || (win==CmndWin) )
+        case(inGoAway):     if( (win==CanvWin) 
+                              || (win==CmndWin)
+                              )
                                 if( TrackGoAway(win,ptr->where) )
                                     HideWindow(win);
                             break;
@@ -1997,7 +2205,7 @@ static void HandleEvents( void )
                                     BeginUpdate(CmndWin);
                                     PaintScreen();
                                     EndUpdate(CmndWin);
-                                }
+                                } 
                                 SetPort(savePort);
                                 break;
             
@@ -2071,8 +2279,8 @@ static int HandleFileSpec( FSSpec *fss )
         } else return False;
     }
     
-    if( Database )
-        ZapDatabase();
+    /* if( Database )
+       ZapDatabase(); */
 
     if( info.fdType == 'mMOL' )
     {      format = FormatMDL;
@@ -2243,7 +2451,7 @@ static void InitDefaultValues( void )
 int main( void )
 {
     static char VersionStr[255];
-    
+
     Interactive = False;
     SwitchLang(English);
 
@@ -2288,6 +2496,8 @@ int main( void )
     InitialiseOutFile();
     InitialiseRepres();
     InitHelpFile();
+    InitialiseMultiple(); /* [GSG 11/9/95] */
+    InitialiseWBRotate();
 
     /* LoadInitFile(); */
     

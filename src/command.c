@@ -1,9 +1,9 @@
 /***************************************************************************
- *                            RasMol 2.7.1.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
- *                                RasMol                                   *
+ *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                            17 January 2001                              *
+ *                              14 April 2001                              *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -11,15 +11,34 @@
  *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
  *                   Copyright (C) Roger Sayle 1992-1999                   *
  *                                                                         *
- *                  and Based on Mods by Arne Mueller                      *
- *                      Version 2.6x1, May 1998                            *
- *                   Copyright (C) Arne Mueller 1998                       *
+ *                          and Based on Mods by                           *
+ *Author             Version, Date             Copyright                   *
+ *Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       *
+ *Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  *
+ *Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   *
  *                                                                         *
- *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
- *                      yaya@bernstein-plus-sons.com                       *
- *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
- *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   *
+ *                                                                         *
+ *Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    * 
+ *Bernstein          RasMol 2.7.1   Jun 99         1998-2001               *
+ *                   RasMol 2.7.1.1 Jan 01                                 *
+ *                   RasMol 2.7.2   Aug 00                                 *
+ *                   RasMol 2.7.2.1 Apr 01                                 *
+ *                                                                         *
+ *                    and Incorporating Translations by                    *
+ *  Author                               Item                      Language*
+ *  Isabel Serván Martínez,                                                *
+ *  José Miguel Fernández Fernández      2.6   Manual              Spanish *
+ *  José Miguel Fernández Fernández      2.7.1 Manual              Spanish *
+ *  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish *
+ *  Jean-Pierre Demailly                 2.7.1 menus and messages  French  *
+ *  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          *
+ *  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian *
+ *                                                                         *
+ *                             This Release by                             *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
+ *                       yaya@bernstein-plus-sons.com                      *
+ *               Copyright(C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    *
@@ -50,6 +69,16 @@
 
 /* command.c
  */
+ 
+/* With post-2.7.2.1-release mod,
+   Update for inline script loading in UCB multiple
+   molecule environment.  HJB, 18 April 2001  */
+/* With post-2.7.2.1-release mod,
+   Disable STRICT checking in ExecuteLoadCommand
+   To fix load inline for Windows.  HJB 19 April 2001 */
+/* With post-2.7.2.1-release mod,
+   Correct logic for inline load of new molecule
+   from data file treated as a script.  HJB 29 June 2001 */
 
 #include "rasmol.h"
 
@@ -98,7 +127,13 @@
 #include "pixutils.h"
 #include "outfile.h"
 #include "script.h"
+#include "multiple.h" /* [GSG 11/9/95] */
+/* #include "toolbar.h" */ /* [GSG 11/11/95] */
+#include "vector.h"
+#include "wbrotate.h"
 #include "langsel.h"
+
+#include <math.h>
 
 
 #if defined(__sun) && !defined(_XOPEN_SOURCE)
@@ -115,6 +150,15 @@ extern FILE *popen( const char*, const char* );
 
 #define IsIdentChar(x)  ((isalnum(x))||((x)=='_')||((x)=='$'))
 
+#ifdef INVERT
+#define InvertY(y) (y)
+#else
+#define InvertY(y) (-(y))
+#endif
+
+#define Round(x)       ((int)rint(x))
+
+
 
 #ifndef VMS
 #ifdef IBMPC
@@ -123,6 +167,7 @@ extern FILE *popen( const char*, const char* );
 #define DirChar  '/'
 #endif
 #endif
+
 
 
 typedef struct {
@@ -163,7 +208,7 @@ typedef struct _HlpEntry {
                 struct _HlpEntry __far *next;
                 struct _HlpEntry __far *info;
                 char __far *keyword;
-                Long fpos;
+                long fpos;
                 } HlpEntry;
 
 #define HelpPool   16
@@ -231,8 +276,12 @@ static void CommandError( char *error )
     {   if( LineStack[FileDepth] )
         {   if( NameStack[FileDepth] )
             {   WriteChar('"');
-                WriteString(NameStack[FileDepth]);
-                WriteString("\",");
+				ptr = NameStack[FileDepth];
+				while( *ptr ) ptr++;
+				while( *ptr != '\\' && ptr != NameStack[FileDepth] ) ptr--;
+				if( *ptr == '\\' ) ptr++;
+                WriteString(ptr);
+                WriteString("\", ");
             }
             sprintf(buffer,"line %d: ",LineStack[FileDepth]);
             WriteString(buffer);
@@ -244,7 +293,7 @@ static void CommandError( char *error )
 
     if( error )
     {   WriteString(error);
-        if (strlen(error)>0 && !(error[strlen(error)-1]=='\n')) {
+        if (strlen(error)>(size_t)0 && !(error[strlen(error)-(size_t)1]=='\n')) {
           WriteString("\n");
         }
     }
@@ -393,8 +442,10 @@ static FILE *OpenDataFile( char *begin, char *end )
     for( i=0; i<MaxFileExt; i++ )
     {   dst = end; src = FileExt[i];
         while( (*dst++ = *src++) );
-        if( (fp=fopen(begin,"rb")) )
-            break;
+        if( (fp=fopen(begin,"rb")) ) {
+          *end = '\0';
+          return fp;
+        }
     }
     fp = fopen(begin,"rb");
     *end = '\0';
@@ -471,11 +522,11 @@ int ProcessFile( int format, int info, FILE *fp )
 
     /* Explicit Hydrogen Bonds! */
     if( Info.hbondcount > 0 )
-        SetHBondStatus(True,True,0);
+        SetHBondStatus(True,True,0,0);
 
     /* Explicit SSbonds!        */
     if (Info.ssbondcount > 0 ) {
-      SetHBondStatus(False,True,0);
+      SetHBondStatus(False,True,0,0);
       SSBondMode = True;
     }
 
@@ -487,7 +538,7 @@ int ProcessFile( int format, int info, FILE *fp )
 }
 
 
-int FetchFile( int format, int info, char *name )
+static int FetchFileOne( int format, int info, char *name )
 {
 #ifndef APPLEMAC
 #ifdef UNIX
@@ -632,54 +683,106 @@ int FetchFile( int format, int info, char *name )
 #endif
     return done;
 }
+  
+/* [GSG 11/9/95] Multiple Molecule Support */
+int FetchFile( int format, int info, char *name )
+{
+    int SaveMolecule = MoleculeIndex;
+    int result;
 
+    if (NumMolecules >= MAX_MOLECULES) {
+	return 0;
+    }
+    SwitchMolecule(NumMolecules);
+    result = FetchFileOne( format, info, name );
+    if (result && Database) {
+	NumMolecules++;
+        DrawMoleculeList();
+    } else {
+	SwitchMolecule(SaveMolecule);
+    }
+    return result;
+}
+
+
+static int SetNewMolecule( void )
+{
+    if (NumMolecules >= MAX_MOLECULES) {
+	return False;
+    }
+    SwitchMolecule(NumMolecules);
+	NumMolecules++;
+	return True;
+}
 
 int DivertToData( int format, int info )
 {
     register char *ptr;
     register int ch,len,done;
-    register Long pos;
+    register long pos;
     FILE *fp;
 
     fp = FileStack[FileDepth];
     pos = ftell(fp);
-      do {
-          len = 0;
-          ch = getc(fp);
-          while( (ch!='\n') && (ch!='\r') &&  (ch!=EOF) )
-          {   if( len<MAXBUFFLEN )
-                  CurLine[len++] = ch;
-              ch = getc(fp);
-          }
+    do 
+    {   len = 0;
+        ch = getc(fp);
+        while( (ch!='\n') && (ch!='\r') &&  (ch!=EOF) )
+        {   if( len<MAXBUFFLEN )
+                CurLine[len++] = ch;
+            ch = getc(fp);
+        }
 
-          if( ch == '\r' )
-          {   ch = getc(fp);
-              if( ch != '\n' )
-                  ungetc(ch,fp);
-          }
+        if( ch == '\r' )
+        {   ch = getc(fp);
+            if( ch != '\n' )
+                ungetc(ch,fp);
+        }
 
-          if( len<MAXBUFFLEN )
-          {   CurLine[len] = '\0';
-              TokenPtr = CurLine;
-              if( FetchToken() ) {
-                if ( CurToken == QuitTok || CurToken == ExitTok ) {
-                  done = ProcessFile( format, info, fp );
-                  fseek(fp,pos,SEEK_SET);
-                  strcpy (Info.filename,"inline");
-                  return done;
-                } else {
-                  if ( CurToken == HeaderTok || CurToken == CIFDataTok ) {
-                    Recycle = &CurLine[0];
-                    AcceptData[FileDepth] = 'N';
+        if( len<MAXBUFFLEN )
+        {   CurLine[len] = '\0';
+            TokenPtr = CurLine;
+            if( FetchToken() ) {
+              if ( CurToken == QuitTok || CurToken == ExitTok )
+              {   if ( SetNewMolecule()) {
                     done = ProcessFile( format, info, fp );
                     fseek(fp,pos,SEEK_SET);
                     strcpy (Info.filename,"inline");
                     return done;
+                  } else {
+                    CommandError(MsgStrs[ErrBadLoad]);
+                    return False;
+                  }
+              } else {
+                  if ( CurToken == HeaderTok || CurToken == CIFDataTok ) 
+                  {
+                    Recycle = &CurLine[0];
+                    AcceptData[FileDepth] = 'N';
+                    if ( SetNewMolecule()) {
+                      done = ProcessFile( format, info, fp );
+                      fseek(fp,pos,SEEK_SET);
+                      strcpy (Info.filename,"inline");
+                      return done;
+                    } else {
+                      CommandError(MsgStrs[ErrBadLoad]);
+                      return False;
+                    }
                   }
                 }
-              }
-          } else CommandError(MsgStrs[StrSLong]);
-      } while( ch!=EOF );
+            }
+        } else CommandError(MsgStrs[StrSLong]);
+    } while( ch!=EOF );
+
+	if( SetNewMolecule() )
+	{	fseek(fp,0,SEEK_SET);
+		AcceptData[FileDepth] = 'N';
+		done = ProcessFile( format, info, fp );
+		fseek(fp,pos,SEEK_SET);
+		return done;
+	} else {
+	    CommandError(MsgStrs[ErrBadLoad]);
+	}
+
    return False;
 }
 
@@ -687,7 +790,8 @@ int DivertToData( int format, int info )
 void LoadScriptFile( FILE *fp,  char *name )
 {
     register char *ptr;
-    register int ch,len;
+    register int ch;
+    register size_t len;
     register int stat;
 
     if( fp )
@@ -704,7 +808,7 @@ void LoadScriptFile( FILE *fp,  char *name )
             len = 0;
             ch = getc(fp);
             while( (ch!='\n') && (ch!='\r') &&  (ch!=EOF) )
-            {   if( len<MAXBUFFLEN )
+            {   if( len<(size_t)MAXBUFFLEN )
                     CurLine[len++] = ch;
                 ch = getc(fp);
             }
@@ -716,7 +820,7 @@ void LoadScriptFile( FILE *fp,  char *name )
             }
 
             LineStack[FileDepth]++;
-            if( len<MAXBUFFLEN )
+            if( len<(size_t)MAXBUFFLEN )
             {   CurLine[len] = '\0';
                 stat = ExecuteCommand();
                 if( stat )
@@ -856,7 +960,7 @@ void InitHelpFile( void )
     register HlpEntry __far *fix;
     register HlpEntry __far *ptr;
     register FILE *fp;
-    register Long pos;
+    register long pos;
     char buffer[82];
 
     HelpFileName = "rasmol.hlp";
@@ -938,7 +1042,7 @@ static void FindHelpInfo( void )
     register HlpEntry __far * __far *tmp;
     register HlpEntry __far *ptr;
     register int res,len;
-    register Long pos;
+    register long pos;
     register FILE *fp;
     register char ch;
     char keyword[32];
@@ -1069,7 +1173,7 @@ static int FetchToken( void )
 }
 
 
-static int NextIf( int tok, strflag err )
+static int NextIf( int tok, int err )
 {
     if( FetchToken() != tok )
     {   CommandError(MsgStrs[err]);
@@ -1253,7 +1357,7 @@ static Expr *ParseExpression( int level )
 
          case(1): /* Conjunctions */
                   tmp1 = ParseExpression(2);
-                  while( (CurToken==AndTok) || (CurToken=='&') )
+                  while( (CurToken==AndTok) || (CurToken==YTok) || (CurToken=='&') )
                   {   if( CurToken=='&' )
                       {   if( FetchToken()=='&' )
                               FetchToken();
@@ -1504,13 +1608,26 @@ static void ExecuteCentreCommand( void )
 {
     register Real x, y, z;
     register Long count;
+    int xlatecen;
+    
+    xlatecen = XlateCen;
 
     FetchToken();
     if( !CurToken || (CurToken==AllTok) )
-    {   CenX = CenY = CenZ = 0;
-        ReDrawFlag |= RFRotate;
+    {   CentreTransform(0,0,0,xlatecen);
         return;
     }
+    
+    if( (CurToken==CentreTok) || (CurToken==TranslateTok) ) {
+      xlatecen = XlateCen = (CurToken==TranslateTok)?True:False;
+      FetchToken();
+      if ( !CurToken ) return;
+      if ( CurToken==AllTok ) {
+        CentreTransform(0,0,0,xlatecen);
+        return;
+      }
+    }
+   
     
     /* Check for Centre [CenX, CenY, CenZ] syntax */
 
@@ -1538,14 +1655,19 @@ static void ExecuteCentreCommand( void )
           }
         }
 
-        CenX = CenV[0];
 #ifdef INVERT
-        CenY = -CenV[1];
-#else
-        CenY = CenV[1];
+        CenV[1] = -CenV[1];
 #endif
-        CenZ = -CenV[2];
-        ReDrawFlag |= RFRotate;
+        FetchToken();
+        if( CurToken ) {
+          if (  (CurToken==CentreTok) || (CurToken==TranslateTok) ) {
+            xlatecen = (CurToken==TranslateTok)?True:False;
+          } else {
+            CommandError(MsgStrs[ErrSyntax]);
+            return;
+          }
+        }
+		CentreTransform(CenV[0],CenV[1],-CenV[2],xlatecen);
         return;
     }
  
@@ -1567,17 +1689,23 @@ static void ExecuteCentreCommand( void )
         for( QGroup=QChain->glist; QGroup; QGroup=QGroup->gnext )
             for( QAtom=QGroup->alist; QAtom; QAtom=QAtom->anext )
                 if( EvaluateExpr(QueryExpr) )
-                {   x += (Real)QAtom->xorg;
-                    y += (Real)QAtom->yorg;
-                    z += (Real)QAtom->zorg;
+                {   x += (Real)(QAtom->xorg+QAtom->fxorg);
+                    y += (Real)(QAtom->yorg+QAtom->fyorg);
+                    z += (Real)(QAtom->zorg+QAtom->fzorg);
                     count++;
                 }
 
     if( count )
-    {   CenX = (Long)(x/count);
-        CenY = (Long)(y/count);
-        CenZ = (Long)(z/count);
-        ReDrawFlag |= RFRotate;
+    {   FetchToken();
+        if( CurToken ) {
+          if (  (CurToken==CentreTok) || (CurToken==TranslateTok) ) {
+            xlatecen = (CurToken==TranslateTok)?True:False;
+          } else {
+            CommandError(MsgStrs[ErrSyntax]);
+            return;
+          }
+        } 
+        CentreTransform((Long)(x/count),(Long)(y/count),(Long)(z/count),xlatecen);
     } else
     {   InvalidateCmndLine();
         WriteString(MsgStrs[StrCent]);
@@ -1617,17 +1745,17 @@ static void ExecuteLoadCommand( void )
     {   CommandError(MsgStrs[ErrFilNam]);
         return;
     }
-
+/*
 #ifdef STRICT
     if( (CurToken!=StringTok) && (CurToken!=IdentTok) )
     {   CommandError(MsgStrs[ErrFilNam]);
         return;
     }
 #endif
-
+ */
     info = (FileDepth == -1);
     if( IsMoleculeFormat(format) )
-    {   if( Database )
+    {   if( NumMolecules >= MAX_MOLECULES )
         {   CommandError(MsgStrs[ErrBadLoad]);
             return;
         }
@@ -1682,6 +1810,8 @@ static void ExecutePauseCommand( void )
         DragAcceptFiles(CanvWin,FALSE);
 #endif
     }
+
+	ReDrawFlag |= RFRefresh;
 }
 
 
@@ -1700,6 +1830,10 @@ static void ExecutePickingCommand( void )
         case(CentreTok):   SetPickMode(PickCentr); break;
         case(OriginTok):   SetPickMode(PickOrign); break;
         case(CoordTok):    SetPickMode(PickCoord); break;
+        case(AtomTok):     SetPickMode(PickAtom);  break;
+        case(GroupTok):    SetPickMode(PickGroup); break;
+        case(ChainTok):    SetPickMode(PickChain); break;
+        case(BondTok):     SetPickMode(PickBond);  break;
         default:           CommandError(MsgStrs[ErrBadOpt]);
     }
 }
@@ -1782,6 +1916,7 @@ static void ExecuteSetCommand( void )
                 ReviseInvMatrix();
                 VoxelsClean = False;
                 UseSlabPlane = False;
+                UseDepthPlane = False;
                 ReDrawFlag |= RFRefresh;
                 ReAllocBuffers();
             } else if( CurToken==FalseTok )
@@ -1815,6 +1950,21 @@ static void ExecuteSetCommand( void )
             } else CommandError(MsgStrs[ErrNotNum]);
             break;
 
+
+        case(ShadePowerTok):
+            FetchToken();
+            if( !CurToken )
+            {   ShadePower = 0;
+                ReDrawFlag |= RFColour;
+            } else if( CurToken==NumberTok )
+            {   if( TokenValue<=100 )
+                {   ReDrawFlag |= RFColour;
+                    ShadePower = (int)((TokenValue-50)*0.4);
+                } else 
+                    CommandError(MsgStrs[ErrBigNum]);
+            } else CommandError(MsgStrs[ErrNotNum]);
+            break;
+            
         case(AmbientTok):
             FetchToken();
             if( !CurToken )
@@ -1859,6 +2009,7 @@ static void ExecuteSetCommand( void )
                 BackR = RVal;
                 BackG = GVal;
                 BackB = BVal;
+                DefaultBackground = False; /* [GSG 11/29/95] */
 #ifndef IBMPC
                 FBClear = False;
 #endif
@@ -1880,7 +2031,7 @@ static void ExecuteSetCommand( void )
             } else if( CurToken==NotTok )
 	    {   FetchToken();
                 if( !CurToken || (CurToken==BondedTok) )
-		{ MarkAtoms = NonBondFlag;
+                { MarkAtoms = NonBondFlag;
                 } else CommandError(MsgStrs[ErrBadOpt]);
             } else CommandError(MsgStrs[ErrBadOpt]);
             break;
@@ -2088,8 +2239,14 @@ static void ExecuteSetCommand( void )
         case(StereoTok):  
             FetchToken();
             if( !CurToken )
-            {   SetStereoMode(False);
-                StereoAngle = 6.0;
+            {   if (UseStereo) {
+                   StereoAngle = -StereoAngle;
+                   if (StereoAngle  < 0.0 ) {
+                     SetStereoMode(True);
+                   } else {
+                     SetStereoMode(False);
+                   }
+                } else SetStereoMode(True);
             } else if( CurToken==TrueTok )
             {   SetStereoMode(True);
             } else if( CurToken==FalseTok )
@@ -2195,20 +2352,25 @@ static void ExecuteSetCommand( void )
             } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
-	case(CisAngleTok):
-	   FetchToken();
-	   if( !CurToken )
-	   {   CisBondCutOff = CIS;	     
-	   } else if( CurToken==NumberTok )
-	   {   if( TokenValue<=180 )
-		{    CisBondCutOff = TokenValue;
-		     Info.cisbondcount = -1; /* to recalculate peptide bonds */
-		} else
-		    CommandError(MsgStrs[ErrBigNum]); 
-	   } else CommandError(MsgStrs[ErrNotNum]);
-	   sprintf(buffer,"CisBondCutOff = %d\n", CisBondCutOff);
-	   WriteString( buffer );
-	   break;    
+        case(CisAngleTok):
+            FetchToken();
+            if( !CurToken )
+            {   CisBondCutOff = CIS;
+            } else {
+              if( CurToken==NumberTok )
+              {   if( TokenValue<=180 )
+                  {   CisBondCutOff = TokenValue;
+                      Info.cisbondcount = -1; /* to recalculate peptide bonds */
+                  } else {
+                    CommandError(MsgStrs[ErrBigNum]); 
+                  }
+              } else {
+                CommandError(MsgStrs[ErrNotNum]);
+              }
+            }
+            sprintf(buffer,"CisBondCutOff = %d\n", CisBondCutOff);
+            WriteString( buffer );
+            break;    
 
         case(SequenceTok):
             FetchToken();
@@ -2235,6 +2397,7 @@ static void ExecuteSetCommand( void )
         case(UnitCellTok): ExecuteUnitCellCommand(); break;
 
         case(DotsTok):
+			FetchToken();
             if( !CurToken )
             {   SurfaceChainsFlag = False;
                 SolventDots = False;
@@ -2255,6 +2418,13 @@ static void ExecuteSetCommand( void )
                 } else if( CurToken == FalseTok )
                 {   SurfaceChainsFlag = False;
                 } else CommandError(MsgStrs[ErrBadOpt]);
+            } else if( CurToken == NumberTok )
+            {   if( TokenValue<=20 )
+                {   if( TokenValue )
+                    {   DotSize = TokenValue;
+						ReDrawFlag |= RFRefresh;
+					}
+                } else CommandError(MsgStrs[ErrBigNum]);
             } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
@@ -2425,6 +2595,7 @@ static void ExecuteColourCommand( void )
 
         case(TraceTok): 
         case(RibbonTok):
+        case(StrandsTok):
         case(CartoonTok):  flag = RibColBoth;     break;
         case(Ribbon1Tok):  flag = RibColInside;   break;
         case(Ribbon2Tok):  flag = RibColOutside;  break;
@@ -2453,7 +2624,7 @@ static void DescribeSelected( Selection type )
 
   register Chain __far *chain = (Chain __far*)NULL;
   register Group __far *group = (Group __far*)NULL;
-  register Atom __far *ptr    = (Atom  __far*)NULL;
+  register RAtom __far *ptr   = (RAtom  __far*)NULL;
   AtomRef current;
   int touched    ;
   int Aselect    ;
@@ -2552,6 +2723,7 @@ static void DescribeSequence( void )
     register Chain __far *chn;
     register Group __far *grp;
     register int chain,count;
+	register int subcount;
     register char *str;
     char buffer[40];
     int  model;
@@ -2563,16 +2735,17 @@ static void DescribeSequence( void )
     model = -1;
     for( chn=Database->clist; chn; chn=chn->cnext )
     {   chain = (Info.chaincount<2);  count = 0;
+		subcount = -1;
         for( grp=chn->glist; grp; grp=grp->gnext )
             if( grp->alist && !(grp->alist->flag&HeteroFlag) )
             {   if( !chain )
-	        {   if (!(model==grp->model)) {
-                      model = grp->model;
-                      if (model) {
-                        sprintf(buffer,"Model: %d  ",model);
-                        WriteString(buffer);
-                      }
-	            }
+	            {   if (!(model==grp->model))
+	                {   model = grp->model;
+                        if (model) 
+                        {  sprintf(buffer,"Model: %d  ",model);
+                           WriteString(buffer);
+                        }
+	                }
                     WriteString("Chain ");
                     WriteChar(chn->ident);
                     WriteString(":\n");
@@ -2593,10 +2766,19 @@ static void DescribeSequence( void )
                     sprintf(buffer,"%-3d ",grp->serno);
                     WriteString(buffer);
                 } else
-                {   if( count == 60 )
+                {   if( count == 50 )
                     {   WriteChar('\n');
                         count = 1;
-                    } else count++;
+						subcount = 0;
+                    } else
+                    {   count++;
+						subcount++;
+					}
+
+					if( subcount == 10)
+					{	WriteChar(' ');
+						subcount = 0;
+					}
 
                     if( grp->refno < 29 )
                     {   WriteChar(ResidueChar[grp->refno]);
@@ -2613,6 +2795,7 @@ static void ExecuteShowCommand( void )
 {
     register Real temp;
     char buffer[40];
+    Real theta,phi,psi;
 
     switch( FetchToken() )
     {   case(InfoTok):
@@ -2663,17 +2846,237 @@ static void ExecuteShowCommand( void )
                 WriteChar('\n');
                 break;
 
+        case(CentreTok):
+                InvalidateCmndLine();
+                if ( CenX || CenY || CenZ ) {
+#ifdef INVERT
+                sprintf(buffer,"centre [%ld,%ld,%ld]\n", CenX, -CenY, -CenZ);
+#else
+                sprintf(buffer,"centre [%ld,%ld,%ld]\n", CenX, CenY, -CenZ);
+#endif
+                WriteString(buffer);
+                }
+                break;
+
+        case(RotateTok):
+                InvalidateCmndLine();
+                ReDrawFlag |= RFRotate;
+                PrepareTransform();
+ 
+                /*
+                phi = Round(Rad2Deg*asin(RotX[2]));
+                if( phi == 90 )
+                {   theta = -Round(Rad2Deg*atan2(RotY[0],RotY[1]));
+                    psi = 0;
+                } else if( phi == -90 )
+                {   theta = Round(Rad2Deg*atan2(RotY[0],RotY[1]));
+                    psi = 0;
+                } else
+                {   theta = Round(Rad2Deg*atan2(RotY[2],RotZ[2]));
+                    psi =  Round(-Rad2Deg*atan2(RotX[1],RotX[0]));
+                }
+                */
+                 
+                phi = psi = theta = 0.0;
+                RMat2RV(&theta, &phi, &psi, RotX, RotY, RotZ);
+                theta *= 180.;
+                phi *= 180.;
+                psi *= 180.;
+
+
+                if( Round(theta) ) {
+                   sprintf(buffer,"rotate x %d\n",Round(InvertY(-theta)));
+                   WriteString(buffer);
+                }
+                if( Round(phi) ) {
+                   sprintf(buffer,"rotate y %d\n",Round(phi));
+                   WriteString(buffer);
+                }
+                if( Round(psi) ) {
+                   sprintf(buffer,"rotate z %d\n",Round(InvertY(-psi)));
+                   WriteString(buffer);
+                }
+                if (BondsSelected) {
+                  BondRot __far *brptr;
+
+                  brptr = BondsSelected;
+                  while (brptr) {
+                    sprintf(buffer,"bond %d %d pick\n", 
+                        (brptr->BSrcAtom)->serno, (brptr->BDstAtom)->serno);
+                    WriteString(buffer);
+                    if( brptr->BRotValue ) {
+                       sprintf(buffer,"rotate bond %d\n",
+                         Round((brptr->BRotValue)*180.));
+                       WriteString(buffer);
+                    }
+                    brptr = brptr->brnext;
+                  }
+                }
+                break;
+
+        case(TranslateTok):
+                InvalidateCmndLine();
+                /* temp = 100.0*DialValue[DialTX]; */
+                temp = (int)(100.0*(Real)(XOffset-WRange)/((Real)XRange*Zoom));
+                if( temp ) {
+                  sprintf(buffer,"translate x %.2f\n",temp);
+                  WriteString(buffer);
+                }
+                /* temp = 100.0*DialValue[DialTY]; */
+                temp = (int)(100.0*(Real)(YOffset-HRange)/((Real)YRange*Zoom));
+                if( temp ) {
+                  sprintf(buffer,"translate y %.2f\n",InvertY(-temp));
+                  WriteString(buffer);
+                }
+                /* temp = 100.0*DialValue[DialTZ]; */
+                temp = (int)(100.0*(Real)(ZOffset-10000)/((Real)ZRange*Zoom));
+                if( temp ) {
+                  sprintf(buffer,"translate z %.2f\n",temp);
+                  WriteString(buffer);
+                }
+                break;
+
+        case(ZoomTok):
+                InvalidateCmndLine();
+                if( DialValue[DialZoom] != 0.0 )
+                {   if( DialValue[DialZoom]<0.0 )
+                    {   temp = 100.0*DialValue[DialZoom];
+                    } else temp = 100.0*MaxZoom*DialValue[DialZoom];
+                    sprintf(buffer,"zoom %d\n",(int)(temp+100));
+                    WriteString(buffer);
+                 }
+                 break;
+
         default:
             CommandError(MsgStrs[ErrBadArg]);
     }
 }
 
 
+
+
+/*Function call on "select <...<" , start and continue selection,
+/*                 "select <...>" , start and stop selection,
+*               or "select >...>" , continue and stop selection.
+* Escape the parser to make fast atom selection under the format:
+* "select (< or >) x1[-x2],...,xi[-x(i+1)](> or <)" where xi represent atomno.
+*/ 
+static void ReadAtomSelection( int start )
+{	register Long ori, end;
+	register int neg, bloc;
+	register char ch;
+	register Bond __far *bptr;
+	
+	if( !Database )
+		return;
+			
+	/*Empty selection at start*/
+	if( start )
+	{	for( QChain=Database->clist; QChain; QChain=QChain->cnext )
+			for( QGroup=QChain->glist; QGroup; QGroup=QGroup->gnext )
+				for( QAtom=QGroup->alist; QAtom; QAtom=QAtom->anext )
+					QAtom->flag &= ~SelectFlag;
+		SelectCount = 0;
+	}
+	
+	while( *TokenPtr )
+	{	bloc = 0;
+		neg = 0;
+		ch = *TokenPtr++;
+
+		/*first number*/
+		while( *TokenPtr && isspace(ch) )
+			ch= *TokenPtr++;
+		if( ch == '-' )
+			neg = 1;
+		else if( ch != '+' )
+			*TokenPtr--;
+		FetchToken();
+		if( CurToken==NumberTok )
+		{	ori = TokenValue;
+			ch= *TokenPtr++;
+			while( *TokenPtr && isspace(ch) )
+				ch = *TokenPtr++;
+			
+			/*second number*/
+			if( ch=='-' )
+			{	neg = 0;
+				ch= *TokenPtr++;
+				while( *TokenPtr && isspace(ch) )
+					ch = *TokenPtr++;
+				if( ch == '-' )
+					neg = 1;
+				else if( ch != '+' )
+					*TokenPtr--;
+				FetchToken();
+				if( CurToken==NumberTok )
+				{	end = TokenValue;
+					if( neg )
+						end = -end;
+					ch = *TokenPtr++;
+					while( *TokenPtr && isspace(ch) )
+						ch = *TokenPtr++;
+ 					if( ch==','||ch=='>'||ch=='<' )
+						bloc = 1;
+				}
+			} else if( ch==','||ch=='>'||ch=='<' )
+			{	end = ori;
+				bloc = 1;
+			}
+		}
+
+		if( bloc==1 )
+		{	for( QChain=Database->clist; QChain; QChain=QChain->cnext )
+				for( QGroup=QChain->glist; QGroup; QGroup=QGroup->gnext )
+					for( QAtom=QGroup->alist; QAtom; QAtom=QAtom->anext )
+						if( QAtom->serno >= ori && QAtom->serno <= end )
+						{	if( !(QAtom->flag&SelectFlag) )
+								SelectCount++;
+							QAtom->flag |= SelectFlag;
+						}
+		} else
+		{	if( ch!=',' && ch!='<' && ch!='>' )		/*not empty bloc*/
+				CommandError(MsgStrs[ErrBlocSel]);
+			while( *TokenPtr && ch!=',' && ch!='<' && ch!='>' )
+				ch = *TokenPtr++;
+		}
+
+		if( ch==',' )
+			continue;
+		else if( ch=='<' )	
+			bloc = 0;
+		else
+			bloc = 1;		
+		while( *TokenPtr )
+				*TokenPtr++;
+	}
+
+	/*termination*/
+	if( bloc!=0 )
+	{	if( (FileDepth == -1) || !LineStack[FileDepth] )
+			DisplaySelectCount( );
+
+		if( ZoneBoth )
+		{	ForEachBond
+				if( (bptr->srcatom->flag&bptr->dstatom->flag) & SelectFlag )
+				{   bptr->flag |= SelectFlag;
+				} else bptr->flag &= ~SelectFlag;
+		} else
+		{	ForEachBond
+		       if( (bptr->srcatom->flag|bptr->dstatom->flag) & SelectFlag )
+		       {   bptr->flag |= SelectFlag;
+		       } else bptr->flag &= ~SelectFlag;
+		}
+	}
+}
+
+
+
 void ZapDatabase( void )
 {
     register int i;
 
-    for( i=0; i<8; i++ )
+    for( i=0; i<10; i++ )
         DialValue[i] = 0.0;
     SelectCount = 0;
 
@@ -2682,28 +3085,40 @@ void ZapDatabase( void )
     ResetTransform();
     ResetRenderer();
     ResetRepres();
+    ResetBondsSel();
 
     ZoneBoth = True;
     HetaGroups = True;    
     Hydrogens = True;
 
+#if 0 /* [GSG 11/10/95] */
     BackR = BackG = BackB = 0;
+#endif
 #ifndef IBMPC
     FBClear = False;
 #endif
 
+    /* [11/10/95 GSG] Prevent colormap reset, refresh instead of clear */
+#if 0
     ResetColourMap();
     DefineColourMap();
     ClearBuffers();
     ReDrawFlag = 0;
+#else
+    ReDrawFlag = RFRefresh;
+#endif
 
     if( Interactive )
     {   UpdateScrollBars();
-        ClearImage();
+	/* ClearImage(); [GSG 11/10/95] */
     }
     AdviseUpdate(AdvName);
     AdviseUpdate(AdvClass);
     AdviseUpdate(AdvIdent);
+
+    /* [GSG 11/10/95] */
+    ZapMolecule();
+    ReRadius();
 }
 
 
@@ -2729,15 +3144,15 @@ static void WriteImageFile( char *name, int type )
         case(VectPSTok):  WriteVectPSFile(name);          break;
 
         case(RasMolTok):
-        case(ScriptTok):     WriteScriptFile(name);     break;
-        case(KinemageTok):   WriteKinemageFile(name);   break;
-        case(MolScriptTok):  WriteMolScriptFile(name);  break;
-        case(POVRayTok):     WritePOVRayFile(name);     break;
-        case(POVRay3Tok):    WritePOVRay3File(name);    break;
+        case(ScriptTok):     WriteScriptFile(name);       break;
+        case(KinemageTok):   WriteKinemageFile(name);     break;
+        case(MolScriptTok):  WriteMolScriptFile(name);    break;
+        case(POVRayTok):     WritePOVRayFile(name);       break;
+        case(POVRay3Tok):    WritePOVRay3File(name);      break;
         case(PhiPsiTok):     WritePhiPsiAngles(name, False); break;
         case(RamachanTok):   WritePhiPsiAngles(name, 1);  break;
         case(RamPrintTok):   WritePhiPsiAngles(name, -1); break;     
-        case(VRMLTok):       WriteVRMLFile(name);       break;
+        case(VRMLTok):       WriteVRMLFile(name);         break;
     }
 }
 
@@ -2761,7 +3176,7 @@ void ResumePauseCommand( void )
         do {
             len = 0;
             ch = getc(fp);
-            while( (ch!='\n') && (ch!=EOF) )
+            while( (ch!='\n') && (ch!='\r') && (ch!=EOF) )
             {   if( len<MAXBUFFLEN )
                     CurLine[len++] = ch;
                 ch = getc(fp);
@@ -2835,8 +3250,10 @@ static void ExecuteConnectCommand( void )
         info = (FileDepth == -1);
         CreateMoleculeBonds(info,flag,True);
         ReDrawFlag |= RFRefresh|RFColour;
-        EnableWireframe(WireFlag,0);
+        EnableWireframe(WireFlag,0,0);
     }
+
+	CalcBondsFlag = True;
 }
 
 
@@ -2862,6 +3279,8 @@ int ExecuteCommand( void )
         case(ColourTok):     ExecuteColourCommand();     break;
         case(ConnectTok):    ExecuteConnectCommand();    break;
         case(EnglishTok):    SwitchLang(English);        break;
+        case(FrenchTok):     SwitchLang(French);         break;
+        case(ItalianTok):    SwitchLang(Italian);        break;
         case(LoadTok):       ExecuteLoadCommand();       break;
         case(WaitTok):       ExecutePauseCommand();      break;
         case(PickingTok):    ExecutePickingCommand();    break;
@@ -2876,6 +3295,78 @@ int ExecuteCommand( void )
         case(ZapTok):        ZapDatabase();              break;
  
 
+
+        case(BondTok):    FetchToken();
+                          if( CurToken == NumberTok )
+                          { temp = TokenValue;
+                            FetchToken();
+                            if( CurToken == ',' )
+                                FetchToken();
+                            if( CurToken == NumberTok )
+                            {   Long temp2;
+
+                                temp2 = TokenValue;
+                                FetchToken();
+                                if ( (!CurToken) || CurToken == '+' ) {
+                                  CreateBondOrder(temp, temp2);
+                                  ReDrawFlag |= RFInitial;
+                                } else if ( CurToken == PickingTok ) { 
+                                  CreateBondAxis(temp,TokenValue);
+                                  ReDrawFlag |= RFInitial;
+                                } else CommandError(MsgStrs[ErrBadArg]);
+                            } else CommandError(MsgStrs[ErrNotNum]);
+                          } else if (CurToken==RotateTok)
+                          { FetchToken();
+                            if(BondSelected &&
+                              (!CurToken || CurToken==TrueTok))
+                            { RotMode == RotBond;
+                              ReDrawFlag |= RFRotBond;
+                            } else if(CurToken==FalseTok)
+                            { if( RotMode == RotBond )
+                              { RotMode = RotMol;
+                                ReDrawFlag |= RFRotate;
+                              }
+                            } else CommandError(MsgStrs[ErrBadArg]);
+                          } else CommandError(MsgStrs[ErrBadArg]);
+                          break;
+
+        case(UnBondTok):  FetchToken();
+                          if( CurToken == NumberTok )
+                          { temp = TokenValue;
+                            FetchToken();
+                            if( CurToken == ',' )
+                                FetchToken();
+                            if( CurToken == NumberTok )
+                            {   if (RemoveBond(temp,TokenValue)) {
+                                  ReDrawFlag |= RFInitial;
+                                } else {
+                                  CommandError(MsgStrs[ErrBadArg]);
+                                }
+                            } else CommandError(MsgStrs[ErrNotNum]);
+                          } else if( (!CurToken) && BondSelected )
+                          { if (RemoveBond(BSrcAtom->serno,BDstAtom->serno)) {
+                              BSrcAtom = NULL; BDstAtom = NULL;
+                              ReDrawFlag |= RFRefresh;
+                              BondSelected = False;
+                            } else {
+                              CommandError(MsgStrs[ErrBadArg]);
+                            }
+                          } else CommandError(MsgStrs[ErrBadArg]);
+                          break;
+
+        case(MoleculeTok):
+                          FetchToken();
+	                  if (CurToken != NumberTok) {
+	                    CommandError(MsgStrs[ErrBadArg]);
+	                    break;
+	                  }
+	                  if (TokenValue < 1 || TokenValue > NumMolecules) {
+	                    CommandError(MsgStrs[ErrBadArg]);
+ 	                    break;
+	                  }
+                          SelectMolecule(TokenValue-1);
+                          break;
+  
         case(SelectTok):  FetchToken();
                           if( !CurToken )
                           {   option = NormAtomFlag;
@@ -2886,6 +3377,12 @@ int ExecuteCommand( void )
                           {   SelectZone(AllAtomFlag);
                           } else if( CurToken==NoneTok )
                           {   SelectZone(0x00);
+                          } else if( CurToken==ViewTok )
+                          {   SelectArea(False,True,1,1,XRange,YRange);
+                          } else if( CurToken=='<' )
+						  {	  ReadAtomSelection(True);
+                          } else if( CurToken=='>' )
+						  {	  ReadAtomSelection(False);
                           } else
                           {   QueryExpr = ParseExpression(0);
                               if( QueryExpr )
@@ -2932,10 +3429,10 @@ int ExecuteCommand( void )
                               DisableWireframe();
                           } else if( (CurToken==TrueTok) || !CurToken )
                           {   ReDrawFlag |= RFRefresh;
-                              EnableWireframe(WireFlag,0);
+                              EnableWireframe(WireFlag,0,0);
                           } else if( CurToken==DashTok )
                           {   ReDrawFlag |= RFRefresh;
-                              EnableWireframe(DashFlag,0);
+                              EnableWireframe(DashFlag,0,0);
                           } else if( CurToken==NumberTok )
                           {   if( *TokenPtr=='.' )
                               {   TokenPtr++;
@@ -2944,14 +3441,16 @@ int ExecuteCommand( void )
 
                               if( TokenValue<=500 )
                               {   EnableWireframe(CylinderFlag,
-                                                  (int)TokenValue);
+                                                  (int)TokenValue,
+                                                  (int)((TokenValue*4)/5));
                                   ReDrawFlag |= RFRefresh;
                               } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken=='.' )
                           {   FetchFloat(0,250);
                               if( TokenValue<=500 )
                               {   EnableWireframe(CylinderFlag,
-                                                  (int)TokenValue);
+                                                  (int)TokenValue,
+                                                  (int)((TokenValue*4)/5));
                                   ReDrawFlag |= RFRefresh;
                               } else CommandError(MsgStrs[ErrBigNum]);
                           } else CommandError(MsgStrs[ErrBadArg]);
@@ -2964,10 +3463,10 @@ int ExecuteCommand( void )
                               DisableBackbone();
                           } else if( (CurToken==TrueTok) || !CurToken )
                           {   ReDrawFlag |= RFRefresh;
-                              EnableBackbone(WireFlag,0);
+                              EnableBackbone(WireFlag,0,0);
                           } else if( CurToken==DashTok )
                           {   ReDrawFlag |= RFRefresh;
-                              EnableBackbone(DashFlag,0);
+                              EnableBackbone(DashFlag,0,0);
                           } else if( CurToken==NumberTok )
                           {   if( *TokenPtr=='.' )
                               {   TokenPtr++;
@@ -2977,14 +3476,16 @@ int ExecuteCommand( void )
 
                               if( TokenValue<=500 )
                               {   EnableBackbone(CylinderFlag,
-                                                 (int)TokenValue);
+                                                 (int)TokenValue,
+                                                 (int)((4*TokenValue)/5));
                                   ReDrawFlag |= RFRefresh;
                               } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken=='.' )
                           {   FetchFloat(0,250);
                               if( TokenValue<=500 )
                               {   EnableBackbone(CylinderFlag,
-                                                 (int)TokenValue);
+                                                 (int)TokenValue,
+                                                 (int)((4*TokenValue)/5));
                                   ReDrawFlag |= RFRefresh;
                               } else CommandError(MsgStrs[ErrBigNum]);
                           } else CommandError(MsgStrs[ErrBadArg]);
@@ -3066,7 +3567,7 @@ int ExecuteCommand( void )
                               DisableWireframe();
                           } else if( (CurToken==TrueTok) || !CurToken )
                           {   ReDrawFlag |= RFRefresh;
-                              EnableWireframe(DashFlag,0);
+                              EnableWireframe(DashFlag,0,0);
                           } else CommandError(MsgStrs[ErrBadArg]);
                           break;
 
@@ -3078,21 +3579,23 @@ int ExecuteCommand( void )
                               }
 
                               if( TokenValue<=500 )
-                              {   SetHBondStatus(False,True,(int)TokenValue);
+                              {   SetHBondStatus(False,True,(int)TokenValue,
+                                                     (int)((4*TokenValue)/5));
                                   ReDrawFlag |= RFRefresh;
                               } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken=='.' )
                           {   FetchFloat(0,250);
                               if( TokenValue<=500 )
-                              {   SetHBondStatus(False,True,(int)TokenValue);
+                              {   SetHBondStatus(False,True,(int)TokenValue,
+                                                     (int)((4*TokenValue)/5));
                                   ReDrawFlag |= RFRefresh;
                               } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken==FalseTok )
                           {   ReDrawFlag |= RFRefresh;
-                              SetHBondStatus(False,False,0);
+                              SetHBondStatus(False,False,0,0);
                           } else if( (CurToken==TrueTok) || !CurToken )
                           {   ReDrawFlag |= RFRefresh;
-                              SetHBondStatus(False,True,0);
+                              SetHBondStatus(False,True,0,0);
                           } else CommandError(MsgStrs[ErrBadArg]);
                           break;
 
@@ -3104,21 +3607,23 @@ int ExecuteCommand( void )
                               }
 
                               if( TokenValue<=500 )
-                              {   SetHBondStatus(True,True,(int)TokenValue);
+                              {   SetHBondStatus(True,True,(int)TokenValue,
+                                                     (int)((4*TokenValue)/5));
                                   ReDrawFlag |= RFRefresh;
                               } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken=='.' )
                           {   FetchFloat(0,250);
                               if( TokenValue<=500 )
-                              {   SetHBondStatus(True,True,(int)TokenValue);
+                              {   SetHBondStatus(True,True,(int)TokenValue,
+                                                     (int)((4*TokenValue)/5));
                                   ReDrawFlag |= RFRefresh;
                               } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken==FalseTok )
                           {   ReDrawFlag |= RFRefresh;
-                              SetHBondStatus(True,False,0);
+                              SetHBondStatus(True,False,0,0);
                           } else if( (CurToken==TrueTok) || !CurToken )
                           {   ReDrawFlag |= RFRefresh;
-                              SetHBondStatus(True,True,0);
+                              SetHBondStatus(True,True,0,0);
                           } else CommandError(MsgStrs[ErrBadArg]);
                           break;
 
@@ -3274,7 +3779,10 @@ int ExecuteCommand( void )
                           } else if( CurToken == FalseTok )
                           {   ReDrawFlag |= RFRefresh;
                               DeleteMonitors();
-                          } else CommandError(MsgStrs[ErrBadArg]);
+                          } else if( !CurToken || CurToken == TrueTok )
+                          {   ReDrawFlag |= RFRefresh;
+                              DrawMonitDistance = True;
+                          }else CommandError(MsgStrs[ErrBadArg]);
                           break;
 
         case(SlabTok):    FetchToken();
@@ -3287,7 +3795,7 @@ int ExecuteCommand( void )
                               } else FetchFloat(0,100);
 
                               if( TokenValue<=10000 )
-                              {   DialValue[7] = (TokenValue-5000)/5000.0;
+                              {   DialValue[DialSlab] = (TokenValue-5000)/5000.0;
                                   /* UpdateScrollBars(); */
                                   ReDrawFlag |= RFSlab;
                                   UseSlabPlane = True;
@@ -3307,6 +3815,37 @@ int ExecuteCommand( void )
                               }
                           } else CommandError(MsgStrs[ErrSyntax]);
                           break;
+ 
+        case(DepthTok):    FetchToken();
+                          if( (CurToken==NumberTok) || (CurToken=='.') )
+                          {   if( CurToken==NumberTok )
+                              {   if( *TokenPtr=='.' )
+                                  {   TokenPtr++;
+                                      FetchFloat(TokenValue,100);
+                                  } else TokenValue *= 100;
+                              } else FetchFloat(0,100);
+
+                              if( TokenValue<=10000 )
+                              {   DialValue[DialBClip] = (TokenValue-5000)/5000.0;
+                                  /* UpdateScrollBars(); */
+                                  ReDrawFlag |= RFRotate;
+                                  UseDepthPlane = True;
+                                  UseShadow = False;
+                              } else CommandError(MsgStrs[ErrBigNum]);
+
+                          } else if( CurToken==FalseTok )
+                          {   if( UseDepthPlane )
+                              {   ReDrawFlag |= RFRotate;
+                                  UseDepthPlane = False;
+                              }
+                          } else if( !CurToken || (CurToken==TrueTok) )
+                          {   if( !UseSlabPlane )
+                              {   ReDrawFlag |= RFRotate;
+                                  UseDepthPlane = True;
+                                  UseShadow = False;
+                              }
+                          } else CommandError(MsgStrs[ErrSyntax]);
+                          break;
 
         case(ZoomTok):    FetchToken();
                           if( (CurToken==NumberTok) || (CurToken=='.') )
@@ -3318,23 +3857,23 @@ int ExecuteCommand( void )
                               } else FetchFloat(0,100);
 
                               if( TokenValue<=10000 )
-                              {   DialValue[3] = (TokenValue-10000)/10000.0;
+                              {   DialValue[DialZoom] = (TokenValue-10000)/10000.0;
                                   ReDrawFlag |= RFZoom;
                               } else if( Database )
                               {   /* Magnification */
                                   TokenValue -= 10000;
                                   temp = (Long)(MaxZoom*10000);
                                   if( TokenValue<=temp )
-                                  {   DialValue[3] = (Real)TokenValue/temp;
+                                  {   DialValue[DialZoom] = (Real)TokenValue/temp;
                                       ReDrawFlag |= RFZoom;
                                   } else CommandError(MsgStrs[ErrBigNum]);
                               }
                           } else if( CurToken==TrueTok )
                           {   ReDrawFlag |= RFZoom;
-                              DialValue[3] = 0.5;
+                              DialValue[DialZoom] = 0.5;
                           } else if( !CurToken || (CurToken==FalseTok) )
                           {   ReDrawFlag |= RFZoom;
-                              DialValue[3] = 0.0;
+                              DialValue[DialZoom] = 0.0;
                           } else CommandError(MsgStrs[ErrSyntax]);
                           /* UpdateScrollBars(); */
                           break;
@@ -3346,13 +3885,46 @@ int ExecuteCommand( void )
                           {   option = 1;
                           } else if( CurToken==ZTok )
                           {   option = 2;
+                          } else if( CurToken==BondTok )
+                          {   if (!BondSelected) {
+                                CommandError(MsgStrs[ErrNoBond]);
+                                break;
+                              } else {
+                                option = -1;
+                              }
+                          } else if( CurToken==AllTok )
+                          {   option = -3;
+                          } else if( CurToken==MoleculeTok )
+                          {   option = -2;
                           } else
                           {   CommandError(MsgStrs[ErrSyntax]);
                               break;
                           }
 
                           FetchToken();
-                          if( CurToken == '-' )
+                          if( option < 0 && 
+                            (!CurToken || CurToken==FalseTok || 
+                            CurToken==TrueTok))
+                          { if( (option == -1 && 
+                                CurToken==FalseTok && RotMode==RotBond) ||
+                              (option == -2 && 
+                                (!CurToken || CurToken==TrueTok)) ||
+                              (option == -3 && 
+                                CurToken==FalseTok && RotMode==RotAll) )
+                            { RotMode = RotMol;
+                              ReDrawFlag |= RFRotate;
+                            }
+                            if( option == -1 && CurToken==TrueTok )
+                            { RotMode = RotBond;
+                              ReDrawFlag |= RFRotBond;
+                            }
+                            if( option == -3 &&
+                              (!CurToken || CurToken==TrueTok))
+                            { RotMode = RotAll;
+                              ReDrawFlag |= RFRotate;
+                            }
+                            break;
+                          } else if( CurToken == '-' )
                           {   FetchToken();
                               done = True;
                           } else done = False;
@@ -3371,18 +3943,58 @@ int ExecuteCommand( void )
                               if( TokenValue )
                               {   if( ReDrawFlag & RFRotate )
                                       PrepareTransform();
-
-                                  ReDrawFlag |= (1<<option);
                                   if( done ) TokenValue = -TokenValue;
-                                  DialValue[option] += TokenValue/18000.0;
+                                  if (option == -1) {
+                                    ReDrawFlag |= RFRotBond;
+                                    BondSelected->BRotValue += 
+                                       TokenValue/18000.0;
+                                    while( BondSelected->BRotValue < -1.0 )
+                                        BondSelected->BRotValue += 2.0;
+                                    while( BRotValue > 1.0 )
+                                        BondSelected->BRotValue -= 2.0;
+                                  } else {
+                                    double xtemp;
+                                    
+                                    if (RotMode == RotAll) {
+                                      xtemp = WRotValue[option];
+                                    } else {
+                                      xtemp = DialValue[option];
+                                    }
+                                    
+                                    ReDrawFlag |= (1<<option);
+                                    
+                                    xtemp += TokenValue/18000.0;
 
-                                  while( DialValue[option]<-1.0 )
-                                      DialValue[option] += 2.0;
-                                  while( DialValue[option]>1.0 )
-                                      DialValue[option] -= 2.0;
+                                    while( xtemp<-1.0 )
+                                        xtemp += 2.0;
+                                    while( xtemp>1.0 )
+                                        xtemp -= 2.0;
+
+                                    if (RotMode == RotAll) {
+                                      WRotValue[option] = xtemp;
+                                    } else {
+                                      DialValue[option] = xtemp;
+                                    }
+                                  }
                                   if( Interactive )
                                       UpdateScrollBars();
+                                  ReDrawFlag |= RFRefresh;
                               }
+                          } else if (CurToken == ResetTok) {
+                            if (option == -1) {
+                              BondSelected->BRotValue = 0.0;
+                              ReDrawFlag |=RFRotBond;
+                            } else {
+                              ReDrawFlag |= (1<<option);
+                              if (RotMode == RotAll) {
+                                WRotValue[option] = 0.0;
+                              } else {
+                                DialValue[option] = 0.0;
+                              }
+                            }
+                            if( Interactive )
+                                UpdateScrollBars();
+                            ReDrawFlag |= RFRefresh;  
                           } else CommandError(MsgStrs[ErrNotNum]);
                           break;
 
@@ -3418,9 +4030,25 @@ int ExecuteCommand( void )
                               } else FetchFloat(0,100);
 
                               if( TokenValue<=10000 )
-                              {   ReDrawFlag |= (1<<option);
+                              {   double wtemp;
+
+                                  ReDrawFlag |= RFTrans;
                                   if( done ) TokenValue = -TokenValue;
-                                  DialValue[option] = TokenValue/10000.0;
+                                  wtemp = TokenValue/10000.0;
+                                  if( RotMode == RotAll && option == 4 ) {
+                                    WTransX = wtemp;
+                                  } else { 
+                                    if( RotMode == RotAll && option == 5 ) {
+                                      WTransY = wtemp;
+                                    } else {
+                                      if( RotMode == RotAll && option == 6 ) {
+                                        WTransZ = wtemp;
+                                      } else {
+                                        DialValue[option] = TokenValue/10000.0;
+                                      }
+                                    }
+                                  }
+
                                   /* UpdateScrollBars(); */
                               } else CommandError(MsgStrs[ErrBigNum]);
                           } else CommandError(MsgStrs[ErrNotNum]);
@@ -3445,7 +4073,7 @@ int ExecuteCommand( void )
         case(ResizeTok):  FetchToken();
                           break;
 
-        case(ResetTok):   for( i=0; i<8; i++ )
+        case(ResetTok):   for( i=0; i<10; i++ )
                               DialValue[i] = 0.0;
                           ReDrawFlag |= RFDials;
                           ResetTransform();
@@ -3621,20 +4249,28 @@ int ExecuteCommand( void )
 	                    if( (FileDepth != -1) && LineStack[FileDepth] ) {
                               Recycle = &CurLine[0];
                               switch( CurToken )
-			      {  case(HeaderTok):
-                                   ProcessFile(FormatPDB,False,
+			                  {  case(HeaderTok):
+			                       if (SetNewMolecule()){
+                                     ProcessFile(FormatPDB,False,
                                      FileStack[FileDepth]);
+                                   } else {
+                                     CommandError(MsgStrs[ErrBadLoad]);
+                                   }
                                    break;
 
                                  case(CIFDataTok):
-                                   ProcessFile(FormatCIF,False,
+			                       if (SetNewMolecule()){
+                                     ProcessFile(FormatCIF,False,
                                      FileStack[FileDepth]);
-			           break;
+                                   } else {
+                                     CommandError(MsgStrs[ErrBadLoad]);
+                                   }
+			                       break;
                               }
                               DefaultRepresentation();
                             } else {
                               CommandError(MsgStrs[ErrOutScrpt]);
-		  	    }
+		  	              }
                           }
                           CurToken = 0;
                           return( ExitTok );

@@ -1,9 +1,9 @@
 /***************************************************************************
- *                              RasMol 2.7.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
  *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                              22 June 1999                               *
+ *                              14 April 2001                              *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -11,15 +11,34 @@
  *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
  *                   Copyright (C) Roger Sayle 1992-1999                   *
  *                                                                         *
- *                  and Based on Mods by Arne Mueller                      *
- *                      Version 2.6x1, May 1998                            *
- *                   Copyright (C) Arne Mueller 1998                       *
+ *                          and Based on Mods by                           *
+ *Author             Version, Date             Copyright                   *
+ *Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       *
+ *Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  *
+ *Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   *
  *                                                                         *
- *           Version 2.7.0, 2.7.1 Mods by Herbert J. Bernstein             *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
- *                      yaya@bernstein-plus-sons.com                       *
- *                    2.7.0 March 1999, 2.7.1 June 1999                    *
- *              Copyright (C) Herbert J. Bernstein 1998-1999               *
+ *Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   *
+ *                                                                         *
+ *Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    * 
+ *Bernstein          RasMol 2.7.1   Jun 99         1998-2001               *
+ *                   RasMol 2.7.1.1 Jan 01                                 *
+ *                   RasMol 2.7.2   Aug 00                                 *
+ *                   RasMol 2.7.2.1 Apr 01                                 *
+ *                                                                         *
+ *                    and Incorporating Translations by                    *
+ *  Author                               Item                      Language*
+ *  Isabel Serván Martínez,                                                *
+ *  José Miguel Fernández Fernández      2.6   Manual              Spanish *
+ *  José Miguel Fernández Fernández      2.7.1 Manual              Spanish *
+ *  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish *
+ *  Jean-Pierre Demailly                 2.7.1 menus and messages  French  *
+ *  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          *
+ *  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian *
+ *                                                                         *
+ *                             This Release by                             *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
+ *                       yaya@bernstein-plus-sons.com                      *
+ *               Copyright(C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    *
@@ -73,6 +92,7 @@
 #include "molecule.h"
 #include "abstree.h"
 #include "transfor.h"
+#include "langsel.h"
 
 
 /* Macros for commonly used loops */
@@ -140,14 +160,6 @@ static char *AminoCode = "AGLSVTKDINEPRFQYHCMWBZPPACGTX";
 #define ExprPool    16
 #define SetPool     4
 
-typedef struct _SymEntry {
-                struct _SymEntry __far *lft;
-                struct _SymEntry __far *rgt;
-                AtomSet __far *defn;
-                char *ident;
-                } SymEntry;
-
-static SymEntry __far *SymbolTable;
 static SymEntry __far *FreeEntry;
 static AtomSet __far *FreeSet;
 static Expr *FreeExpr;
@@ -160,7 +172,7 @@ static Expr TrueExpr;
 /*  Function Prototypes  */
 /*=======================*/
 
-static AtomSet __far *SetInsert( AtomSet __far*, Atom __far* );
+static AtomSet __far *SetInsert( AtomSet __far*, RAtom __far* );
 static int IsWithinRadius( AtomSet __far*, Long );
 static int IsSetMember( AtomSet __far* );
 static void DeleteSymEntry( SymEntry __far* );
@@ -176,7 +188,7 @@ static void FatalExprError( char *ptr )
 }
 
 
-static AtomSet __far *SetInsert( AtomSet __far *ptr,  Atom __far *item )
+static AtomSet __far *SetInsert( AtomSet __far *ptr, RAtom __far *item )
 {
     register AtomSet __far *temp;
     register int i;
@@ -189,7 +201,7 @@ static AtomSet __far *SetInsert( AtomSet __far *ptr,  Atom __far *item )
 
     if( !FreeSet )
     {   temp = (AtomSet __far*)_fmalloc( SetPool*sizeof(AtomSet) );
-        if( !temp ) FatalExprError("Memory allocation failed");
+        if( !temp ) FatalExprError(MsgStrs[StrMalloc]);
         for( i=1; i<SetPool; i++ )
         {    temp->next = FreeSet;
              FreeSet = temp++;
@@ -208,7 +220,7 @@ static AtomSet __far *SetInsert( AtomSet __far *ptr,  Atom __far *item )
 
 static int IsWithinRadius( AtomSet __far *ptr, Long limit )
 {
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
     register Long dx,dy,dz;
     register Long dist;
     register int i;
@@ -216,11 +228,11 @@ static int IsWithinRadius( AtomSet __far *ptr, Long limit )
     while( ptr )
     {   for( i=0; i<ptr->count; i++ )
         {    aptr = ptr->data[i];
-             dx = QAtom->xorg-aptr->xorg; 
+             dx = QAtom->xorg-aptr->xorg + QAtom->fxorg-aptr->fxorg; 
              if( (dist=dx*dx)>limit ) continue;
-             dy = QAtom->yorg-aptr->yorg; 
+             dy = QAtom->yorg-aptr->yorg + QAtom->fyorg-aptr->fyorg; 
              if( (dist+=dy*dy)>limit ) continue;
-             dz = QAtom->zorg-aptr->zorg; 
+             dz = QAtom->zorg-aptr->zorg + QAtom->fzorg-aptr->fzorg; 
              if( (dist+=dz*dz)>limit ) continue;
              return True;
         }
@@ -264,8 +276,9 @@ Expr *AllocateNode( void )
     register int i;
 
     if( !FreeExpr )
-    {   ptr = (Expr*)malloc( ExprPool*sizeof(Expr) );
+    {   ptr = (Expr*)_fmalloc( ExprPool*sizeof(Expr) );
         if( !ptr ) FatalExprError("Memory allocation failed");
+		RegisterAlloc( ptr );
         for( i=1; i<ExprPool; i++ )
         {   ptr->rgt.ptr = FreeExpr;
             FreeExpr = ptr++;
@@ -299,7 +312,7 @@ void DeAllocateExpr( Expr *expr )
 }
 
 
-int GetElemNumber( Group __far *group, Atom __far *aptr )
+int GetElemNumber( Group __far *group, RAtom __far *aptr )
 {
     register char ch1,ch2;
     register char *ptr;
@@ -593,9 +606,9 @@ static int EvaluateProperty( int prop )
 {
     switch( prop )
     {   case( PropIdent ):    return( (int)QAtom->serno );
-        case( PropXCord ):    return( (int)QAtom->xorg );
-        case( PropYCord ):    return( (int)QAtom->yorg );
-        case( PropZCord ):    return( (int)QAtom->zorg );
+        case( PropXCord ):    return( (int)(QAtom->xorg + QAtom->fxorg) );
+        case( PropYCord ):    return( (int)(QAtom->yorg + QAtom->fyorg) );
+        case( PropZCord ):    return( (int)(QAtom->zorg + QAtom->fzorg) );
         case( PropTemp ):     return( QAtom->temp );
         case( PropName ):     return( QAtom->refno );
         case( PropResId ):    return( QGroup->serno );
@@ -748,9 +761,24 @@ int EvaluateExpr( Expr *expr )
 
 AtomSet __far *BuildAtomSet( Expr *expr )
 {
+    register AtomSet __far *pset;
     register AtomSet __far *ptr;
+    register int i;
 
     ptr = (AtomSet __far*)0;
+  
+	/*Shortcut for defined atomsets*/
+	if( expr->type==OpMember )
+	{	pset = expr->rgt.set;
+	    while( pset )
+		{   for( i=0; i<pset->count; i++ )
+		    {	QAtom = pset->data[i];
+			    ptr = SetInsert( ptr, QAtom );
+			}
+			pset = pset->next;
+		}
+		return ptr;
+	}
 
     if( Database )
         for( QChain=Database->clist; QChain; QChain=QChain->cnext )
@@ -789,6 +817,7 @@ int DefineSetExpr( char *ident, Expr *expr )
         } else /* Allocate SymEntry! */
         {   ptr = (SymEntry __far*)_fmalloc(sizeof(SymEntry));
             if( !ptr ) return False;
+			RegisterAlloc( ptr );
         }
 
         *prev = ptr;
@@ -1159,8 +1188,8 @@ static char *FormatInteger( char *ptr, Long value )
 }
 
 
-void FormatLabel( Chain __far *chain, Group __far *group, Atom __far *aptr,
-                  char *label, char *ptr )
+void FormatLabel( Chain __far *chain, Group __far *group, RAtom __far *aptr,
+                  char *label, unsigned char *ptr )
 {
     register char ch;
     register int i,j;
@@ -1173,7 +1202,7 @@ void FormatLabel( Chain __far *chain, Group __far *group, Atom __far *aptr,
            switch( ch )
            {   case('a'):  /* Atom Name */
                            i = aptr->refno;
-                           for( j=0; j<4; j++ )
+                           for( j=0; ElemDesc[i][j] && j<12; j++ )
                                if( ElemDesc[i][j]!=' ' )
                                    *ptr++ = ElemDesc[i][j];
                            break;
@@ -1181,7 +1210,7 @@ void FormatLabel( Chain __far *chain, Group __far *group, Atom __far *aptr,
                case('b'):  /* Temperature/B-factor */
                case('B'):
                case('t'):
-               case('T'):  ptr = FormatInteger(ptr,aptr->temp);
+               case('T'):  ptr = (unsigned char *)FormatInteger((char *)ptr,aptr->temp);
                            break;
 
                case('c'):  /* Chain Identifier */
@@ -1200,7 +1229,7 @@ void FormatLabel( Chain __far *chain, Group __far *group, Atom __far *aptr,
 
                case('i'):
                case('I'):  /* Atom Number */
-                           ptr = FormatInteger(ptr,(int)aptr->serno);
+                           ptr = (unsigned char *)FormatInteger((char *)ptr,(int)aptr->serno);
                            break;
 
                case('m'):  /* Amino (Nucliec) Acid Code */
@@ -1219,7 +1248,7 @@ void FormatLabel( Chain __far *chain, Group __far *group, Atom __far *aptr,
 
                case('r'):
                case('R'):  /* Residue Number */
-                           ptr = FormatInteger(ptr,group->serno);
+                           ptr = (unsigned char *)FormatInteger((char *)ptr,group->serno);
                            break;
 
                case('A'):  /* Alternate Conformation ID */
@@ -1233,7 +1262,7 @@ void FormatLabel( Chain __far *chain, Group __far *group, Atom __far *aptr,
                case('M'):  /* NMR Model Number */
                            if ( aptr->model ) {
                              *ptr++ = '/';
-                             ptr = FormatInteger(ptr,(int)aptr->model);
+                             ptr = (unsigned char *)FormatInteger((char *)ptr,(int)aptr->model);
                            } 
                            break;
 
@@ -1272,14 +1301,14 @@ void ResetSymbolTable( void )
 }
 
 
-double CalcDistance( Atom __far *atm1, Atom __far *atm2 )
+double CalcDistance( RAtom __far *atm1, RAtom __far *atm2 )
 {
     register Long dx,dy,dz;
     register double dist2;
 
-    dx = atm1->xorg - atm2->xorg;
-    dy = atm1->yorg - atm2->yorg;
-    dz = atm1->zorg - atm2->zorg;
+    dx = atm1->xorg - atm2->xorg + atm1->fxorg - atm2->fxorg;
+    dy = atm1->yorg - atm2->yorg + atm1->fyorg - atm2->fyorg;
+    dz = atm1->zorg - atm2->zorg + atm1->fzorg - atm2->fzorg;
     if( dx || dy || dz )
     {   dist2 = dx*dx + dy*dy + dz*dz;
         return( sqrt(dist2)/250.0 );
@@ -1287,23 +1316,31 @@ double CalcDistance( Atom __far *atm1, Atom __far *atm2 )
 }
 
 
-double CalcAngle(  Atom __far *atm1, Atom __far *atm2,  Atom __far *atm3 )
+double CalcAngle(  RAtom __far *atm1, RAtom __far *atm2,  RAtom __far *atm3 )
 {
     register double ulen2,vlen2;
     register double ux,uy,uz;
     register double vx,vy,vz;
     register double temp;
 
-    ux = atm1->xorg - atm2->xorg;
-    uy = atm1->yorg - atm2->yorg;
-    uz = atm1->zorg - atm2->zorg;
+    ux = atm1->xorg - atm2->xorg + atm1->fxorg - atm2->fxorg;
+#ifdef INVERT
+    uy = atm2->yorg - atm1->yorg + atm2->fyorg - atm1->fyorg;
+#else
+    uy = atm1->yorg - atm2->yorg + atm1->fyorg - atm2->fyorg;
+#endif
+    uz = atm1->zorg - atm2->zorg + atm1->fzorg - atm2->fzorg;
     if( !ux && !uy && !uz )
         return 0.0;
     ulen2 = ux*ux + uy*uy + uz*uz;
 
-    vx = atm3->xorg - atm2->xorg;
-    vy = atm3->yorg - atm2->yorg;
-    vz = atm3->zorg - atm2->zorg;
+    vx = atm3->xorg - atm2->xorg + atm3->fxorg - atm2->fxorg;
+#ifdef INVERT
+    vy = atm2->yorg - atm3->yorg + atm2->fyorg - atm3->fyorg;
+#else
+    vy = atm3->yorg - atm2->yorg + atm3->fyorg - atm2->fyorg;
+#endif
+    vz = atm3->zorg - atm2->zorg + atm3->fzorg - atm2->fzorg;
     if( !vx && !vy && !vz )
         return 0.0;
     vlen2 = vx*vx + vy*vy + vz*vz;
@@ -1313,42 +1350,49 @@ double CalcAngle(  Atom __far *atm1, Atom __far *atm2,  Atom __far *atm3 )
 }
 
 
-double CalcTorsion( Atom __far *atm1, Atom __far *atm2,
-                    Atom __far *atm3, Atom __far *atm4 )
+double CalcTorsion( RAtom __far *atm1, RAtom __far *atm2,
+                    RAtom __far *atm3, RAtom __far *atm4 )
 {
     register double ax, ay, az;
     register double bx, by, bz;
     register double cx, cy, cz;
     register double px, py, pz;
     register double qx, qy, qz;
-    register double cosom,sgn,om;
+    register double cosom, om;
     register double rx, ry, rz;
     register double plen,qlen;
 
-    ax = atm2->xorg - atm1->xorg;
-    ay = atm2->yorg - atm1->yorg;
-    az = atm2->zorg - atm1->zorg;
+    ax = atm2->xorg - atm1->xorg + atm2->fxorg - atm1->fxorg
+         + (double)(atm2->xtrl - atm1->xtrl)/40.;
+    ay = atm2->yorg - atm1->yorg + atm2->fyorg - atm1->fyorg
+         + (double)(atm2->ytrl - atm1->ytrl)/40.;
+    az = atm2->zorg - atm1->zorg + atm2->fzorg - atm1->fzorg
+         - (double)(atm2->ztrl - atm1->ztrl)/40.;
     if( !ax && !ay && !az )
         return 0.0;
 
-    bx = atm3->xorg - atm2->xorg;
-    by = atm3->yorg - atm2->yorg;
-    bz = atm3->zorg - atm2->zorg;
+    bx = atm3->xorg - atm2->xorg + atm3->fxorg - atm2->fxorg
+         + (double)(atm3->xtrl - atm2->xtrl)/40.;
+    by = atm3->yorg - atm2->yorg + atm3->fyorg - atm2->fyorg
+         + (double)(atm3->ytrl - atm2->ytrl)/40.;
+    bz = atm3->zorg - atm2->zorg + atm3->fzorg - atm2->fzorg
+         - (double)(atm3->ztrl - atm2->ztrl)/40.;
     if( !bx && !by && !bz )
         return 0.0;
 
-    cx = atm4->xorg - atm3->xorg;
-    cy = atm4->yorg - atm3->yorg;
-    cz = atm4->zorg - atm3->zorg;
+    cx = atm4->xorg - atm3->xorg + atm4->fxorg - atm3->fxorg
+         + (double)(atm4->xtrl - atm3->xtrl)/40.;
+    cy = atm4->yorg - atm3->yorg + atm4->fyorg - atm3->fyorg
+         + (double)(atm4->ytrl - atm3->ytrl)/40.;
+    cz = atm4->zorg - atm3->zorg + atm4->fzorg - atm3->fzorg
+         - (double)(atm4->ztrl - atm3->ztrl)/40.;
     if( !cx && !cy && !cz )
         return 0.0;
 
 #ifdef INVERT
     ay = -ay;  by = -by;  cy = -cy;
-    az = -az;  bz = -bz;  cz = -cz;
-#else
-    az = -az;  bz = -bz;  cz = -cz;
 #endif
+    az = -az;  bz = -bz;  cz = -cz;
 
     px = ay*bz - az*by;
     py = az*bx - ax*bz;
@@ -1370,6 +1414,9 @@ double CalcTorsion( Atom __far *atm1, Atom __far *atm2,
 
     om = -Rad2Deg*acos(cosom);
 
+    if ( om < -180. ) om += 360.;
+    if ( om > 180. ) om -= 360.;
+
     rx = py*qz - pz*qy;
     ry = pz*qx - px*qz;
     rz = px*qy - py*qx;
@@ -1380,8 +1427,8 @@ double CalcTorsion( Atom __far *atm1, Atom __far *atm2,
 }
 
 
-double CalcDihedral( Atom __far *atm1, Atom __far *atm2,
-                     Atom __far *atm3, Atom __far *atm4 )
+double CalcDihedral( RAtom __far *atm1, RAtom __far *atm2,
+                     RAtom __far *atm3, RAtom __far *atm4 )
 {
     return( 180.0 - CalcTorsion(atm1,atm2,atm3,atm4) );
 }
@@ -1390,10 +1437,10 @@ double CalcDihedral( Atom __far *atm1, Atom __far *atm2,
 /* Note: curr == prev->gnext! */
 double CalcPhiAngle( Group __far *prev, Group __far *curr )
 {
-    Atom __far *prevc;
-    Atom __far *currca;
-    Atom __far *currc;
-    Atom __far *currn;
+    RAtom __far *prevc;
+    RAtom __far *currca;
+    RAtom __far *currc;
+    RAtom __far *currn;
 
     if( !(prevc  = FindGroupAtom(prev,2)) ) return 360.0;
     if( !(currca = FindGroupAtom(curr,1)) ) return 360.0;
@@ -1407,10 +1454,10 @@ double CalcPhiAngle( Group __far *prev, Group __far *curr )
 /* Note: next == curr->gnext! */
 double CalcPsiAngle( Group __far *curr, Group __far *next )
 {
-    Atom __far *nextn;
-    Atom __far *currca;
-    Atom __far *currc;
-    Atom __far *currn;
+    RAtom __far *nextn;
+    RAtom __far *currca;
+    RAtom __far *currc;
+    RAtom __far *currn;
 
     if( !(nextn  = FindGroupAtom(next,0)) ) return 360.0;
     if( !(currca = FindGroupAtom(curr,1)) ) return 360.0;
@@ -1423,10 +1470,10 @@ double CalcPsiAngle( Group __far *curr, Group __far *next )
 /* Note: prev == prev->gnext! */
 double CalcOmegaAngle( Group __far *prev, Group __far *curr )
 {
-    Atom __far *prevc;
-    Atom __far *prevca;
-    Atom __far *currn;
-    Atom __far *currca;
+    RAtom __far *prevc;
+    RAtom __far *prevca;
+    RAtom __far *currn;
+    RAtom __far *currca;
 
     if( !(prevca = FindGroupAtom(prev,1)) ) return 360.0;
     if( !(prevc  = FindGroupAtom(prev,2)) ) return 360.0;
@@ -1469,7 +1516,7 @@ char *DescribeObj( AtomRef *ptr, Selection select )
   static char buffer[BS];
   int strucflag=' ';
   
-  /* needs to be initialised with withespaces, expect the last one */
+  /* needs to be initialised with whiteespaces, expect the last one */
   memset(buffer, ' ', bs * sizeof (char));
 
   /* identification of 'chain' */
@@ -1529,12 +1576,12 @@ char *DescribeObj( AtomRef *ptr, Selection select )
     if( select == CRD ){
       register double x, y, z;
 
-      x = (double)(ptr->atm->xorg + OrigCX)/250.0
+      x = (double)(ptr->atm->xorg + ptr->atm->fxorg + OrigCX)/250.0
          +(double)(ptr->atm->xtrl)/10000.0;
-      y = (double)(ptr->atm->yorg + OrigCY)/250.0
+      y = (double)(ptr->atm->yorg + ptr->atm->fyorg + OrigCY)/250.0
          +(double)(ptr->atm->ytrl)/10000.0;
-      z = (double)(ptr->atm->zorg + OrigCZ)/250.0
-         +(double)(ptr->atm->ztrl)/10000.0;
+      z = (double)(ptr->atm->zorg + ptr->atm->fzorg + OrigCZ)/250.0
+         -(double)(ptr->atm->ztrl)/10000.0;
 
 #ifdef INVERT
       sprintf(eptr, "\n  Coordinates: %9.3f %9.3f %9.3f\n",x,-y,-z);

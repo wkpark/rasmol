@@ -1,9 +1,9 @@
 /***************************************************************************
- *                              RasMol 2.7.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
  *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                              22 June 1999                               *
+ *                              14 April 2001                              *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -11,15 +11,34 @@
  *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
  *                   Copyright (C) Roger Sayle 1992-1999                   *
  *                                                                         *
- *                  and Based on Mods by Arne Mueller                      *
- *                      Version 2.6x1, May 1998                            *
- *                   Copyright (C) Arne Mueller 1998                       *
+ *                          and Based on Mods by                           *
+ *Author             Version, Date             Copyright                   *
+ *Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       *
+ *Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  *
+ *Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   *
  *                                                                         *
- *           Version 2.7.0, 2.7.1 Mods by Herbert J. Bernstein             *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
- *                      yaya@bernstein-plus-sons.com                       *
- *                    2.7.0 March 1999, 2.7.1 June 1999                    *
- *              Copyright (C) Herbert J. Bernstein 1998-1999               *
+ *Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   *
+ *                                                                         *
+ *Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    * 
+ *Bernstein          RasMol 2.7.1   Jun 99         1998-2001               *
+ *                   RasMol 2.7.1.1 Jan 01                                 *
+ *                   RasMol 2.7.2   Aug 00                                 *
+ *                   RasMol 2.7.2.1 Apr 01                                 *
+ *                                                                         *
+ *                    and Incorporating Translations by                    *
+ *  Author                               Item                      Language*
+ *  Isabel Serván Martínez,                                                *
+ *  José Miguel Fernández Fernández      2.6   Manual              Spanish *
+ *  José Miguel Fernández Fernández      2.7.1 Manual              Spanish *
+ *  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish *
+ *  Jean-Pierre Demailly                 2.7.1 menus and messages  French  *
+ *  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          *
+ *  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian *
+ *                                                                         *
+ *                             This Release by                             *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
+ *                       yaya@bernstein-plus-sons.com                      *
+ *               Copyright(C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    *
@@ -49,6 +68,19 @@
  ***************************************************************************/
 
 /* repres.h
+ $Log: repres.h,v $
+ Revision 1.1  2001/01/31 02:13:45  yaya
+ Initial revision
+
+ Revision 1.4  2000/08/27 16:09:43  yaya
+ monitor dynamics extensions
+
+ Revision 1.3  2000/08/26 18:13:00  yaya
+ Updates to header comments in all files
+
+ Revision 1.2  2000/08/09 01:18:38  yaya
+ Rough cut with ucb
+
 */
 
 #define DotMax    100
@@ -64,10 +96,14 @@ typedef struct _DotStruct {
 
 typedef struct _Monitor {
         struct _Monitor *next;
-        Atom __far *src;
-        Atom __far *dst;
-        unsigned short dist;
+        RAtom __far *src;
+        RAtom __far *mid1;
+        RAtom __far *mid2;
+        RAtom __far *dst;
+        int monmode;
+        int dist;
         short col;
+        unsigned char units;
     } Monitor;
 
 
@@ -89,8 +125,12 @@ int SolventDots;
 int ProbeRadius;
 
 int SurfaceChainsFlag;
+int DotDensity;
+int DotSize;
 int DrawMonitDistance;
 int DrawBetaArrows;
+
+char LabelFormat[128];
 
 #else
 extern DotStruct __far *DotPtr;
@@ -102,8 +142,12 @@ extern int ProbeRadius;
 extern int SolventDots;
 
 extern int SurfaceChainsFlag;
+extern int DotDensity;
+extern int DotSize;
 extern int DrawMonitDistance;
 extern int DrawBetaArrows;
+
+extern char LabelFormat[128];
 #endif
 
 
@@ -116,7 +160,10 @@ void DefineLabels( char* );
 void DisplayLabels( void );
 
 void DeleteMonitors( void );
-void AddMonitors( Atom __far*, Atom __far* );
+void AddMonitors2( RAtom __far*, RAtom __far*,
+  RAtom __far*, RAtom __far*, 
+  unsigned short, unsigned char, int );
+void AddMonitors( RAtom __far*, RAtom __far* );
 void CreateMonitor( Long, Long );
 void DisplayMonitors( void );
 
@@ -127,6 +174,6 @@ void DisplaySurface( void );
 /* Ribbons & Cartoons */
 void DisplayRibbon( Chain __far* );
 
-void ResetRepres();
-void InitialiseRepres();
+void ResetRepres( void );
+void InitialiseRepres( void );
 

@@ -2,21 +2,20 @@
 <HTML>
 <HEAD>
 <TITLE>
-RasMol V2.7.1.1 README
+RasMol V2.7.2.1 README
 </TITLE>
-<meta name="keywords" content="RasMol RasWin RasMac Roger Sayle
-PDB CIF Protein Data Bank Crystallographic Information File
-RasMol Manual">
+<meta name="keywords" content="RasMol Home Page OpenRasMol Open RasMol RasMol RasWin RasMac RasTop Roger Sayle Bioinformatics Visualization Molecular Graphics PDB CIF mmCIF Protein Data Bank Crystallographic Information File RasMol Manual rasmol homepage raswin homepage rasmac homepage">
+<meta name="description" content="This is the RasMol, RasWin and RasMac Home Page for the 2.7.2.1 release.  Go to rasmol.org for information on current releases.">
 </HEAD>
 <BODY BACKGROUND="html_graphics/rasmolwallpaper.jpg">
 <table border="0" cellpadding="0">
 <tr><td valign="top">
 <a href="http://www.iucr.org/iucr-top/welcome.html">
-<img alt="[IUCr Home Page]" src="html_graphics/iucrhome.jpg" align="middle"></a>
+<img alt="[IUCr Home Page]" src="html_graphics/iucrhome.jpg"></a>
 <a href="http://www.iucr.org/iucr-top/cif/home.html">
-<img alt="[CIF Home Page]" src="html_graphics/cifhome.jpg" align="middle"></a>
-<A HREF="http://www.OpenRasMol.org"><IMG SRC="html_graphics/rasmolbutton.jpg"
-ALT="[OpenRasMol]" align="middle"></A>
+<img alt="[CIF Home Page]" src="html_graphics/cifhome.jpg"></a>
+<A HREF="doc/rasmol.html"><IMG SRC="html_graphics/rasmolbutton.jpg"
+ALT="[RasMol Manual]"></A>
 <td valign="top">
 &nbsp;&nbsp;
 <!--#exec cgi="/cgi-bin/ZCountND.cgi" -->
@@ -25,12 +24,12 @@ align="middle"
 ALT="
 <!--#config timefmt="%m-%d-%y" -->
 <!--#echo var="DATE_LOCAL" -->
-">
+">  
 <img
 src="/cgi-sys/Count.cgi?negate=T&dd=A&display=clock" align="middle" ALT="
 <!--#config timefmt="%I:%M %p" -->
 <!--#echo var="DATE_LOCAL" -->
-">
+">  
 <td valign="top">
 <img
 src="/cgi-sys/cgiwrap/yaya/Count.cgi?negate=T&dd=A&comma=T&incr=F&<!--#exec
@@ -40,46 +39,50 @@ align="middle" ALT="
 <!--#exec cgi="/cgi-bin/ZCountNI.cgi" -->
 ">
 <br>
-visits since 29 January 2001
+visits since 15 April 2001
 </table>
-
-
 <hr>
 <CENTER>
 | <a href="http://www.OpenrasMol.org">OpenRasMol</a> |
-<A href="#Copying">Copying and Distribution</A> |
-<A href="#Contents">Contents</A> |
+<A href="README.html#Copying">Copying and Distribution</A> |
+<A href="README.html#Contents">Contents</A> |
 <A href="INSTALL.html">Installation Instructions</A> |<BR>
 | <A href="ChangeLog.html">Changes</A> |
 <A href="TODO.html">Things To Do</A> |
-<A href="#Introduction">Introduction</A> | 
-<A href="#CodeAndBinaries">Source Code and Binaries</A> |<BR>
+<A href="README.html#Introduction">Introduction</A> | 
+<A href="README.html#CodeAndBinaries">Source Code and Binaries</A> |<BR>
 | <A href="doc/rasmol.html">RasMol Manual</A> |
-<a href="doc/esrasmol27.html">Spanish Translation of RasMol Manual</a>| 
-<a href="README.html">Release README</A> |<BR>
+<a href="doc/esrasmol27.html">Spanish Translation of RasMol Manual</a> | 
+<a href="doc/itrasmol.hlp">Italian Translation of RasMol Help File</a> |<BR>
+| <a href="README.html">Release README</A> |<BR>
 </CENTER>
 
 <font color="#0808A0">
 <H1 ALIGN=CENTER>README<BR>
-RasMol 2.7.1.1</H1>
-
+RasMol 2.7.2.1</H1>
 <center>
 <table border=0 callpadding=3 cellspacing=0>
 <tr>
-<td rowspan=7><IMG  SRC="html_graphics/rasmollogo.jpg" ALT="RasMol"><BR>
-<td colspan=11 bgcolor="#C0C0FF">&nbsp;
+<td rowspan=8><IMG  SRC="html_graphics/rasmollogo.jpg" ALT="RasMol"><BR>
+<td colspan=13 bgcolor="#C0C0FF" align="center"><blink>***NEW***</blink>
+<A href="#CodeAndBinaries">HPUX_11, Solaris 2.5, OpenVMS</a>, <a 
+href="http://arcib.dowling.edu">SGI, MacOS X</A> 
+Binaries available.
+<blink>***NEW***</blink>
 <tr>
-<td rowspan=5 bgcolor="#C0C0FF">&nbsp;
+<td rowspan=6 bgcolor="#C0C0FF">&nbsp;
 <th valign="bottom">Version
-<td rowspan=5 bgcolor="#C0C0FF">&nbsp;
+<td rowspan=6 bgcolor="#C0C0FF">&nbsp;
 <th align="center">MAC PPC<br>binaries
-<td rowspan=5 bgcolor="#C0C0FF">&nbsp;
+<td rowspan=6 bgcolor="#C0C0FF">&nbsp;
 <th align="center">MSWIN<br>binaries
 <th align="center">RasWin<br>Help File
-<td rowspan=5 bgcolor="#C0C0FF">&nbsp;
+<td rowspan=6 bgcolor="#C0C0FF">&nbsp;
 <th align="center">LINUX<br>binaries
 <th align="center">RasMol<br>Help File
-<td rowspan=5 bgcolor="#C0C0FF">&nbsp;
+<td rowspan=6 bgcolor="#C0C0FF">&nbsp;
+<th align="center" valign="top">MORE ...
+<td rowspan=6 bgcolor="#C0C0FF">&nbsp;
 
 
 <tr><td><a href="../RasMol_2.7.1/README.html">2.7.1</a>
@@ -94,8 +97,9 @@ RasMol 2.7.1.1</H1>
 <A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1/RasMol.LINUX/RedHat_6.0/i386/rasmol_16BIT" TYPE="application/octet-stream">16</a>
 <A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1/RasMol.LINUX/RedHat_6.0/i386/rasmol_32BIT" TYPE="application/octet-stream">32</a>
 <td align="center"><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1/doc/rasmol.hlp" TYPE="application/octet-stream">raw</a>&nbsp;<A HREF="../RasMol_2.7.1/doc/rasmol.hlp.gz" TYPE="application/octet-stream">gz</a>
+<td>&nbsp;
 
-<tr><td><a href="../RasMol_2.7.1.1/README.html">2.7.1.1</a>
+<tr><td><a href="../RasMol_2.7.1.1/README.html"><b>2.7.1.1</b></a>
 <td align="center">
 <A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1.MAC/RasMac_PPC_8BIT.bin">8</a>
 &nbsp;&nbsp;&nbsp;
@@ -107,7 +111,10 @@ RasMol 2.7.1.1</H1>
 <A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/RasMol.LINUX/Mandrake_7.2/i586/rasmol_16BIT" TYPE="application/octet-stream">16</a>
 <A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/RasMol.LINUX/Mandrake_7.2/i586/rasmol_32BIT" TYPE="application/octet-stream">32</a>
 <td align="center"><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/doc/rasmol.hlp" TYPE="application/octet-stream">raw</a>&nbsp;<A HREF="../RasMol_2.7.1.1/doc/rasmol.hlp.gz" TYPE="application/octet-stream">gz</a>
-
+<td><A 
+href="http://www.bernstein-plus-sons.com/software/RasMol_2.7.1.1/README.html#CodeAndBinaries_HPUX">HPUX 11</A>
+&nbsp;&nbsp;<A
+href="http://www.bernstein-plus-sons.com/software/RasMol_2.7.1.1/README.html#CodeAndBinaries_SunOS">Solaris 2.5</A>
 <tr><td><a href="../RasMol_2.7.2/README.html">2.7.2</a>
 <td align="center">
 <A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.MAC/RasMac_PPC_8BIT.bin">8</a>
@@ -120,64 +127,123 @@ RasMol 2.7.1.1</H1>
 <A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2/RasMol.LINUX/Mandrake_7.1/i386/rasmol_16BIT" TYPE="application/octet-stream">16</a>
 <A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2/RasMol.LINUX/Mandrake_7.1/i386/rasmol_32BIT" TYPE="application/octet-stream">32</a>
 <td align="center"><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2/doc/rasmol.hlp" TYPE="application/octet-stream">raw</a>&nbsp;<A HREF="../RasMol_2.7.2/doc/rasmol.hlp.gz" TYPE="application/octet-stream">gz</a>
+<td>&nbsp;
+
+<tr><td><a href="../RasMol_2.7.2.1/README.html"><b>2.7.2.1</b></a>
+<td align="center">
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1.MAC/RasMac_PPC_8BIT.bin">8</a>
+&nbsp;&nbsp;&nbsp;
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1.MAC/RasMac_PPC_32BIT.bin">32</a>
+<td align="center">
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1.MSWIN/raswin.exe"  TYPE="application/octet-stream">8</a>
+<td align="center">
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/raswin.hlp" TYPE="application/octet-stream">raw</a>&nbsp;<A HREF="../RasMol_2.7.2.1/doc/raswin.hlp.gz" TYPE="application/octet-stream">gz</a>
+<td align="center">
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/RasMol.LINUX/Mandrake_7.2/i386/rasmol_8BIT" TYPE="application/octet-stream">8</a>
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/RasMol.LINUX/Mandrake_7.2/i386/rasmol_16BIT" TYPE="application/octet-stream">16</a>
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/RasMol.LINUX/Mandrake_7.2/i386/rasmol_32BIT" TYPE="application/octet-stream">32</a>
+<td align="center"><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp" TYPE="application/octet-stream">raw</a>&nbsp;<A HREF="../RasMol_2.7.2.1/doc/rasmol.hlp.gz" TYPE="application/octet-stream">gz</a>
+<td><A 
+href="http://www.bernstein-plus-sons.com/software/RasMol_2.7.2.1/README.html#CodeAndBinaries_HPUX">HPUX 11</A>
+&nbsp;&nbsp;<A 
+href="http://www.bernstein-plus-sons.com/software/RasMol_2.7.2.1/README.html#CodeAndBinaries_SunOS">Solaris 
+2.5</A>
+&nbsp;&nbsp;<A
+href="http://www.bernstein-plus-sons.com/software/RasMol_2.7.2.1/README.html#CodeAndBinaries_OpenVMS">OpenVMS</A>
+<a href="http://arcib.dowling.edu">SGI</a>
+
 <tr><td colspan=6>&nbsp;
-<tr><td colspan=11 bgcolor="#C0C0FF" align=center>See <A href="#CodeAndBinaries">Source Code and Binaries</A> for more.
+<tr><td colspan=13 bgcolor="#C0C0FF" align=center>See 
+<A href="#CodeAndBinaries">Source Code and Binaries</A> for more.
 </table>
 </center>
 <H3 ALIGN=CENTER>
 Molecular Graphics Visualisation Tool<BR>
-21 January 2001<BR>
+14 April 2001<BR>
 </H3>
 </font><font color="#000000">
 <CENTER>
-Based on RasMol 2.6 by
+Based on RasMol 2.6
+by
 Roger Sayle<BR>
-Biomolecular Structures Group, Glaxo Wellcome Research & Development<BR>
+Biomolecular Structures Group,
+Glaxo Wellcome Research & Development,
 Stevenage, Hertfordshire, UK<BR>
 Version 2.6, August 1995, Version 2.6.4, December 1998<BR>
-Copyright &#169; Roger Sayle 1992-1999<BR>
+Copyright &#169; Roger Sayle 1992-1999
 </CENTER>
 <P>
 <CENTER>
-and Based on Mods by Arne Mueller<BR>
-Version 2.6x1, May 1998<BR>
-Copyright &#169; Arne Mueller 1998<BR>
+and Based on Mods by
+<table border=3>
+<tr><th align="left">Author<th align="left">Version, Date<th align="left">Copyright
+<tr><td>Arne Mueller<td>RasMol 2.6x1 May 1998<td>&#169 Arne Mueller 1998
+<tr><td valign="top">Gary Grossman and<br>Marco Molinaro<td>RasMol 2.5-ucb November 1995<br>RasMol 2.6-ucb November 1996
+<td valign="top">&#169 UC Regents/ModularCHEM<br>Consortium 1995, 1996
+<tr><td>Philippe Valadon<td>RasTop 1.3 August 2000<td>&#169 Philippe Valadon 2000
+<tr><td valign="top">Herbert J. Bernstein<td>RasMol 2.7.0 March 1999<br>
+RasMol 2.7.1 June 1999<br>RasMol 2.7.1.1 January 2001<BR>
+RasMol 2.7.2 August 2000<br>RasMol 2.7.2.1 April 2001<BR>
+<td valign="top">&#169 Herbert J. Bernstein 1998-2001
+</table>
 </CENTER>
 <P>
 <CENTER>
-Version 2.7.0, 2.7.1, 2.7.1.1 Mods
-by
-Herbert J. Bernstein<BR>
-Bernstein + Sons,
-P.O. Box 177, Bellport, NY, USA,
-<A HREF="mailto:yaya@bernstein-plus-sons.com">yaya@bernstein-plus-sons.com</A><BR>
-2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 January 2001<BR>
-Copyright &#169; Herbert J. Bernstein 1998-2001
-<P>
-Translations of most of the RasMol messages into Spanish contributed by 
-Fernando Gabriel Ranea (Laboratorio de Micolog&iacute;a,
-Museo de Farmacobot&aacute;nica, Facultad de Farmacia y Bioqu&iacute;mica. 
-Universidad
-de Buenos Aires
-(<a href="mailto:davinci@dinamica.com.ar">davinci@dinamica.com.ar</a>)).
+and Incorporating Translations by
+<table border=3>
+<tr><th align="left">Author<th align="left">Item<th align="left">Language
+<tr><td>Isabel Serv&aacute;n Mart&iacute;nez,<br>
+Jos&eacute; Miguel Fern&aacute;ndez Fern&aacute;ndez
+<td valign="top">2.6 Manual<td valign="top">Spanish
+<tr><td>Jos&eacute; Miguel Fern&aacute;ndez Fern&aacute;ndez<td>2.7.1 Manual<td>Spanish
+<tr><td>Fernando Gabriel Ranea<td>2.7.1 menus and messages<td>Spanish
+<tr><td>Jean-Pierre Demailly<td>2.7.1 menus and messages<td>French
+<tr><td>Giuseppe Martini, Giovanni Paolella,<br>A. Davassi, M. Masullo, C. Liotto
+<td valign="top">2.7.1 menus and messages<br>
+2.7.1 help file<td valign="top">Italian
+<tr border=3>
+<tr>
+</table>
 </CENTER>
 <P>
- The original RasMol manual was created by Roger Sayle.  In July 1996,
- Dr. Margaret Wong of the Chemistry Department, Swinburne University
- of Technology, Australia, made extensive revisions to the RasMol 2.5
- manual to accurately reflect the operation of RasMol 2.6.  Eric Martz
- of the University of Massachusetts made further revisions.  In May
- 1997, William McClure of Carnegie Mellon University reorganized the
- HTML version of the manual into multiple sections which could be
- downloaded quickly and added use of frames.   Portions of the 2.7.1
- version of the RasMol manual were derived with  permission from
- William McClure's version using Roger Sayle's rasmol.doc for
- version 2.6.4 as the primary source.
+<CENTER>
+This Release by
+<BR>Herbert J. Bernstein,
+Bernstein + Sons, P.O. Box 177, Bellport, NY, USA<BR>
+<script language="javascript" type="text/javascript">
+<!-- 
+      var name = "yaya@";
+      var domain = "bernstein-plus-sons";
+      var domext = ".com";
+      document.write ("<a href=\"mailto:" + name + domain + domext + "\">" + name + domain + domext+"</a>"); 
+// -->
+</script>
+<noscript>
+yaya&#64;bernstein-plus-sons&#46;com
+</noscript>
+<BR>
+Copyright &#169; Herbert J. Bernstein 1998-2001<BR>
+</CENTER>
+<P>
+The original RasMol manual was created by Roger Sayle.  In July 1996,
+Dr. Margaret Wong of the Chemistry Department, Swinburne University
+of Technology, Australia, made extensive revisions to the RasMol 2.5
+manual to accurately reflect the operation of RasMol 2.6.  Eric Martz
+of the University of Massachusetts made further revisions.  In May
+1997, William McClure of Carnegie Mellon University reorganized the
+HTML version of the manual into multiple sections which could be
+downloaded quickly and added use of frames.   Portions of the 2.7.1
+version of the RasMol manual were derived with  permission from
+William McClure's version using Roger Sayle's rasmol.doc for
+version 2.6.4 as the primary source. Changes were made in
+August 2000 for RasMol version 2.7.2, January 2001 for RasMol
+version 2.7.1.1 and April 2001 for RasMol version 2.7.2.1.
 <p>
-<CENTER>Documentation Last Updated 21 January 2001<BR>
-Edited by Herbert J. Bernstein and Frances C. Bernstein</CENTER>
+<CENTER>Documentation Last Updated 21 April 2001<BR>
+Edited by Herbert J. Bernstein and Frances C. Bernstein
+</CENTER>
 <p>
-<H4 Align="CENTER">Translation of RasMol 2.7.1 Manual into Spanish</H4>
+<H4 Align="CENTER">Translations</H4>
 <P>Thanks to the efforts of Jos&eacute; Miguel Fern&aacute;ndez
 Fern&aacute;ndez (Departamento 
 de Bioqu&iacute;mica y Biolog&iacute;a Molecular. Universidad de Granada.
@@ -190,44 +256,33 @@ Isabel Serv&aacute;n Mart&iacute;nez y Jos&eacute; Miguel Fern&aacute;ndez
 Fern&aacute;ndez.  La actual traducci&oacute;n del Manual de RasMol 2.7.1
 ha sido realizada usando como base la anterior de RasMol 2.6 por
 &nbsp;Jos&eacute; Miguel Fern&aacute;ndez Fern&aacute;ndez.
+<P>
+Thanks to translations by Fernando Gabriel Ranea <fernandoranea@microbiologia.org.ar> in late 2000
+and early 2001, RasMol is now
+capable of rendering most menu items and messages in Spanish.  
+Jean-Pierre Demailly <Jean-Pierre.Demailly@ujf-grenoble.fr> provided French
+translations of menus and messages in January 2001.  
+Giuseppe Martini <martini@iigb.na.cnr.it> and Giovanni Paolella <paolella@dbbm.unina.it>
+with contributions by A. Davassi, M. Masullo and C. Liotto provided Italian
+translations of menus and messages in March 2001.
 </P>
 <HR>
 
-<H4 ALIGN=CENTER>Test Version of Next Release Available</H4>
-<P>
-RasMol 2.7.1.1 is an interim release for testing of the integration
-of multilingual capabilities into RasMol.  These same mods
-will then be integrated with pending mods, and with the
-basic structure of RasMol 2.7.2 to create RasMol 2.7.2.1.
-<P>A preliminary release of RasMol 2.7.2 (without the
-multilingual capabilities) is available at:
-<P align=center>
-<a href="http://www.bernstein-plus-sons.com/software/RasMol_2.7.2">
-http://www.bernstein-plus-sons.com/software/RasMol_2.7.2</a>
-<P Align="CENTER">
-<B>
+<H4 ALIGN=CENTER>
 THIS IS A PRELIMINARY RELEASE INVOLVING EXTENSIVE MODIFICATIONS<BR>
 *****  USE WITH CAUTION  ******<BR>
-</B>
-
-<HR>
-<H4 ALIGN=CENTER>RasTop 1.3 Available</H4>
-<P>
-RasTop by P. Valadon is a 
-graphical interface to RasMol adapted for Windows platform,
-i.e. RasTop is a GUI front end for RasWin.
-<P>
-
-<LI><A HREF="http://www.bernstein-plus-sons.com/software/RasTop_1.3">RasTop -- GUI front end for RasWin (RasTop 1.3)</a>
-<UL>
-<LI><a href="#features_rastop_1_3">RasTop 1.3 Features</a>
-</UL>
-
+</H4>
+<P>This is a preliminary release of a version from the RasMol 2.7
+series incorporating the &quot;UCB&quot; mods and other major changes.
+It is being released at this stage to solicit comments and suggestions,
+and is not intended for production use at this time.
 <HR>
 <H2 ALIGN=CENTER><A NAME="Copying">IMPORTANT - Copying and Distribution</A></H2>
 <P>
-   This version is based on RasMol version 2.6_CIF.2, on RasMol version
-2.6x1 and on RasMol version 2.6.4. Please read the file 
+This version is based directly on RasMol version 2.7.2, on RasMol 2.7.1.1,
+on RasTop 1.3, 
+on RasMol version 2.6_CIF.2, on RasMol version
+2.6x1, on RasMol version 2.6.4, and RasMol 2.5-ucb and 2.6-ucb. Please read the file 
 <A HREF = "doc/NOTICE.html">NOTICE</A> for
 important notices which apply to this package.  If you are not going to
 make changes to RasMol, you are not only permitted to freely make copies
@@ -282,9 +337,63 @@ us the opportunity to include those changes in future versions of RasMol.
 </UL>
 <HR>
 <H3 ALIGN=CENTER><A NAME="Introduction">Introduction</A></H3>
+<P>Note (24 Nov 2002):  Compilations for MacOS X 10.2 (Darwin 6.2)
+using the <a href="http://www.xdarwin.org">XDarwin 4.2.1.1</a> X-Windows interface are
+now available from the <a
+href="http://arcib.dowling.edu">Accessible
+Retired Computers in Biology (ARCiB)</a> project.
+<P>Note (17 July 2002):  Compilations for SGI IRIX 6.2 which have
+also been tested under IRIX 6.5 are now available from the <a 
+href="http://arcib.dowling.edu">Accessible
+Retired Computers in Biology (ARCiB)</a> project.
+<P>Note (27 May 2002):  The PC (MS Windows) binary was recompiled with
+a <a href="src/mswin31.c.patch">patch</a> to correct the failure of the
+mouse right-click logic which caused the image to shift off-screen.
+Our apologies for the long delay in resolving this problem.
+<P>Note (1 May 2002):  Compilations for Sun Solaris 2.5.1 (Sun OS 5.5.1) 
+and DEC/Compaq OpenVMS 7.1 (AXP) and 6.2 (VAX) have been added.  In order
+the do the build, post release <a href="src/vms/vms_diffs">patches</a> 
+were needed to build.com and an rint.c
+were needed.  The VMS default for rasmol.h was changed to define
+X11WIN.
+<P>Note (19 Apr 2002):  Post release <a 
+href="src/hp_diffs_2.7.2.1">patches</a> to facilitate HPUX_11 binary
+builds have been included, and a full range of HPUX_11 binaries (both 
+PARISC and IA64) have been made available.  These patches will help RasMol 
+in adapting to other 64-bit architectures.
+Our thanks to Gabriele Rearick of Hewlett Packard for her assistance and for making
+HP computers available for the builds.  
+Gabriele Rearick has also provided
+a script, <a href="../hp_supported.ksh">hp_supported.ksh</a>, that may
+be used to identify the correct version of rasmol (PARISC or IA64) to run under HPUX
+on your system.
+<P>Note:  Post release patches to command.c have been included to fix the
+handling of load inline in the UCB multiple molecule environment.  In 
+addition conditional code controlled by STRICT was disabled to restore
+operation of load inline under windows.  Thanks to Jan Reichert 
+&lt;jr@imb-jena.de&gt; for pointing out these problems.  Thanks to E. Martz
+&lt;emartz@microbio.umass.edu&gt; for pointing out an error in the Spanish
+translation credits which has been corrected. 
 <P>
-This posting is to announce the release of RasMol version 2.7.1.1, which
-makes the following changes to RasMol 2.7.1:
+This posting is to announce the release of RasMol version 2.7.2.1, which
+makes the following changes to RasMol 2.7.2, incorporating changes from
+RasMol 2.7.1.1 and some changes from RasTop 1.3:
+<UL>
+<LI>Adaption of the multilingual mods from RasMol 2.7.1.1 into Rasmol 2.7.2.1.
+<LI>Rewrite of the mouse handling and rotation logic to correct the
+problems in 2.7.2 and make the feel of 2.7.2.1
+closer to that of RasMol 2.7.1.
+<LI>Addition of French menus and messages
+<LI>Addition of Italian menus and messages
+<LI>Adoption of picking for selection of atoms, groups or chains from
+RasTop 1.3.
+<LI>Adoption of backclipping from RasTop 1.3
+<LI>Adoption of shadepower command for glassy surfaces from RasTop 1.3
+<LI>Change of the menu stereo option to rotate cross-wall-none
+<LI>Allow longer atom names (12 characters) in CIFs.
+</UL>
+<P>
+The release of RasMol version 2.7.1.1 made the following changes to RasMol 2.7.1:
 <UL>
 <LI>Introduction of a multilingual structure for RasMol.
 <LI>Population of messages and menu lists for English and Spanish.
@@ -292,8 +401,8 @@ makes the following changes to RasMol 2.7.1:
 <LI>Correction of coordinate handling for Mol2 and XYZ coordinates
 <LI>Fix to the parsing of D2O.
 </UL>
-This is an interim release to facillitate testing of the new multilingual
-capabilities.  Our thanks to Fernando Gabriel Ranea <davinci@dinamica.com.ar>
+This was an interim release to facillitate testing of the new multilingual
+capabilities.  Our thanks to Fernando Gabriel Ranea <fernandoranea@microbiologia.org.ar>
 for doing the hard work of creating an initial Spanish translation of RasMol 2.7.1.
 We have created this new version to allow on-the-fly switching among langauges.
 Use the command "Spanish" to request Spanish messages and menus, and "English"
@@ -302,7 +411,47 @@ Corrections and translations for additional languages
 greatly appreciated.
 
 <P>
-RasMol version 2.7.1, 
+
+The release of RasMol version 2.7.2,
+made the following changes to RasMol 2.7.1:
+<UL>
+<LI>Incorporation of some of the code from the UCB RasMol variants.
+Out thanks to Eileen Lewis and Marco Molinaro for their cooperation
+in contributing the UCB Enhanced RasMol code for incorporation
+into the RasMol 2.7 series.
+<LI>Code to represent bonds in and to alternate conformers with
+a narrowed portion in the middle of each bond.
+<LI>An attempt to fix some of the chirality reversals in some of the
+output modes.
+<LI>Fixes for some of the problems reported since the last release.
+</UL>
+<P>
+This release does not include the toolbar from the UCB mods.  In order
+to resolve some cross-platform issues we have started incorporation of
+the UCB code for multiple molecules and bond rotation by adding to
+the command interface and to the menus.  We expect to be able to
+add a toolbar in a future release.
+<P>
+This release is not fully debugged and has some serious problems.  This
+release is intended for testing and experimentation and not for
+production use.  Comments and suggestions would be appreciated.  We
+are aware fo the following deficiencies:
+<UL>
+<LI>RasMol may have difficulty in allocating colors for molecules
+after the first.  The fix for this interacts with some other
+pending changes, and should be ready for the next release.
+<LI>As has been true for all recent versions, the stereo mode defaults
+to cross-eyed, which is inconvenient for many users.  The next release
+will allow cross-eyed and wall-eyed stereo to be selected from the menus.
+<LI>Printing under windows is not working for many modern systems.
+We hope to have a fix for the next release.
+<LI>The fixes for several of the bugs reported against RasMol 2.7.1 have
+not been incorporated into RasMol 2.7.2 yet.  Our apologies.  If you
+previously reported a bug in RasMol 2.7.1 which still exists in 2.7.2,
+you may resubmit your report, but there is no need to do so.
+</UL>
+<P>
+The release of RasMol version 2.7.1
 made the following changes to RasMol 2.7.0:
 <UL>
 <LI>The ability to automatically mark non bonded atoms in 
@@ -427,23 +576,46 @@ provides optional support for a hardware dials box and accelerated
 shared memory rendering (via the XInput and MIT-SHM extensions) if
 available.
 <P>
-As of this writing (29 January 2001), this version has
-been built for i586 Mandrake 7.2 Linux, Mac, 
-IBM PC under Windows 95/98, and SGI IRIX 6.4.
+As of this writing (17 July 2002), this version has
+been built for Mandrake 7.2 Linux, SGI, Mac, IBM PC under 
+Windows 95/98, HPUX 11 on both PARISC and IA64 platforms,
+Sun Solaris 2.5.1 (Sun OS 5.5.1) with gcc, DEC/Compaq OpenVMS 7.1 on AXP,
+and SGI IRIX 6.2.  
+Our thanks to Gabriele Rearick
+of HP Fort Collins for access to the necessary HP systems.
+Our thanks to Edward Hawrot of Brown University for donation
+of a Sparcserver 670 MP to the Accessible Retired Computers in Biology (ARCiB) 
+project at Dowling College.
+The Sparcserver was used to compile the Solaris 2.5.1 binaries.
+Our thanks to David Atkinson of Boston University both for remote access to
+his AXP system which was used to compile the OpenVMS 7.1
+binaries and for the donation of two VAXStations to the ARCiB
+project.  
+The VAXStations 
+were used 
+to compile the OpenVMS
+6.2 binaries.
+Our thanks to Dr.
+John Westbrook of Rutgers and the PDB and NDB projects for the donation of 
+an SGI Challenge computer to the ARCiB project, and to Dr. Ron Black 
+of Dowling College for the donation of several SGI O2's. 
+The Challenge was used to compile the new SGI binaries and the O2's
+used to test operation under IRIX 6.5.
+Our thanks to the NSF for funding of the ARCiB project.
 Reports of builds and/or problems on other platforms appreciated.
 <P>
 <HR>
 <H3 ALIGN=CENTER><A NAME="CodeAndBinaries">Source Code and Binaries</A></H3>
 <P>
  The complete source code
-and user documentation of RasMol 2.7.1.1 may be obtained by
+and user documentation of RasMol 2.7.2.1 may be obtained by
 anonymous FTP at:
 <P>
-    <A href="ftp://ftp.bernstein-plus-sons.com/software/RasMol_2.7.1.1.tar.gz">ftp://ftp.bernstein-plus-sons.com/software/RasMol_2.7.1.1.tar.gz</A>
+    <A href="ftp://ftp.bernstein-plus-sons.com/software/RasMol_2.7.2.1.tar.gz">ftp://ftp.bernstein-plus-sons.com/software/RasMol_2.7.2.1.tar.gz</A>
 <P>
 or on the web at:
 <P>
-    <A href="http://www.bernstein-plus-sons.com/software/RasMol_2.7.1.1.tar.gz">http://www.bernstein-plus-sons.com/software/RasMol_2.7.1.1.tar.gz</A>
+    <A href="http://www.bernstein-plus-sons.com/software/RasMol_2.7.2.1.tar.gz">http://www.bernstein-plus-sons.com/software/RasMol_2.7.2.1.tar.gz</A>
 <P>	
 
 	The source code and documentation are
@@ -456,53 +628,231 @@ documentation, and one or more of the following pre-compiled binaries:
 <B>WARNING:  <B>ALL</B> binaries are gzipped!!!</B>
 
 <P>
-
 <TABLE>
 
 <TR><TH ALIGN=LEFT>System <TH ALIGN=LEFT>Binary <TH ALIGN=LEFT>Help Files<BR>
 
+<TR>
+<A NAME="CodeAndBinaries_HPUX"></A>
+<TH ALIGN=LEFT valign=top>HPUX:
+<TD valign="bottom">
+HPUX 11.00 (PARISC), 8 bit display, 32 bit compilation, gzipped<br>
+<A 
+HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.0/rasmol_8BIT_HPUX_PARISC_32.gz">
+rasmol_8BIT_HPUX_PARISC_32.gz</A>
+<TD valign="bottom"><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+HPUX 11.00 (PARISC), 8 bit display, 64 bit compilation, gzipped<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.0/rasmol_8BIT_HPUX_PARISC_64.gz">
+rasmol_8BIT_HPUX_PARISC_64.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+HPUX 11.00 (PARISC), 16 bit display, 32 bit compilation, gzipped<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.0/rasmol_16BIT_HPUX_PARISC_32.gz">
+rasmol_16BIT_HPUX_PARISC_32.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+HPUX 11.00 (PARISC), 16 bit display, 64 bit compilation, gzipped<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.0/rasmol_16BIT_HPUX_PARISC_64.gz">
+rasmol_16BIT_HPUX_PARISC_64.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+HPUX 11.00 (PARISC), 32 bit display, 32 bit compilation, gzipped<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.0/rasmol_32BIT_HPUX_PARISC_32.gz">
+rasmol_32BIT_HPUX_PARISC_32.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+HPUX 11.00 (PARISC), 32 bit display, 64 bit compilation, gzipped<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.0/rasmol_32BIT_HPUX_PARISC_64.gz">
+rasmol_32BIT_HPUX_PARISC_64.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
+<tr><td colspan=3>Gabriele Rearick has provided
+a script, <a href="../hp_supported.ksh">hp_supported.ksh</a>, that may
+be used to identify the correct version of rasmol (PARISC or IA64) to run under HPUX
+on your system.
+
+<TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
    
-<TR><TH ALIGN=LEFT>Linux (Mandrake 7.2, i586):
-<TD><A HREF="RasMol.LINUX/Mandrake_7.2/i586/rasmol_8BIT.gz">
-RasMol.LINUX/Mandrake_7.2/i586/rasmol_8BIT.gz</A>
+   
+
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD valign="bottom">
+HPUX 11.20 (IA64), 8 bit display, 32 bit compilation, gzipped<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.20/rasmol_8BIT_HPUX_IA64_32.gz">
+rasmol_8BIT_HPUX_IA64_32.gz</A>
+<TD valign="bottom"><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+HPUX 11.20 (IA64), 8 bit display, 64 bit compilation, gzipped<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.20/rasmol_8BIT_HPUX_IA64_64.gz">
+rasmol_8BIT_HPUX_IA64_64.gz</A>
 <TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
 <TR><TH ALIGN=LEFT>&nbsp;
-<TD><A HREF="RasMol.LINUX/Mandrake_7.2/i586/rasmol_16BIT.gz">
-RasMol.LINUX/Mandrake_7.2/i586/rasmol_16BIT.gz</A>
+<TD>
+HPUX 11.20 (IA64), 16 bit display, 32 bit compilation, gzipped<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.20/rasmol_16BIT_HPUX_IA64_32.gz">
+rasmol_16BIT_HPUX_IA64_32.gz</A>
 <TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
 <TR><TH ALIGN=LEFT>&nbsp;
-<TD><A HREF="RasMol.LINUX/Mandrake_7.2/i586/rasmol_32BIT.gz">
-RasMol.LINUX/Mandrake_7.2/i586/rasmol_32BIT.gz</A>
+<TD>
+HPUX 11.20 (IA64), 16 bit display, 64 bit compilation, gzipped<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.20/rasmol_16BIT_HPUX_IA64_64.gz">
+rasmol_16BIT_HPUX_IA64_64.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+HPUX 11.20 (IA64), 32 bit display, 32 bit compilation, gzipped<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.20/rasmol_32BIT_HPUX_IA64_32.gz">
+rasmol_32BIT_HPUX_IA64_32.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+HPUX 11.20 (IA64), 32 bit display, 64 bit compilation, gzipped<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.20/rasmol_32BIT_HPUX_IA64_64.gz">
+rasmol_32BIT_HPUX_IA64_64.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
+
+<TR>
+<TH ALIGN=LEFT valign=top>SGI:
+<TD valign="bottom">IRIX 6.2, see 
+<a href="http://arcib.dowling.edu">http://arcib.dowling.edu</a> for 8, 16 
+and 
+32-bit display binaries.  Also tested under IRIX 6.5.
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
+<TR>
+<A NAME="CodeAndBinaries_SunOS"></A>
+<TH ALIGN=LEFT valign=top>Sun:
+<TD valign="bottom">
+Solaris 2.5.1/SunOS 5.5.1 (sparc) 8 bit display, gcc compilation, gzipped<br>
+<A 
+HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.SUN/Solaris_2.5.1/sparc/rasmol_8BIT_gcc.gz">
+rasmol_8BIT_gcc.gz</A>
+<TD valign="bottom"><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+Solaris 2.5.1/SunOS 5.5.1 (sparc) 16 bit display, gcc compilation, gzipped<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.SUN/Solaris_2.5.1/sparc/rasmol_16BIT_gcc.gz">
+rasmol_16BIT_gcc.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+Solaris 2.5.1/SunOS 5.5.1 (sparc) 32 bit display, gcc compilation, gzipped<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.SUN/Solaris_2.5.1/sparc/rasmol_32BIT_gcc.gz">
+rasmol_32BIT_gcc.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
+
+
+<TR>
+<A NAME="CodeAndBinaries_OpenVMS"></A>
+<TH ALIGN=LEFT>DEC/Compaq:
+<TD valign="bottom">
+OpenVMS 7.1 (AXP) 8 bit display, DECC compilation, gzipped<br>
+<A 
+HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.DEC/OpenVMS_7.1/rasmol_8BIT.exe.gz">
+rasmol_8BIT.exe.gz</A>
+<TD valign="bottom"><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+OpenVMS 7.1 (AXP) 16 bit display, DECC compilation, gzipped<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.DEC/OpenVMS_7.1/rasmol_16BIT.exe.gz">
+rasmol_16BIT.exe.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+OpenVMS 7.1 (AXP) 32 bit display, DECC compilation, gzipped<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.DEC/OpenVMS_7.1/rasmol_32BIT.exe.gz">
+rasmol_32BIT.exe.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
+
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD valign="bottom">
+OpenVMS 6.2 (VAX) 8 bit display, DECC compilation, gzipped<br>
+<A 
+HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.DEC/OpenVMS_6.2/rasmol_8BIT.exe.gz">
+rasmol_8BIT.exe.gz</A>
+<TD valign="bottom"><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+OpenVMS 6.2 (VAX) 16 bit display, DECC compilation, gzipped<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.DEC/OpenVMS_6.2/rasmol_16BIT.exe.gz">
+rasmol_16BIT.exe.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+OpenVMS 6.2 (VAX) 32 bit display, DECC compilation, gzipped<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/software/RasMol_2.7.2.1/RasMol.DEC/OpenVMS_6.2/rasmol_32BIT.exe.gz">
+rasmol_32BIT.exe.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+
+
+
+<TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
+
+
+
+<TR><TH ALIGN=LEFT>Linux:
+<TD>
+Linux (Mandrake 7.2, i386), 8 bit display, gzipped<br>
+<A HREF="RasMol.LINUX/Mandrake_7.2/i386/rasmol_8BIT.gz">
+rasmol_8BIT.gz</A>
+<TD>
+<A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+Linux (Mandrake 7.2, i386), 16 bit display, gzipped<br>
+<A HREF="RasMol.LINUX/Mandrake_7.2/i386/rasmol_16BIT.gz">
+rasmol_16BIT.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+Linux (Mandrake 7.2, i386), 32 bit display, gzipped<br>
+<A HREF="RasMol.LINUX/Mandrake_7.2/i386/rasmol_32BIT.gz">
+rasmol_32BIT.gz</A>
 <TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
 <TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
  
-
-
-<TR><TH ALIGN=LEFT>SGI (IRIX 6.4):
-<TD><A HREF="RasMol.SGI/IRIX_6.4/rasmol_8BIT.gz">
-RasMol.SGI/IRIX_6.4/rasmol_8BIT.gz</A>
-<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
-<TR><TH ALIGN=LEFT>&nbsp;
-<TD><A HREF="RasMol.SGI/IRIX_6.4/rasmol_16BIT.gz">
-RasMol.SGI/IRIX_6.4/rasmol_16BIT.gz</A>
-<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
-<TR><TH ALIGN=LEFT>&nbsp;
-<TD><A HREF="RasMol.SGI/IRIX_6.4/rasmol_32BIT.gz">
-RasMol.SGI/IRIX_6.4/rasmol_32BIT.gz</A>
+              
+<TR><TH ALIGN=LEFT>Mac:
+<TD valign="bottom">MacOS X see 
+<a href="http://arcib.dowling.edu">http://arcib.dowling.edu</a> for 8, 16 
+and 
+32-bit display binaries.  Tested under MacOS X 10.2.2 using XDarwin 4.2.1.1. 
 <TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
 <TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
- 
-
-              
-<TR><TH ALIGN=LEFT>Mac:  <TD><A HREF="RasMol.MAC/RasMac_FAT_8BIT.bin.gz">RasMac_FAT_8BIT.bin.gz</A><TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
-<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="RasMol.MAC/RasMac_PPC_8BIT.bin.gz">RasMac_PPC_8BIT.bin.gz</A><TD><BR>
-<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="RasMol.MAC/RasMac_68K_8BIT.bin.gz">RasMac_68K_8BIT.bin.gz</A><TD><BR>
-<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="RasMol.MAC/RasMac_FAT_32BIT.bin.gz">RasMac_FAT_32BIT.bin.gz</A><TD><BR>
-<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="RasMol.MAC/RasMac_PPC_32BIT.bin.gz">RasMac_PPC_32BIT.bin.gz</A><TD><BR>
-<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="RasMol.MAC/RasMac_68K_32BIT.bin.gz">RasMac_68K_32BIT.bin.gz</A><TD><BR>
+<TR><TH ALIGN=LEFT>&nbsp; 
+<TD>Macintosh (MacOS 7.6-9.1), 8 bit display, PPC or 68K, CodeWarrior 5 compilation, MacBinary, gzipped<br>
+<A HREF="RasMol.MAC/RasMac_FAT_8BIT.bin.gz">RasMac_FAT_8BIT.bin.gz</A><TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>
+Macintosh (MacOS 7.6-9.1), 8 bit display, PPC, CodeWarrior 5 compilation, MacBinary, gzipped<br>
+<A HREF="RasMol.MAC/RasMac_PPC_8BIT.bin.gz">RasMac_PPC_8BIT.bin.gz</A><TD><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>
+Macintosh (MacOS 7.6-9.1), 8 bit display, 68K, CodeWarrior 5 compilation, MacBinary, gzipped<br>
+<A HREF="RasMol.MAC/RasMac_68K_8BIT.bin.gz">RasMac_68K_8BIT.bin.gz</A><TD><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>
+Macintosh (MacOS 7.6-9.1), 32 bit display, PPC or 68K, CodeWarrior 5 compilation, MacBinary, gzipped<br>
+<A HREF="RasMol.MAC/RasMac_FAT_32BIT.bin.gz">RasMac_FAT_32BIT.bin.gz</A><TD><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>
+Macintosh (MacOS 7.6-9.1), 32 bit display, PPC, CodeWarrior 5 compilation, MacBinary, gzipped<br>
+<A HREF="RasMol.MAC/RasMac_PPC_32BIT.bin.gz">RasMac_PPC_32BIT.bin.gz</A><TD><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>
+Macintosh (MacOS 7.6-9.1), 32 bit display, 68K, CodeWarrior 5 compilation, MacBinary, gzipped<br>
+<A HREF="RasMol.MAC/RasMac_68K_32BIT.bin.gz">RasMac_68K_32BIT.bin.gz</A><TD><BR>
 <TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
               
-<TR><TH ALIGN=LEFT>Windows: <TD><A href="RasMol.MSWIN/raswin.exe.gz">RasWin.exe.gz</A> <TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A>, <A href="doc/raswin.hlp.gz">raswin.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>Windows: <TD>
+PC clone (MS Windows 95, 98) CodeWarrior 5 compilation, gzipped<br>
+<A href="RasMol.MSWIN/raswin.exe.gz">RasWin.exe.gz</A> <TD><A 
+href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A>, <A href="doc/raswin.hlp.gz">raswin.hlp.gz</A><BR>
 </TABLE>
 
 <P>
@@ -513,53 +863,230 @@ uncompressed files are available:
 
 <TR><TH ALIGN=LEFT>System <TH ALIGN=LEFT>Binary <TH ALIGN=LEFT>Help Files<BR>
 
-   
-<TR><TH ALIGN=LEFT>Linux (Mandrake 7.2, i586):
-<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/RasMol.LINUX/Mandrake_7.2/i586/rasmol_8BIT">
-RasMol.LINUX/Mandrake_7.2/i586/rasmol_8BIT</A>
-<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT valign="top">HPUX:
+<TD valign="bottom">
+HPUX 11.00 (PARISC), 8 bit display, 32 bit compilation<br>
+<A 
+HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.0/rasmol_8BIT_HPUX_PARISC_32">
+rasmol_8BIT_HPUX_PARISC_32</A>
+<TD valign="bottom">
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
 <TR><TH ALIGN=LEFT>&nbsp;
-<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/RasMol.LINUX/Mandrake_7.2/i586/rasmol_16BIT">
-RasMol.LINUX/Mandrake_7.2/i586/rasmol_16BIT</A>
-<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TD>
+HPUX 11.00 (PARISC) 8 bit display, 64 bit compilation<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.0/rasmol_8BIT_HPUX_PARISC_64">
+rasmol_8BIT_HPUX_PARISC_64</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
 <TR><TH ALIGN=LEFT>&nbsp;
-<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/RasMol.LINUX/Mandrake_7.2/i586/rasmol_32BIT">
-RasMol.LINUX/Mandrake_7.2/i586/rasmol_32BIT</A>
-<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TD>
+HPUX 11.00 (PARISC) 16 bit display, 32 bit compilation<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.0/rasmol_16BIT_HPUX_PARISC_32">
+rasmol_16BIT_HPUX_PARISC_32</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+HPUX 11.00 (PARISC) 16 bit display, 64 bit compilation<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.0/rasmol_16BIT_HPUX_PARISC_64">
+rasmol_16BIT_HPUX_PARISC_64</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+HPUX 11.00 (PARISC) 32 bit display, 32 bit compilation<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.0/rasmol_32BIT_HPUX_PARISC_32">
+rasmol_32BIT_HPUX_PARISC_32</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+HPUX 11.00 (PARISC) 32 bit display, 64 bit compilation<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.0/rasmol_32BIT_HPUX_PARISC_64">
+rasmol_32BIT_HPUX_PARISC_64</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
+
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD valign="bottom">
+HPUX 11.20 (IA64), 8 bit display, 32 bit compilation<br>
+<A
+HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.20/rasmol_8BIT_HPUX_IA64_32">
+rasmol_8BIT_HPUX_IA64_32</A>
+<TD valign="bottom"><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; 
+<TD>
+HPUX 11.20 (IA64), 8 bit display, 64 bit compilation<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.20/rasmol_8BIT_HPUX_IA64_64">
+rasmol_8BIT_HPUX_IA64_64</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; 
+<TD>
+HPUX 11.20 (IA64), 16 bit display, 32 bit compilation<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.20/rasmol_16BIT_HPUX_IA64_32">
+rasmol_16BIT_HPUX_IA64_32</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+HPUX 11.20 (IA64), 16 bit display, 64 bit compilation<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.20/rasmol_16BIT_HPUX_IA64_64">
+rasmol_16BIT_HPUX_IA64_64</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+HPUX 11.20 (IA64), 32 bit display, 32 bit compilation<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.20/rasmol_32BIT_HPUX_IA64_32">
+rasmol_16BIT_HPUX_IA64_32</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+HPUX 11.20 (IA64), 32 bit display, 64 bit compilation<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.HP/HPUX_11/HPUX_11.20/rasmol_32BIT_HPUX_IA64_64">
+rasmol_16BIT_HPUX_IA64_64</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
+
+<TR>
+<TH ALIGN=LEFT valign=top>SGI:
+<TD valign="bottom">IRIX 6.2, see 
+<a href="http://arcib.dowling.edu">http://arcib.dowling.edu</a> for 8, 16 
+and 
+32-bit display binaries.  Also tested under IRIX 6.5.
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
+              
+<TR>
+<TH ALIGN=LEFT valign="top">Sun:
+<TD valign="bottom">
+Solaris 2.5.1/SunOS 5.5.1 (sparc) 8 bit display, gcc compilation<br>
+<A HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.SUN/Solaris_2.5.1/sparc/rasmol_8BIT_gcc">
+rasmol_8BIT_gcc</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+Solaris 2.5.1/SunOS 5.5.1 (sparc) 16 bit display, gcc compilation<br>
+<A 
+HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.SUN/Solaris_2.5.1/sparc/rasmol_16BIT_gcc">
+rasmol_16BIT_gcc</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+Solaris 2.5.1/SunOS 5.5.1 (sparc) 32 bit display, gcc compilation<br>
+<A 
+HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.SUN/Solaris_2.5.1/sparc/rasmol_32BIT_gcc">
+RasMol.SUN/Solaris_2.5.1/sparc/rasmol_32BIT_gcc</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
+
+<TR>
+<A NAME="CodeAndBinaries_OpenVMS"></A>
+<TH ALIGN=LEFT valign="top">DEC/Compaq:
+<TD valign="bottom">
+OpenVMS 7.1 (AXP) 8 bit display, DECC compilation<br>
+<A 
+HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.DEC/OpenVMS_7.1/rasmol_8BIT.exe">
+rasmol_8BIT.exe</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+OpenVMS 7.1 (AXP) 16 bit display, DECC compilation<br>
+<A 
+HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.DEC/OpenVMS_7.1/rasmol_16BIT.exe">
+rasmol_16BIT.exe</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+OpenVMS 7.1 (AXP) 32 bit display, DECC compilation<br>
+<A 
+HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.DEC/OpenVMS_7.1/rasmol_32BIT.exe">
+rasmol_32BIT.exe</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
+
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD valign="bottom">
+OpenVMS 6.2 (VAX) 8 bit display, DECC compilation<br>
+<A 
+HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.DEC/OpenVMS_6.2/rasmol_8BIT.exe">
+rasmol_8BIT.exe</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+OpenVMS 6.2 (VAX) 16 bit display, DECC compilation<br>
+<A 
+HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.DEC/OpenVMS_6.2/rasmol_16BIT.exe">
+rasmol_16BIT.exe</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+OpenVMS 6.2 (VAX) 32 bit display, DECC compilation<br>
+<A 
+HREF="http://arcib.dowling.edu/~BernsteH/cgi-bin/decomp.cgi/software/RasMol_2.7.2.1/RasMol.DEC/OpenVMS_6.2/rasmol_32BIT.exe">
+rasmol_32BIT.exe</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
 <TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
 
 
- 
-<TR><TH ALIGN=LEFT>SGI (IRIX 6.4):
-<TD><A 
-HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/RasMol.SGI/IRIX_6.4/rasmol_8BIT">
-RasMol.SGI/IRIX_6.4/rasmol_8BIT</A>
-<TD><A 
-HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT valign="top">Linux:
+<TD>
+Linux (Mandrake 7.2, i386), 8 bit display<br>
+<A 
+HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/RasMol.LINUX/Mandrake_7.2/i386/rasmol_8BIT">
+rasmol_8BIT</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
 <TR><TH ALIGN=LEFT>&nbsp;
-<TD><A 
-HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/RasMol.SGI/IRIX_6.4/rasmol_16BIT">
-RasMol.SGI/IRIX_6.4/rasmol_16BIT</A>
-<TD><A 
-HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TD>
+Linux (Mandrake 7.2, i386), 16 bit display<br>
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/RasMol.LINUX/Mandrake_7.2/i386/rasmol_16BIT">
+rasmol_16BIT</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
 <TR><TH ALIGN=LEFT>&nbsp;
-<TD><A 
-HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/RasMol.SGI/IRIX_6.4/rasmol_32BIT">
-RasMol.SGI/IRIX_6.4/rasmol_32BIT</A>
-<TD><A 
-HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TD>
+Linux (Mandrake 7.2, i386), 32 bit display<br>
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/RasMol.LINUX/Mandrake_7.2/i386/rasmol_32BIT">
+rasmol_32BIT</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
 <TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
+
               
             
-<TR><TH ALIGN=LEFT>Mac:  <TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1.MAC/RasMac_FAT_8BIT.bin">RasMac_FAT_8BIT.bin</A><TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
-<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1.MAC/RasMac_PPC_8BIT.bin">RasMac_PPC_8BIT.bin</A><TD><BR>
-<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1.MAC/RasMac_68K_8BIT.bin">RasMac_68K_8BIT.bin</A><TD><BR>
-<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1.MAC/RasMac_FAT_32BIT.bin">RasMac_FAT_32BIT.bin</A><TD><BR>
-<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1.MAC/RasMac_PPC_32BIT.bin">RasMac_PPC_32BIT.bin</A><TD><BR>
-<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1.MAC/RasMac_68K_32BIT.bin">RasMac_68K_32BIT.bin</A><TD><BR>
+<TR><TH ALIGN=LEFT valign=top>Mac:  
+<TD valign="bottom">MacOS X see 
+<a href="http://arcib.dowling.edu">http://arcib.dowling.edu</a> for 8, 16 
+and 
+32-bit display binaries.  Tested under MacOS X 10.2.2 using XDarwin 4.2.1.1. 
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD>
+Macintosh (MacOS 7.6-9.1), 8 bit display, PPC or 68K, CodeWarrior 5 compilation, MacBinary<br>
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1.MAC/RasMac_FAT_8BIT.bin">
+RasMac_FAT_8BIT.bin</A>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>
+Macintosh (MacOS 7.6-9.1), 8 bit display, PPC, CodeWarrior 5 compilation, MacBinary<br>
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1.MAC/RasMac_PPC_8BIT.bin">RasMac_PPC_8BIT.bin</A><TD><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>
+Macintosh (MacOS 7.6-9.1), 8 bit display, 68K, CodeWarrior 5 compilation, MacBinary<br>
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1.MAC/RasMac_68K_8BIT.bin">RasMac_68K_8BIT.bin</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+
+<TR><TH ALIGN=LEFT>&nbsp; <TD>
+Macintosh (MacOS 7.6-9.1), 32 bit display, PPC or 68K, CodeWarrior 5 compilation, MacBinary<br>
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1.MAC/RasMac_FAT_32BIT.bin">RasMac_FAT_32BIT.bin</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+
+<TR><TH ALIGN=LEFT>&nbsp; <TD>
+Macintosh (MacOS 7.6-9.1), 32 bit display, PPC, CodeWarrior 5 compilation, MacBinary<br>
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1.MAC/RasMac_PPC_32BIT.bin">RasMac_PPC_32BIT.bin</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+
+
+<TR><TH ALIGN=LEFT>&nbsp; <TD>
+Macintosh (MacOS 7.6-9.1), 32 bit display, 68K, CodeWarrior 5 compilation, MacBinary<br>
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1.MAC/RasMac_68K_32BIT.bin">RasMac_68K_32BIT.bin</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+            
 <TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
               
-<TR><TH ALIGN=LEFT>Windows: <TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1.MSWIN/raswin.exe">RasWin.exe</A> <TD><A href="doc/rasmol.hlp">rasmol.hlp</A>, <A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/doc/raswin.hlp">raswin.hlp</A><BR>
+<TR><TH ALIGN=LEFT valign=top>Windows: <TD>
+PC clone (MS Windows 95, 98) CodeWarrior 5 compilation<br>
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1.MSWIN/raswin.exe">RasWin.exe</A> <TD><A href="doc/rasmol.hlp">rasmol.hlp</A>, <A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.1/doc/raswin.hlp">raswin.hlp</A><BR>
 </TABLE>
 
 <P> 
@@ -574,64 +1101,44 @@ Any comments, suggestions or questions about this
 modified version of RasMol should be directed to
 <A HREF="mailto:rasmol@bernstein-plus-sons.com">rasmol@bernstein-plus-sons.com</A>.
 <P>
-<hr>
-<h4><a name="features_rastop_1_3">RasTop 1.3 Features</a></h4>
-<P>
-RasTop is a 
-graphical interface to RasMol adapted for Windows platform,
-i.e. RasTop is a GUI front end for RasWin.
-<P>
-RasTop offers a user-friendly graphical interface around 
-"RasMol molecular engine".  No more typing on the command line; 
-each command in the menu generates its own script that is 
-transferred to RasMol. RasTop has numerous extensions to handle 
-atom selections: addition and subtraction of atoms, groups, or 
-chains, selection on screen with a lasso, ability to go back 
-to the previous selection, copying to and pasting selections 
-from the clipboard, new set operations such as inverse, 
-extraction, summation, subtraction, and exclusion, and finally 
-full saving of all user-defined atom sets under an extended script 
-format called RSM script.
-<P>
-During its development, a few new capabilities were added: back 
-clipping, 32-bit output under Windows, full centring command 
-either on a selected atom or to the origin, variation of depthcue
-in slab mode, and a colouring command, shadepower, which 
-generates new metal-like surfaces.
-<P>
-RasTop allows several molecules to be opened at the same time 
-(on different windows) and provides limited editing of the 
-molecular file.
-<P>
-RasTop 1.3, like RasMol 2.7.1, contains a lot of new code.
-Under its current version, RasTop 1.3 has been extensively 
-tested with molecular files in pdb format and showed good 
-stability. Nevertheless you should be careful in testing 
-other formats.
-<P>Released by P. Valadon, 27 August 2000
-<P>
-<HR>
 <CENTER>
 | <a href="http://www.OpenrasMol.org">OpenRasMol</a> |
-<A href="#Copying">Copying and Distribution</A> |
-<A href="#Contents">Contents</A> |
+<A href="README.html#Copying">Copying and Distribution</A> |
+<A href="README.html#Contents">Contents</A> |
 <A href="INSTALL.html">Installation Instructions</A> |<BR>
 | <A href="ChangeLog.html">Changes</A> |
 <A href="TODO.html">Things To Do</A> |
-<A href="#Introduction">Introduction</A> | 
-<A href="#CodeAndBinaries">Source Code and Binaries</A> |<BR>
+<A href="README.html#Introduction">Introduction</A> | 
+<A href="README.html#CodeAndBinaries">Source Code and Binaries</A> |<BR>
 | <A href="doc/rasmol.html">RasMol Manual</A> |
-<a href="doc/esrasmol27.html">Spanish Translation of RasMol Manual</a>| 
-<a href="README.html">Release README</A> |<BR>
+<a href="doc/esrasmol27.html">Spanish Translation of RasMol Manual</a> | 
+<a href="doc/itrasmol.hlp">Italian Translation of RasMol 2.7.1 Help File</a> |<BR>
+| <a href="README.html">Release README</A> |<BR>
 </CENTER>
 
-<HR>
-Updated 29 January 2001.<BR>
+<HR> Updated 5 May 2003.<BR>
 Herbert J. Bernstein<BR>
-Bernstein + Sons, 5 Brewster Lane, Bellport, NY 11713-2803, USA<BR>
-<A HREF="mailto:yaya@bernstein-plus-sons.com">
-yaya@bernstein-plus-sons.com</A><BR>
-+1-631-286-1339<BR>
-</font>
-</BODY>
+Bernstein + Sons, 
+5 Brewster Lane, Bellport, NY 11713-2803, USA<BR> 
+<script language="javascript" type="text/javascript">
+<!-- 
+      var name = "yaya@";
+      var domain = "bernstein-plus-sons";
+      var domext = ".com";
+      document.write ("<a href=\"mailto:" + name + domain + domext + "\">" + name + domain + domext+"</a>"); 
+// -->
+</script>
+<noscript>
+yaya&#64;bernstein-plus-sons&#46;com
+</noscript>
+<BR> +1-631-286-1339<BR> </font> 
+<hr>
+ <a href="http://www.bernstein-plus-sons.com/contacts.shtml"><img 
+src="/images/wpoison-logo.gif" border=0" width="1" height="1"></a>
+ <A HREF="http://www.monkeys.com/wpoison/">
+        <IMG SRC="/images/wpoison-logo.gif" BORDER="0"
+           WIDTH="105" HEIGHT="40" ALIGN="RIGHT" 
+           ALT="Protected By Wpoison"></A>
+
+</body>
 </HTML>

@@ -1,9 +1,9 @@
 /***************************************************************************
- *                            RasMol 2.7.1.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
- *                                RasMol                                   *
+ *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                            17 January 2001                              *
+ *                              14 April 2001                              *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -11,15 +11,34 @@
  *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
  *                   Copyright (C) Roger Sayle 1992-1999                   *
  *                                                                         *
- *                  and Based on Mods by Arne Mueller                      *
- *                      Version 2.6x1, May 1998                            *
- *                   Copyright (C) Arne Mueller 1998                       *
+ *                          and Based on Mods by                           *
+ *Author             Version, Date             Copyright                   *
+ *Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       *
+ *Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  *
+ *Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   *
  *                                                                         *
- *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
- *                      yaya@bernstein-plus-sons.com                       *
- *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
- *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   *
+ *                                                                         *
+ *Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    * 
+ *Bernstein          RasMol 2.7.1   Jun 99         1998-2001               *
+ *                   RasMol 2.7.1.1 Jan 01                                 *
+ *                   RasMol 2.7.2   Aug 00                                 *
+ *                   RasMol 2.7.2.1 Apr 01                                 *
+ *                                                                         *
+ *                    and Incorporating Translations by                    *
+ *  Author                               Item                      Language*
+ *  Isabel Serván Martínez,                                                *
+ *  José Miguel Fernández Fernández      2.6   Manual              Spanish *
+ *  José Miguel Fernández Fernández      2.7.1 Manual              Spanish *
+ *  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish *
+ *  Jean-Pierre Demailly                 2.7.1 menus and messages  French  *
+ *  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          *
+ *  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian *
+ *                                                                         *
+ *                             This Release by                             *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
+ *                       yaya@bernstein-plus-sons.com                      *
+ *               Copyright(C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    *
@@ -49,6 +68,25 @@
  ***************************************************************************/
 
 /* molecule.c
+ $Log: molecule.c,v $
+ Revision 1.2  2001/02/07 20:30:31  yaya
+ *** empty log message ***
+
+ Revision 1.1  2001/01/31 02:13:45  yaya
+ Initial revision
+
+ Revision 1.5  2000/08/26 18:12:33  yaya
+ Updates to header comments in all files
+
+ Revision 1.4  2000/08/21 21:07:37  yaya
+ semi-final ucb mods
+
+ Revision 1.3  2000/08/09 01:18:03  yaya
+ Rough cut with ucb
+
+ Revision 1.2  2000/02/23 00:00:00  yaya
+ Prelininary 2.7.2 build
+
  */
 
 #include "rasmol.h"
@@ -110,19 +148,16 @@ static AllocRef *AllocList;
 
 
 static Molecule __far *FreeMolecule;
-static HBond __far *FreeHBond;
 static Chain __far *FreeChain;
 static Group __far *FreeGroup;
-static Atom __far *FreeAtom;
-static Bond __far *FreeBond;
+static RAtom __far *FreeAtom;
 
 
 static Group __far *Cache;
-static Atom __far *ACache;
+static RAtom __far *ACache;
 static IntCoord __far *IntPrev;
 static HBond __far * __far *CurHBond;
-static int MemSize;
-
+static size_t MemSize;
 
 /* Macros for commonly used loops */
 #define ForEachAtom  for(chain=Database->clist;chain;chain=chain->cnext) \
@@ -135,15 +170,15 @@ static int MemSize;
 /*  Function Prototypes  */
 /*=======================*/
 
-Atom __far *FindCysSulphur(  Group __far* );
+RAtom __far *FindCysSulphur(  Group __far* );
 static IntCoord __far* GetInternalCoord( int );
-Bond __far *ProcessBond( Atom __far*, Atom __far*, int );
-static void CreateHydrogenBond( Atom __far*, Atom __far*,
-                                Atom __far*, Atom __far*, int, int );
+Bond __far *ProcessBond( RAtom __far*, RAtom __far*, int );
+static void CreateHydrogenBond( RAtom __far*, RAtom __far*,
+                                RAtom __far*, RAtom __far*, int, int );
 static int CalculateBondEnergy( Group __far* );
 static void CalcProteinHBonds( Chain __far* );
 static void CalcNucleicHBonds( Chain __far* );
-static int IsHBonded( Atom __far*, Atom __far*, HBond __far* );
+static int IsHBonded( RAtom __far*, RAtom __far*, HBond __far* );
 static void TestLadder( Chain __far* );
 
 
@@ -269,11 +304,11 @@ void DescribeMolecule( void )
         sprintf(buffer,"%d\n",Info.helixcount);
         WriteString(buffer);
 
-        WriteString(MsgStrs[StrNumStrnd]); /* "Number of Strands ..... " */
+       WriteString(MsgStrs[StrNumStrnd]); /* "Number of Strands ..... " */
         sprintf(buffer,"%d\n",Info.laddercount);
         WriteString(buffer);
 
-        WriteString(MsgStrs[StrNumTrn]); /* "Number of Turns ....... " */
+       WriteString(MsgStrs[StrNumTrn]); /* "Number of Turns ....... " */
         sprintf(buffer,"%d\n",Info.turncount);
         WriteString(buffer);
     }
@@ -741,14 +776,14 @@ void CreateNextMolGroup( void )
 /* Atom Handling Functions */
 /*=========================*/
 
-Atom __far *CreateAtom( void )
+RAtom __far *CreateAtom( void )
 {
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
     register int i;
 
     if( !(ptr = FreeAtom) )
-    {   MemSize += AtomPool*sizeof(Atom);
-        ptr = (Atom __far *)_fmalloc( AtomPool*sizeof(Atom) );
+    {   MemSize += AtomPool*sizeof(RAtom);
+        ptr = (RAtom __far *)_fmalloc( AtomPool*sizeof(RAtom) );
         if( !ptr ) FatalDataError(MsgStrs[StrMalloc]);
         RegisterAlloc( ptr );
         for( i=1; i<AtomPool; i++ )
@@ -777,11 +812,14 @@ Atom __far *CreateAtom( void )
     ptr->xtrl = 0;
     ptr->ytrl = 0;
     ptr->ztrl = 0;
+    ptr->fxorg = 0;
+    ptr->fyorg = 0;
+    ptr->fzorg = 0;
     return ptr;
 }
 
 
-void ProcessAtom( Atom __far *ptr )
+void ProcessAtom( RAtom __far *ptr )
 {
     int altc;
 
@@ -800,6 +838,10 @@ void ProcessAtom( Atom __far *ptr )
     ptr->yorg = -ptr->yorg;
     ptr->ytrl = -ptr->ytrl;
 #endif
+
+    ptr->fxorg = 0;
+    ptr->fyorg = 0;
+    ptr->fzorg = 0;
 
     if( HMinMaxFlag || MMinMaxFlag )
     {   if( ptr->xorg < MinX ) 
@@ -850,13 +892,13 @@ void ProcessAtom( Atom __far *ptr )
 }
 
 
-Atom __far *FindGroupAtom( Group __far *group, int n )
+RAtom __far *FindGroupAtom( Group __far *group, int n )
 {
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
 
     for( ptr=group->alist; ptr; ptr=ptr->anext )
         if( ptr->refno == n ) return( ptr );
-    return( (Atom __far*)0 );
+    return( (RAtom __far*)0 );
 }
 
 
@@ -866,13 +908,15 @@ int NewAtomType( char *ptr )
     register int i;
 
     for( refno=0; refno<ElemNo; refno++ )
-        if( !strncasecmp(ElemDesc[refno],ptr,4) )
+        if( !strncasecmp(ElemDesc[refno],ptr,12) )
             return refno;
 
     if( ElemNo++ == MAXELEM )
         FatalDataError(MsgStrs[StrXSAtyp]);  /* "Too many new atom types" */
 
-    for( i=0; i<4; i++ )
+    for( i=0; i<12; i++ )
+        ElemDesc[refno][i] = '\0';
+    for( i=0; ptr[i]&&i<12; i++)
         ElemDesc[refno][i] = ptr[i];
     return refno;
 }
@@ -1139,7 +1183,7 @@ int ConvertInternal2Cartesian( void )
 /* Bond Handling Functions */
 /*=========================*/
 
-Bond __far *ProcessBond( Atom __far *src, Atom __far *dst, int flag )
+Bond __far *ProcessBond( RAtom __far *src, RAtom __far *dst, int flag )
 {
     register Bond __far *ptr;
     register int i;
@@ -1162,6 +1206,9 @@ Bond __far *ProcessBond( Atom __far *src, Atom __far *dst, int flag )
     ptr->srcatom = src;
     ptr->dstatom = dst;
     ptr->radius = 0;
+    ptr->irad = 0;
+    ptr->aradius = 0;
+    ptr->iarad = 0;
     ptr->col = 0;
     ptr->altl = '\0';
     if (src && src->altl != '\0' && src->altl != ' ') ptr->altl = src->altl;
@@ -1170,8 +1217,8 @@ Bond __far *ProcessBond( Atom __far *src, Atom __far *dst, int flag )
     return ptr;
 }
 
-static void CreateHydrogenBond( Atom __far *srcCA, Atom __far *dstCA,
-                                Atom __far *src, Atom __far *dst,
+static void CreateHydrogenBond( RAtom __far *srcCA, RAtom __far *dstCA,
+                                RAtom __far *src, RAtom __far *dst,
                                 int energy, int offset )
 {
     register HBond __far *ptr;
@@ -1212,11 +1259,11 @@ static void CreateHydrogenBond( Atom __far *srcCA, Atom __far *dstCA,
 }
 
 
-static Atom __far *LocateAtom( Long serno, int flag )
+static RAtom __far *LocateAtom( Long serno, int flag )
 {
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
 
     if( Cache )
     {   for( aptr=ACache; aptr; aptr=aptr->anext )
@@ -1262,15 +1309,17 @@ static Atom __far *LocateAtom( Long serno, int flag )
                         return( aptr );
                     }
 
-    return (Atom __far*)0;
+    return (RAtom __far*)0;
 }
 
 
 void CreateBond( Long src, Long dst, int flag )
 {
-    register Atom __far *sptr;
-    register Atom __far *dptr;
+    register RAtom __far *sptr;
+    register RAtom __far *dptr;
     register Bond __far *bptr;
+
+    NewBond = NULL;
 
     if( src == dst )
         return;
@@ -1287,6 +1336,7 @@ void CreateBond( Long src, Long dst, int flag )
         bptr->bnext = CurMolecule->blist;
         CurMolecule->blist = bptr;
         Info.bondcount++;
+        NewBond = bptr;
 
     } else /* Hydrogen Bond! */
     {   if( Info.hbondcount < 0 ) 
@@ -1300,8 +1350,8 @@ void CreateBond( Long src, Long dst, int flag )
 
 void CreateBondOrder( Long src, Long dst )
 {
-    register Atom __far *sptr;
-    register Atom __far *dptr;
+    register RAtom __far *sptr;
+    register RAtom __far *dptr;
     register Bond __far *bptr;
 
     if( src == dst )
@@ -1335,6 +1385,7 @@ void CreateBondOrder( Long src, Long dst )
     bptr = ProcessBond( sptr, dptr, NormBondFlag );
     bptr->bnext = CurMolecule->blist;
     CurMolecule->blist = bptr;
+    bptr->flag |= DashFlag;
     Info.bondcount++;
 }
 
@@ -1354,7 +1405,7 @@ void CreateNewBond (Long src, Long dst )
 }
 
 
-static void TestBonded(  Atom __far *sptr,  Atom __far *dptr, int flag )
+static void TestBonded(  RAtom __far *sptr,  RAtom __far *dptr, int flag )
 {
     register Bond __far *bptr;
     register Long dx, dy, dz;
@@ -1376,9 +1427,12 @@ static void TestBonded(  Atom __far *sptr,  Atom __far *dptr, int flag )
          } else max = MaxBondDist;
     }
     
-    dx = sptr->xorg-dptr->xorg;   if( (dist=dx*dx)>max ) return;
-    dy = sptr->yorg-dptr->yorg;   if( (dist+=dy*dy)>max ) return;
-    dz = sptr->zorg-dptr->zorg;   if( (dist+=dz*dz)>max ) return;
+    dx = sptr->xorg-dptr->xorg 
+         + sptr->fxorg-dptr->fxorg;   if( (dist=dx*dx)>max ) return;
+    dy = sptr->yorg-dptr->yorg
+         + sptr->fyorg-dptr->fyorg;   if( (dist+=dy*dy)>max ) return;
+    dz = sptr->zorg-dptr->zorg
+         + sptr->fzorg-dptr->fzorg;   if( (dist+=dz*dz)>max ) return;
 
     if( dist > MinBondDist )
     {   /* Reset Non-bonded flags! */
@@ -1423,8 +1477,8 @@ static void ReclaimBonds( Bond __far *ptr )
 
 static Bond __far *ExtractBonds( Bond __far *ptr )
 {
-    register Atom __far *src;
-    register Atom __far *dst;
+    register RAtom __far *src;
+    register RAtom __far *dst;
     register Long dx, dy, dz;
     register Long max, dist;
     register Bond __far *result;
@@ -1442,12 +1496,15 @@ static Bond __far *ExtractBonds( Bond __far *ptr )
                 Element[dst->elemno].covalrad + 140;
 
         max = dist*dist;  
-        dx = src->xorg-dst->xorg; dist = dx*dx;
+        dx = src->xorg-dst->xorg
+             + src->fxorg-dst->fxorg; dist = dx*dx;
         if (!(dist > max)) {
-          dy = src->yorg-dst->yorg; dist += dy*dy;
+          dy = src->yorg-dst->yorg
+               + src->fyorg-dst->fyorg; dist += dy*dy;
         }
         if (!(dist > max)) {
-          dz = src->zorg-dst->zorg; dist += dz*dz;
+          dz = src->zorg-dst->zorg
+               + src->fzorg-dst->fzorg; dist += dz*dz;
         }
 
         if( (temp->flag & NormBondFlag) &&  !(dist > max) )
@@ -1464,8 +1521,8 @@ static Bond __far *ExtractBonds( Bond __far *ptr )
 
 static void InsertBonds( Bond __far **list,  Bond __far *orig )
 {
-    register Atom __far *src;
-    register Atom __far *dst;
+    register RAtom __far *src;
+    register RAtom __far *dst;
     register Bond __far *temp;
     register Bond __far *ptr;
 
@@ -1498,7 +1555,7 @@ void CreateMoleculeBonds( int info, int flag, int force )
     register Long mx, my, mz; 
     register Long dx, dy, dz;
     register int lx, ly, lz, ux, uy, uz;
-    register Atom __far *aptr, __far *dptr;
+    register RAtom __far *aptr, __far *dptr;
     register Chain __far *chain;
     register Group __far *group;
     register Bond __far *list;
@@ -1521,15 +1578,15 @@ void CreateMoleculeBonds( int info, int flag, int force )
     ResetVoxelData();
 
     for( chain=Database->clist; chain; chain=chain->cnext )
-    {   /* ResetVoxelData(); */
+    {  /*  ResetVoxelData(); */
         for( group=chain->glist; group; group=group->gnext )
             for( aptr=group->alist; aptr; aptr=aptr->anext )
             {   /* Initially non-bonded! */
                 aptr->flag |= NonBondFlag;
 
-                mx = aptr->xorg-MinX;
-                my = aptr->yorg-MinY;
-                mz = aptr->zorg-MinZ;
+                mx = aptr->xorg + aptr->fxorg - MinX;
+                my = aptr->yorg + aptr->fyorg - MinY;
+                mz = aptr->zorg + aptr->fzorg - MinZ;
 
                 tx = mx-AbsMaxBondDist;  
                 ty = my-AbsMaxBondDist;  
@@ -1551,7 +1608,7 @@ void CreateMoleculeBonds( int info, int flag, int force )
                 {   i = VOXORDER2*x + VOXORDER*ly;
                     for( y=ly; y<=uy; y++ )
                     {   for( z=lz; z<=uz; z++ )
-                        {   dptr = (Atom __far*)HashTable[i+z];
+                        {   dptr = (RAtom __far*)HashTable[i+z];
                             while( dptr )
                             {   TestBonded(aptr,dptr,flag);
                                 dptr = dptr->next;
@@ -1566,7 +1623,7 @@ void CreateMoleculeBonds( int info, int flag, int force )
                 z = (int)((VOXORDER*mz)/dz);
 
                 i = VOXORDER2*x + VOXORDER*y + z;
-                aptr->next = (Atom __far*)HashTable[i];
+                aptr->next = (RAtom __far*)HashTable[i];
                 HashTable[i] = (void __far*)aptr;
             }
         VoxelsClean = False;
@@ -1590,9 +1647,9 @@ void CreateMoleculeBonds( int info, int flag, int force )
 /*=================================*/
 
 
-Atom __far *FindCysSulphur( Group __far *group )
+RAtom __far *FindCysSulphur( Group __far *group )
 {
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
     register char *elem;
 
     for( ptr=group->alist; ptr; ptr=ptr->anext )
@@ -1600,15 +1657,15 @@ Atom __far *FindCysSulphur( Group __far *group )
         if( (elem[1]=='S') && (elem[0]==' ')  )
             return( ptr );
     }
-    return (Atom __far*)0;
+    return (RAtom __far*)0;
 }
 
 
 void TestDisulphideBridge( Group __far *group1, Group __far *group2,
-                                  Atom __far *cys1 )
+                                  RAtom __far *cys1 )
 {
     register HBond __far *ptr;
-    register Atom __far *cys2;
+    register RAtom __far *cys2;
     register int dx, dy, dz;
     register Long max,dist;
 
@@ -1619,9 +1676,12 @@ void TestDisulphideBridge( Group __far *group1, Group __far *group2,
       (group1->model != group2->model)) return;
 
     max = (Long)750*750;
-    dx = (int)(cys1->xorg-cys2->xorg);   if( (dist=(Long)dx*dx)>max ) return;
-    dy = (int)(cys1->yorg-cys2->yorg);   if( (dist+=(Long)dy*dy)>max ) return;
-    dz = (int)(cys1->zorg-cys2->zorg);   if( (dist+=(Long)dz*dz)>max ) return;
+    dx = (int)(cys1->xorg-cys2->xorg
+           + cys1->fxorg-cys2->fxorg);   if( (dist=(Long)dx*dx)>max ) return;
+    dy = (int)(cys1->yorg-cys2->yorg
+           + cys1->fyorg-cys2->fyorg);   if( (dist+=(Long)dy*dy)>max ) return;
+    dz = (int)(cys1->zorg-cys2->zorg
+           + cys1->fzorg-cys2->fzorg);   if( (dist+=(Long)dz*dz)>max ) return;
 
     if( !(ptr = FreeHBond) )
     {   MemSize += sizeof(HBond);
@@ -1658,7 +1718,7 @@ void FindDisulphideBridges( void )
     register Chain __far *chn2;
     register Group __far *group1;
     register Group __far *group2;
-    register Atom __far *cys;
+    register RAtom __far *cys;
     char buffer[40];
 
     if( !Database ) return;
@@ -1700,23 +1760,24 @@ void FindCisBonds( void )
   if( !Database ) return;
   Info.cisbondcount = 0; /* Number of Bonds not used at the moment ... */
   
-  for(chain=Database->clist;chain;chain=chain->cnext){
-    prev = (Group __far *)0;
-    for(group=chain->glist;group;group=group->gnext){      
-      if( prev && IsAmino(prev->refno) && IsAmino(group->refno)){
- /* if( fabs(- (CalcOmegaAngle(prev, group) - 180.0)) < CisBondCutOff ){ */
-	 if( fabs(CalcOmegaAngle(prev, group)) < CisBondCutOff ){
-	    
-	    group->flag |= CisBondFlag;
-	  prev->flag |= CisBondFlag;
-	  Info.cisbondcount++;  
-	}
-	else if( group->flag&CisBondFlag && CisBondFlag&prev->flag ){	  
- 	  group->flag &= (~CisBondFlag);
-	  prev->flag  &= (~CisBondFlag);
-	}
-      }
-      prev = group;
+  /*zeroed CisBonFlag*/
+  for(chain=Database->clist;chain;chain=chain->cnext)
+    for(group=chain->glist;group;group=group->gnext)      
+		group->flag &= (~CisBondFlag);
+ 
+  for(chain=Database->clist;chain;chain=chain->cnext)
+  { prev = (Group __far *)0;
+    for(group=chain->glist;group;group=group->gnext)
+    {  if( prev && IsAmino(prev->refno) && IsAmino(group->refno))
+       {
+        /* if( fabs(- (CalcOmegaAngle(prev, group) - 180.0)) < CisBondCutOff ){ */
+	       if( fabs(CalcOmegaAngle(prev, group)) < CisBondCutOff )
+	       {  group->flag |= CisBondFlag;
+	          prev->flag |= CisBondFlag;
+	          Info.cisbondcount++;  
+	       }
+        }
+        prev = group;
     }
   }   
 }
@@ -1733,14 +1794,14 @@ void FindCisBonds( void )
 #define MinHDist ((Long)125*125)
 
 
-/* Protein Donor Atom Coordinates */
+/* Protein Donor RAtom Coordinates */
 static int hxorg,hyorg,hzorg;
 static int nxorg,nyorg,nzorg;
-static Atom __far *best1CA;
-static Atom __far *best2CA;
-static Atom __far *best1;
-static Atom __far *best2;
-static Atom __far *optr;
+static RAtom __far *best1CA;
+static RAtom __far *best2CA;
+static RAtom __far *best1;
+static RAtom __far *best2;
+static RAtom __far *optr;
 static int res1,res2;
 static int off1,off2;
 
@@ -1750,7 +1811,7 @@ static int CalculateBondEnergy( Group __far *group )
     register double dho,dhc;
     register double dnc,dno;
 
-    register Atom __far *cptr;
+    register RAtom __far *cptr;
     register Long dx,dy,dz;
     register Long dist;
     register int result;
@@ -1758,33 +1819,33 @@ static int CalculateBondEnergy( Group __far *group )
     if( !(cptr=FindGroupAtom(group,2)) )  return(0);
     if( !(optr=FindGroupAtom(group,3)) )  return(0);
 
-    dx = hxorg-optr->xorg;  
-    dy = hyorg-optr->yorg;  
-    dz = hzorg-optr->zorg;
+    dx = hxorg - optr->xorg - optr->fxorg;  
+    dy = hyorg - optr->yorg - optr->fyorg;  
+    dz = hzorg - optr->zorg - optr->fzorg;
     dist = dx*dx+dy*dy+dz*dz;
     if( dist < MinHDist ) 
         return( -9900 );
     dho = sqrt((double)dist);
 
-    dx = hxorg-cptr->xorg;  
-    dy = hyorg-cptr->yorg;  
-    dz = hzorg-cptr->zorg;
+    dx = hxorg - cptr->xorg - cptr->fxorg;  
+    dy = hyorg - cptr->yorg - cptr->fyorg;  
+    dz = hzorg - cptr->zorg - cptr->fzorg;
     dist = dx*dx+dy*dy+dz*dz;
     if( dist < MinHDist ) 
         return( -9900 );
     dhc = sqrt((double)dist);
 
-    dx = nxorg-cptr->xorg;  
-    dy = nyorg-cptr->yorg;  
-    dz = nzorg-cptr->zorg;
+    dx = nxorg - cptr->xorg - cptr->fxorg;  
+    dy = nyorg - cptr->yorg - cptr->fyorg;  
+    dz = nzorg - cptr->zorg - cptr->fzorg;
     dist = dx*dx+dy*dy+dz*dz;
     if( dist < MinHDist ) 
         return( -9900 );
     dnc = sqrt((double)dist);
 
-    dx = nxorg-optr->xorg;  
-    dy = nyorg-optr->yorg;  
-    dz = nzorg-optr->zorg;
+    dx = nxorg - optr->xorg - optr->fxorg;  
+    dy = nyorg - optr->yorg - optr->fyorg;  
+    dz = nzorg - optr->zorg - optr->fzorg;
     dist = dx*dx+dy*dy+dz*dz;
     if( dist < MinHDist ) 
         return( -9900 );
@@ -1806,11 +1867,11 @@ static void CalcProteinHBonds( Chain __far *chn1 )
     register Chain __far *chn2;
     register Group __far *group1;
     register Group __far *group2;
-    register Atom __far *ca1;
-    register Atom __far *ca2;
-    register Atom __far *pc1;
-    register Atom __far *po1;
-    register Atom __far *n1;
+    register RAtom __far *ca1;
+    register RAtom __far *ca2;
+    register RAtom __far *pc1;
+    register RAtom __far *po1;
+    register RAtom __far *n1;
     register int pos1,pos2;
     register int dx,dy,dz;
     register double dco;
@@ -1821,9 +1882,9 @@ static void CalcProteinHBonds( Chain __far *chn1 )
     for(group1=chn1->glist;group1;group1=group1->gnext)
     {   pos1++;
         if( pc1 && po1 )
-        {   dx = (int)(pc1->xorg - po1->xorg);
-            dy = (int)(pc1->yorg - po1->yorg);
-            dz = (int)(pc1->zorg - po1->zorg);
+        {   dx = (int)(pc1->xorg - po1->xorg + pc1->fxorg - po1->fxorg );
+            dy = (int)(pc1->yorg - po1->yorg + pc1->fyorg - po1->fyorg);
+            dz = (int)(pc1->zorg - po1->zorg + pc1->fzorg - po1->fzorg);
         } else
         {   pc1 = FindGroupAtom(group1,2);
             po1 = FindGroupAtom(group1,3);
@@ -1842,9 +1903,9 @@ static void CalcProteinHBonds( Chain __far *chn1 )
         dist = (Long)dx*dx + (Long)dy*dy + (Long)dz*dz;
         dco = sqrt( (double)dist )/250.0;
 
-        nxorg = (int)n1->xorg;   hxorg = nxorg + (int)(dx/dco);
-        nyorg = (int)n1->yorg;   hyorg = nyorg + (int)(dy/dco);
-        nzorg = (int)n1->zorg;   hzorg = nzorg + (int)(dz/dco);
+        nxorg = (int)(n1->xorg + n1->fxorg);   hxorg = nxorg + (int)(dx/dco);
+        nyorg = (int)(n1->yorg + n1->fyorg);   hyorg = nyorg + (int)(dy/dco);
+        nzorg = (int)(n1->zorg + n1->fzorg);   hzorg = nzorg + (int)(dz/dco);
         res1 = res2 = 0;
 
         if( HBondChainsFlag )
@@ -1871,15 +1932,15 @@ static void CalcProteinHBonds( Chain __far *chn1 )
                 if( !(ca2=FindGroupAtom(group2,1)) ) 
                     continue;
 
-                dx = (int)(ca1->xorg-ca2->xorg);
+                dx = (int)(ca1->xorg-ca2->xorg + ca1->fxorg-ca2->fxorg);
                 if( (dist=(Long)dx*dx) > MaxHDist )
                     continue;
 
-                dy = (int)(ca1->yorg-ca2->yorg);
+                dy = (int)(ca1->yorg-ca2->yorg + ca1->fyorg-ca2->fyorg);
                 if( (dist+=(Long)dy*dy) > MaxHDist )
                     continue;
 
-                dz = (int)(ca1->zorg-ca2->zorg);
+                dz = (int)(ca1->zorg-ca2->zorg + ca1->fzorg-ca2->fzorg);
                 if( (dist+=(Long)dz*dz) > MaxHDist )
                     continue;
 
@@ -1920,9 +1981,9 @@ static void CalcNucleicHBonds( Chain __far *chn1 )
     register Group __far *group1;
     register Group __far *group2;
     register Group __far *best;
-    register Atom __far *ca1;
-    register Atom __far *ca2;
-    register Atom __far *n1;
+    register RAtom __far *ca1;
+    register RAtom __far *ca2;
+    register RAtom __far *n1;
     register Long max,dist;
     register int dx,dy,dz;
     register int refno;
@@ -1950,15 +2011,15 @@ static void CalcNucleicHBonds( Chain __far *chn1 )
                     if( !(ca1=FindGroupAtom(group2,23)) )
                         continue;
 
-                    dx = (int)(ca1->xorg - n1->xorg);
+                    dx = (int)(ca1->xorg - n1->xorg + ca1->fxorg - n1->fxorg);
                     if( (dist=(Long)dx*dx) >= max ) 
                         continue;
 
-                    dy = (int)(ca1->yorg - n1->yorg);
+                    dy = (int)(ca1->yorg - n1->yorg + ca1->fyorg - n1->fyorg);
                     if( (dist+=(Long)dy*dy) >= max ) 
                         continue;
 
-                    dz = (int)(ca1->zorg - n1->zorg);
+                    dz = (int)(ca1->zorg - n1->zorg + ca1->fzorg - n1->fzorg);
                     if( (dist+=(Long)dz*dz) >= max )
                         continue;
 
@@ -2033,7 +2094,7 @@ void CalcHydrogenBonds( void )
 }
 
 
-static int IsHBonded( Atom __far *src, Atom __far *dst, HBond __far *ptr )
+static int IsHBonded( RAtom __far *src, RAtom __far *dst, HBond __far *ptr )
 {
     while( ptr && (ptr->srcCA==src) )
         if( ptr->dstCA == dst )
@@ -2050,8 +2111,8 @@ static void FindAlphaHelix( int pitch, int flag )
     register Group __far *group;
     register Group __far *first;
     register Group __far *ptr;
-    register Atom __far *srcCA;
-    register Atom __far *dstCA;
+    register RAtom __far *srcCA;
+    register RAtom __far *dstCA;
     register int res,dist,prev;
 
     /* Protein chains only! */
@@ -2104,20 +2165,20 @@ static void FindAlphaHelix( int pitch, int flag )
 }
 
 
-static Atom __far *cprevi, __far *ccurri, __far *cnexti;
+static RAtom __far *cprevi, __far *ccurri, __far *cnexti;
 static HBond __far *hcurri, __far *hnexti;
 static Group __far *curri, __far *nexti;
 
 
 static void TestLadder( Chain __far *chain )
 {
-    register Atom __far *cprevj, __far *ccurrj, __far *cnextj;
+    register RAtom __far *cprevj, __far *ccurrj, __far *cnextj;
     register HBond __far *hcurrj, __far *hnextj;
     register Group __far *currj, __far *nextj;
     register int count, result, found;
 
     /* Avoid Compiler Warnings! */
-    ccurrj = (Atom __far*)0;
+    ccurrj = (RAtom __far*)0;
 
     /* Already part of atleast one ladder */
     found = curri->flag & SheetFlag;
@@ -2218,11 +2279,11 @@ static void FindBetaSheets( void )
 
 static void FindTurnStructure( void )
 {
-    static Atom __far *aptr[5];
+    static RAtom __far *aptr[5];
     register Chain __far *chain;
     register Group __far *group;
     register Group __far *prev;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
     register Long ux,uy,uz,mu;
     register Long vx,vy,vz,mv;
     register int i,found,len;
@@ -2247,13 +2308,25 @@ static void FindTurnStructure( void )
 		 if( len==5 ) 
 		 {   if( !(prev->struc&(HelixFlag|SheetFlag)) &&
 			 aptr[0] && aptr[2] && aptr[4] )
-		     {   ux = aptr[2]->xorg - aptr[0]->xorg;
-			 uy = aptr[2]->yorg - aptr[0]->yorg;
-			 uz = aptr[2]->zorg - aptr[0]->zorg;
+		     {   ux = aptr[2]->xorg - aptr[0]->xorg
+                             + aptr[2]->fxorg - aptr[0]->fxorg;
+			 uy = aptr[2]->yorg - aptr[0]->yorg
+                             + aptr[2]->fyorg - aptr[0]->fyorg;
+			 uz = aptr[2]->zorg - aptr[0]->zorg
+                             + aptr[2]->fzorg - aptr[0]->fzorg;
 
-			 vx = aptr[4]->xorg - aptr[2]->xorg;
-			 vy = aptr[4]->yorg - aptr[2]->yorg;
-			 vz = aptr[4]->zorg - aptr[2]->zorg;
+			 vx = aptr[4]->xorg - aptr[2]->xorg
+                             + aptr[4]->fxorg - aptr[2]->fxorg;
+			 vy = aptr[4]->yorg - aptr[2]->yorg
+                             + aptr[4]->fyorg - aptr[2]->fyorg;
+			 vz = aptr[4]->zorg - aptr[2]->zorg
+                             + aptr[4]->fzorg - aptr[2]->fzorg;
+#ifdef INVERT
+                         uy = -uy;
+                         vy = -vy;
+#endif
+                         uz = -uz;
+                         vz = -vz;
 
 			 mu = ux*ux + uy*uy + uz*uz;
 			 mv = vx*vx + vz*vz + vy*vy;
@@ -2277,12 +2350,12 @@ static void FindTurnStructure( void )
 
 static void FindBetaTurns( void )
 {
-    static Atom __far *aptr[4];
+    static RAtom __far *aptr[4];
     register Chain __far *chain;
     register Group __far *group;
     register Group __far *prev;
     register Group __far *next;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
     register Long dx,dy,dz;
     register int found,len;
     register int flag;
@@ -2307,9 +2380,12 @@ static void FindBetaTurns( void )
                 if( len==4 ) 
                 {   flag = False;
                     if( aptr[0] && aptr[3] )
-                    {   dx = aptr[3]->xorg - aptr[0]->xorg;
-                        dy = aptr[3]->yorg - aptr[0]->yorg;
-                        dz = aptr[3]->zorg - aptr[0]->zorg;
+                    {   dx = aptr[3]->xorg - aptr[0]->xorg
+                             + aptr[3]->fxorg - aptr[0]->fxorg;
+                        dy = aptr[3]->yorg - aptr[0]->yorg
+                             + aptr[3]->fyorg - aptr[0]->fyorg;
+                        dz = aptr[3]->zorg - aptr[0]->zorg
+                             + aptr[3]->fzorg - aptr[0]->fzorg;
                         if( dx*dx + dy*dy + dz*dz < (Long)1750*1750 )
                         {   group = prev;
                             while( group!=next->gnext )
@@ -2419,9 +2495,9 @@ void RenumberMolecule( int start )
 /* Molecule Database Maintenance */
 /*===============================*/
 
-static void ReclaimAtoms( Atom __far *ptr )
+static void ReclaimAtoms( RAtom __far *ptr )
 {
-    register Atom __far *temp;
+    register RAtom __far *temp;
 
     if( ptr )
     {   temp = ptr;

@@ -1,30 +1,42 @@
                           Installation Instructions
-                               RasMol 2.7.1.1
-
-                                  [RasMol]
+                               RasMol 2.7.2.1
                     Molecular Graphics Visualisation Tool
-                               21 January 2001
+                                14 April 2001
 
                      Based on RasMol 2.6 by Roger Sayle
-    Biomolecular Structures Group, Glaxo Wellcome Research & Development
+    Biomolecular Structures Group, Glaxo Wellcome Research & Development,
                         Stevenage, Hertfordshire, UK
            Version 2.6, August 1995, Version 2.6.4, December 1998
-                     Copyright (C) Roger Sayle 1992-1999
+                     Copyright © Roger Sayle 1992-1999
 
-                      and Based on Mods by Arne Mueller
-                           Version 2.6x1, May 1998
-                       Copyright (C) Arne Mueller 1998
+                            and Based on Mods by
+ Author             Version, Date             Copyright
+ Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998
+ Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM
+ Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996
 
-         Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein
-             Bernstein + Sons, P.O. Box 177, Bellport, NY, USA,
+ Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000
+
+ Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein 1998-2001
+ Bernstein          RasMol 2.7.1   Jun 99
+                    RasMol 2.7.1.1 Jan 01
+                    RasMol 2.7.2   Aug 00
+                    RasMol 2.7.2.1 Apr 01
+
+                     and Incorporating Translations by
+   Author                               Item                      Language
+   Isabel Serván Martínez,
+   José Miguel Fernández Fernández      2.6   Manual              Spanish
+   José Miguel Fernández Fernández      2.7.1 Manual              Spanish
+   Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish
+   Jean-Pierre Demailly                 2.7.1 menus and messages  French
+   Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages
+   A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian
+
+                              This Release by
+   Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA
                         yaya@bernstein-plus-sons.com
-           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 January 2001
-                Copyright (C) Herbert J. Bernstein 1998-2001
-
-    Translations of most of the RasMol messages into Spanish contributed
-       by Fernando Gabriel Ranea (Laboratorio de Micología, Museo de
-     Farmacobotánica, Facultad de Farmacia y Bioquímica. Universidad de
-                  Buenos Aires (davinci@dinamica.com.ar)).
+                 Copyright(C) Herbert J. Bernstein 1998-2001
 
 The original RasMol manual was created by Roger Sayle. In July 1996, Dr.
 Margaret Wong of the Chemistry Department, Swinburne University of
@@ -35,59 +47,51 @@ Carnegie Mellon University reorganized the HTML version of the manual into
 multiple sections which could be downloaded quickly and added use of frames.
 Portions of the 2.7.1 version of the RasMol manual were derived with
 permission from William McClure's version using Roger Sayle's rasmol.doc for
-version 2.6.4 as the primary source.
+version 2.6.4 as the primary source. Changes were made in August 2000 for
+RasMol version 2.7.2, January 2001 for RasMol version 2.7.1.1 and April 2001
+for RasMol version 2.7.2.1.
 
-                 Documentation Last Updated 21 January 2001
-           Edited by Herbert J. Bernstein and Frances C. Bernstein
+                  Documentation Last Updated 21 April 2000
+          Edited by Herbert J. Bernstein and Frances C. Bernstein
 
-               Translation of RasMol 2.7.1 Manual into Spanish
+                                Translations
 
-   Thanks to the efforts of José Miguel Fernández Fernández (Departamento
-   de Bioquímica y Biología Molecular. Universidad de Granada. España
-   (jmfernan@ugr.es)) a translation of the Manual for Rasmol version
-   2.7.1 into Spanish is now available. La traducción española del manual
-   de la versión de la Dra. Wong revisada por Eric Martz fue realizada
-   por Isabel Serván Martínez y José Miguel Fernández Fernández. La
-   actual traducción del Manual de RasMol 2.7.1 ha sido realizada usando
-   como base la anterior de RasMol 2.6 por  José Miguel Fernández
-   Fernández.
+Thanks to the efforts of José Miguel Fernández Fernández (Departamento de
+Bioquímica y Biología Molecular. Universidad de Granada. España
+(jmfernan@ugr.es)) a translation of the Manual for Rasmol version 2.7.1 into
+Spanish is now available. La traducción española del manual de la versión de
+la Dra. Wong revisada por Eric Martz fue realizada por Isabel Serván
+Martínez y José Miguel Fernández Fernández. La actual traducción del Manual
+de RasMol 2.7.1 ha sido realizada usando como base la anterior de RasMol 2.6
+por  José Miguel Fernández Fernández.
+
+Thanks to translations by Fernando Gabriel Ranea in late 2000 and early
+2001, RasMol is now capable of rendering most menu items and messages in
+Spanish. Jean-Pierre Demailly provided French translations of menus and
+messages in January 2001. Giuseppe Martini and Giovanni Paolella with
+contributions by A. Davassi, M. Masullo and C. Liotto provided Italian
+translation of menus and messages in March 2001.
 
   ------------------------------------------------------------------------
-
-                   Test Version of Next Release Available
-
-RasMol 2.7.1.1 is an interim release for testing of the integration of
-multilingual capabilities into RasMol. These same mods will then be
-integrated with pending mods, and with the basic structure of RasMol 2.7.2
-to create RasMol 2.7.2.1.
-
-A preliminary release of RasMol 2.7.2 (without the multilingual
-capabilities) is available at:
-
-          http://www.bernstein-plus-sons.com/software/RasMol_2.7.2
 
        THIS IS A PRELIMINARY RELEASE INVOLVING EXTENSIVE MODIFICATIONS
                         ***** USE WITH CAUTION ******
+
+This is a preliminary release of a version from the RasMol 2.7 series
+incorporating the "UCB" mods and other major changes. It is being released
+at this stage to solicit comments and suggestions, and is not intended for
+production use at this time.
   ------------------------------------------------------------------------
 
-                            RasTop 1.3 Available
+                                  IMPORTANT
 
-RasTop by P. Valadon is a graphical interface to RasMol adapted for Windows
-platform, i.e. RasTop is a GUI front end for RasWin.
-
-*RasTop -- GUI front end for RasWin (RasTop 1.3)
-
-   * RasTop 1.3 Features
-
-  ------------------------------------------------------------------------
-
-                    IMPORTANT - Copying and Distribution
-
-This version is based on RasMol version 2.6_CIF.2, on RasMol version 2.6x1
-and on RasMol version 2.6.4. Please read the file NOTICE for important
-notices which apply to this package. If you are not going to make changes to
-RasMol, you are not only permitted to freely make copies and distribute
-them, you are encouraged to do so, provided you do the following:
+This version is based directly on RasMol version 2.7.2, on RasMol 2.7.1.1,
+on RasTop 1.3, on RasMol version 2.6_CIF.2, on RasMol version 2.6x1, on
+RasMol version 2.6.4, and RasMol 2.5-ucb and 2.6-ucb. Please read the file
+NOTICE for important notices which apply to this package. If you are not
+going to make changes to RasMol, you are not only permitted to freely make
+copies and distribute them, you are encouraged to do so, provided you do the
+following:
 
    * 1. Either include the complete documentation, especially the file
      NOTICE, with what you distribute or provide a clear indication where
@@ -113,22 +117,22 @@ please make them in a responsible manner, and please offer us the
 opportunity to include those changes in future versions of RasMol.
   ------------------------------------------------------------------------
 
-This file explains how to transfer, compile and install RasMol v2.7.1.1 on
+This file explains how to transfer, compile and install RasMol v2.7.1 on
 your system. This version of the RasMol Molecular graphics package will run
 on UNIX, VMS, Macintosh and Microsoft Windows.
 
   ------------------------------------------------------------------------
 
-Obtaining RasMol v2.7.1.1
+Obtaining RasMol v2.7.2.1
 
 This version of RasMol may be obtained by anonymous FTP either by anonymous
 FTP at:
 
-ftp://ftp.bernstein-plus-sons.com/software/RasMol_2.7.1.1
+ftp://ftp.bernstein-plus-sons.com/software/RasMol_2.7.2.1
 
 or on the web at:
 
-http://www.bernstein-plus-sons.com/software/RasMol_2.7.1.1
+http://www.bernstein-plus-sons.com/software/RasMol_2.7.2.1
 
 To transfer by anonymous ftp, type "ftp ftp.bernstein-plus-sons.com" on the
 command line. Several seconds later you'll be prompted for a username. Use
@@ -148,7 +152,7 @@ thereby corrupting the archive. Please ensure that you type the FTP command
 "binary" before you transfer the file, indicating that the file should be
 transfered without translation.
 
-To build/rebuild RasMol 2.7.1.1 on any platform, you'll need to transfer the
+To build/rebuild RasMol 2.7.2.1 on any platform, you'll need to transfer the
 following file:
 
  RasMol.tar.gzUNIX 'tar'ed 'gzip'ped archive containing the complete source
@@ -169,15 +173,10 @@ If you are in a hurry, the following pre-compiled binary files are
 available: WARNING: ALL binaries and help files are gzipped!!!
 
  System     Binary                                          Help Files
- Linux (Mandrake 7.2, i586):
-            RasMol.LINUX/Mandrake_7.2/i586/rasmol_8BIT.gz   rasmol.hlp.gz
-            RasMol.LINUX/Mandrake_7.2/i586/rasmol_16BIT.gz  rasmol.hlp.gz
-            RasMol.LINUX/Mandrake_7.2/i586/rasmol_32BIT.gz  rasmol.hlp.gz
-
- SGI (IRIX 6.4):
-            RasMol.SGI/IRIX_6.4/rasmol_8BIT.gz              rasmol.hlp.gz
-            RasMol.SGI/IRIX_6.4/rasmol_16BIT.gz             rasmol.hlp.gz
-            RasMol.SGI/IRIX_6.4/rasmol_32BIT.gz             rasmol.hlp.gz
+ Linux (Mandrake 7.2, i386):
+            RasMol.LINUX/Mandrake_7.2/i386/rasmol_8BIT.gz   rasmol.hlp.gz
+            RasMol.LINUX/Mandrake_7.2/i386/rasmol_16BIT.gz  rasmol.hlp.gz
+            RasMol.LINUX/Mandrake_7.2/i386/rasmol_32BIT.gz  rasmol.hlp.gz
 
  Mac:       RasMac_FAT_8BIT.bin.gz                          rasmol.hlp.gz
             RasMac_PPC_8BIT.bin.gz
@@ -193,16 +192,10 @@ available: WARNING: ALL binaries and help files are gzipped!!!
 For those who have difficulty downloading "gzipped" files, uncompressed
 files are available:
  System         Binary                                       Help Files
- Linux (Mandrake 7.2, i586):
-                RasMol.LINUX/Mandrake_7.2/i586/rasmol_8BIT   rasmol.hlp
-                RasMol.LINUX/Mandrake_7.2/i586/rasmol_16BIT  rasmol.hlp
-                RasMol.LINUX/Mandrake_7.2/i586/rasmol_32BIT  rasmol.hlp
-
-
- SGI (IRIX 6.4):
-                RasMol.SGI/IRIX_6.4/rasmol_8BIT              rasmol.hlp
-                RasMol.SGI/IRIX_6.4/rasmol_16BIT             rasmol.hlp
-                RasMol.SGI/IRIX_6.4/rasmol_32BIT             rasmol.hlp
+ Linux (Mandrake 7.2, i386):
+                RasMol.LINUX/Mandrake_7.2/i386/rasmol_8BIT   rasmol.hlp
+                RasMol.LINUX/Mandrake_7.2/i386/rasmol_16BIT  rasmol.hlp
+                RasMol.LINUX/Mandrake_7.2/i386/rasmol_32BIT  rasmol.hlp
 
  Mac:           RasMac_FAT_8BIT.bin                          rasmol.hlp
                 RasMac_PPC_8BIT.bin
@@ -226,7 +219,7 @@ environment variable RASMOLPATH)
 
   ------------------------------------------------------------------------
 
-Installing RasMol v2.7.1.1
+Installing RasMol v2.7.2.1
 
 UNIX X11:
 
@@ -279,7 +272,7 @@ MS Windows:
      directory.
   4. Under Windows 3.1 and similar systems Install the program in MS Windows
      using the New option of the Program Manager's File Menu. Set the
-     Description of the Program to "RasWin v2.7.1" and the Current
+     Description of the Program to "RasWin v2.7.2.1" and the Current
      Directory, to the directory containing the files. Install the RasMol
      Help file using the New option of the Program, Manager's File Menu. Set
      the Description to "RasWin Manual", the command to "C:\WINDOWS\WINHELP
@@ -311,13 +304,13 @@ VAX/VMS:
 
   ------------------------------------------------------------------------
 
-Recompiling RasMol v2.7.1.1
+Recompiling RasMol v2.7.2.1
 
 For both Windows and Mac, this version has been built with MetroWerks
 CodeWarrior, and the necessary projects are included in the src/mswin and
 src/mac directories. The following more general instructions adapted from
 the RasMol v2.6 release are provided for your information, but have _not_
-been tested against RasMol_2.7.1.1:
+been tested against RasMol_2.7.2.1:
 
 MS Windows v3.1:
 
@@ -375,7 +368,7 @@ Apple Macintosh and PowerMac
  11. To create a `fat' binary, use Apple's ResEdit to copy and paste the
      CODE, DATA and XREF resources from the Metrowerks 68K executable into
      the resource fork of the Metrowerks PPC executable.
- 12. The Installed Application's name should be "RasMac v2.7.1"
+ 12. The Installed Application's name should be "RasMac v2.7.2.1"
 
   ------------------------------------------------------------------------
 
@@ -480,7 +473,7 @@ Any comments, suggestions or questions about this modified version should be
 directed to Herbert J. Bernstein at rasmol@bernstein-plus-sons.com.
 
   ------------------------------------------------------------------------
-Updated 29 January 2001.
+Updated 21 April 2001.
 Herbert J. Bernstein
 Bernstein + Sons, 5 Brewster Lane, Bellport, NY 11713-2803, USA
 yaya@bernstein-plus-sons.com

@@ -1,9 +1,9 @@
 /***************************************************************************
- *                            RasMol 2.7.1.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
- *                                RasMol                                   *
+ *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                            17 January 2001                              *
+ *                              2 April 2001                               *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -15,10 +15,17 @@
  *                      Version 2.6x1, May 1998                            *
  *                   Copyright (C) Arne Mueller 1998                       *
  *                                                                         *
- *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *          and Based on Mods by Gary Grossman and Marco Molinaro          *
+ *                   Version 2.5-ucb, November 1995                        *
+ *                   Version 2.6-ucb, November 1996                        *
+ *  Enhanced by the MultiChem Facility, University of California, Berkeley *
+ *       Copyright (C) UC Regents/ModularCHEM Consortium 1995, 1996        *
+ *                                                                         *
+ *        Version 2.7.0, 2.7.1, 2.7.1.1, 2.7.2, 2.7.2.1 Mods by            *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
  *                      yaya@bernstein-plus-sons.com                       *
- *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
+ *          2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 January 2001        *
+ *                  2.7.2 August 2000, 2.7.2.1 April 2001                  *
  *              Copyright (C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
@@ -57,53 +64,73 @@
 #define IDM_PRINT      1003
 #define IDM_SETUP      1004
 #define IDM_EXIT       1005
+#define IDM_MOL1       1006
+#define IDM_MOL2       1007
+#define IDM_MOL3       1008
+#define IDM_MOL4       1009
+#define IDM_MOL5       1010
 
-#define IDM_SELECT     1010
-#define IDM_CUT        1011
-#define IDM_COPY       1012
-#define IDM_PASTE      1013
-#define IDM_DELETE     1014
+#define IDM_SELECT     1020
+#define IDM_CUT        1021
+#define IDM_COPY       1022
+#define IDM_PASTE      1023
+#define IDM_DELETE     1024
 
-#define IDM_WIREFRAME  1020
-#define IDM_BACKBONE   1021
-#define IDM_STICKS     1022
-#define IDM_SPHERES    1023
-#define IDM_BALLSTICK  1024
-#define IDM_RIBBONS    1025
-#define IDM_STRANDS    1026
-#define IDM_CARTOONS   1027
-#define IDM_DOTS       1028
+#define IDM_WIREFRAME  1030
+#define IDM_BACKBONE   1031
+#define IDM_STICKS     1032
+#define IDM_SPHERES    1033
+#define IDM_BALLSTICK  1034
+#define IDM_RIBBONS    1035
+#define IDM_STRANDS    1036
+#define IDM_CARTOONS   1037
+#define IDM_DOTS       1038
 
-#define IDM_MONO       1030
-#define IDM_CPK        1031
-#define IDM_SHAPELY    1032
-#define IDM_GROUP      1033
-#define IDM_CHAIN      1034
-#define IDM_TEMPER     1035
-#define IDM_STRUCT     1036
-#define IDM_USER       1037
-#define IDM_MODEL      1038
-#define IDM_ALT        1039
+#define IDM_MONO       1040
+#define IDM_CPK        1041
+#define IDM_SHAPELY    1042
+#define IDM_GROUP      1043
+#define IDM_CHAIN      1044
+#define IDM_TEMPER     1045
+#define IDM_STRUCT     1046
+#define IDM_USER       1047
+#define IDM_MODEL      1048
+#define IDM_ALT        1049
 
-#define IDM_SLAB       1040
-#define IDM_HYDROGEN   1041
-#define IDM_HETERO     1042
-#define IDM_SPECULAR   1043
-#define IDM_SHADOW     1044
-#define IDM_STEREO     1045
-#define IDM_LABELS     1046
+#define IDM_SLAB       1050
+#define IDM_HYDROGEN   1051
+#define IDM_HETERO     1052
+#define IDM_SPECULAR   1053
+#define IDM_SHADOW     1054
+#define IDM_STEREO     1055
+#define IDM_LABELS     1056
 
-#define IDM_BMP        1050
-#define IDM_PCX        1051
-#define IDM_GIF        1052
-#define IDM_EPSF       1053
-#define IDM_PPM        1054
-#define IDM_RAST       1055
-#define IDM_PICT       1056
-#define IDM_IRIS       1057
+#define IDM_PKNONE     1060
+#define IDM_PKIDENT    1061
+#define IDM_PKDIST     1062
+#define IDM_PKMONIT    1063
+#define IDM_PKANGLE    1064
+#define IDM_PKTORSN    1065
+#define IDM_PKLABEL    1066
+#define IDM_PKORIGN    1067
+#define IDM_PKCOORD    1068
+#define IDM_PKBOND     1069
+#define IDM_RTBOND     1070
+#define IDM_RTMOL      1071
+#define IDM_RTALL      1072
 
-#define IDM_ABOUT      1060
-#define IDM_HELP       1061
+
+#define IDM_BMP        1080
+#define IDM_PCX        1081
+#define IDM_GIF        1082
+#define IDM_EPSF       1083
+#define IDM_PPM        1084
+#define IDM_RAST       1085
+#define IDM_PICT       1086
+#define IDM_IRIS       1087
+
+#define IDM_ABOUT      1090
+#define IDM_HELP       1091
 
 #define IDD_HARDWARE   200
 #define IDD_FILETEXT   201

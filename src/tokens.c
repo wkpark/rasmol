@@ -1,9 +1,9 @@
 /***************************************************************************
- *                            RasMol 2.7.1.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
- *                                RasMol                                   *
+ *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                            17 January 2001                              *
+ *                              14 April 2001                              *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -11,15 +11,34 @@
  *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
  *                   Copyright (C) Roger Sayle 1992-1999                   *
  *                                                                         *
- *                  and Based on Mods by Arne Mueller                      *
- *                      Version 2.6x1, May 1998                            *
- *                   Copyright (C) Arne Mueller 1998                       *
+ *                          and Based on Mods by                           *
+ *Author             Version, Date             Copyright                   *
+ *Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       *
+ *Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  *
+ *Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   *
  *                                                                         *
- *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
- *                      yaya@bernstein-plus-sons.com                       *
- *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
- *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   *
+ *                                                                         *
+ *Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    * 
+ *Bernstein          RasMol 2.7.1   Jun 99         1998-2001               *
+ *                   RasMol 2.7.1.1 Jan 01                                 *
+ *                   RasMol 2.7.2   Aug 00                                 *
+ *                   RasMol 2.7.2.1 Apr 01                                 *
+ *                                                                         *
+ *                    and Incorporating Translations by                    *
+ *  Author                               Item                      Language*
+ *  Isabel Serván Martínez,                                                *
+ *  José Miguel Fernández Fernández      2.6   Manual              Spanish *
+ *  José Miguel Fernández Fernández      2.7.1 Manual              Spanish *
+ *  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish *
+ *  Jean-Pierre Demailly                 2.7.1 menus and messages  French  *
+ *  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          *
+ *  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian *
+ *                                                                         *
+ *                             This Release by                             *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
+ *                       yaya@bernstein-plus-sons.com                      *
+ *               Copyright(C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    * 
@@ -49,6 +68,22 @@
  ***************************************************************************/
 
 /* tokens.c
+ $Log: tokens.c,v $
+ Revision 1.2  2001/02/06 21:58:18  yaya
+ *** empty log message ***
+
+ Revision 1.1  2001/01/31 02:13:45  yaya
+ Initial revision
+
+ Revision 1.4  2000/08/26 18:12:46  yaya
+ Updates to header comments in all files
+
+ Revision 1.3  2000/08/21 21:07:50  yaya
+ semi-final ucb mods
+
+ Revision 1.2  2000/08/09 01:18:18  yaya
+ Rough cut with ucb
+
  */
 #include <string.h>
 #include <ctype.h>
@@ -72,6 +107,8 @@ int LookUpKeyword( char *ptr )
         ANGLE                AngleTok
         ANGLES               AngleTok
         AROMATIC             AromaticTok
+        ASSE                 AxesTok
+        ASSI                 AxesTok
         AT                   ATTok
         ATOM                 AtomTok
         ATOMNO               AtomNoTok
@@ -128,7 +165,13 @@ int LookUpKeyword( char *ptr )
                     }
                     break;
 
-                case('T'):
+                 case('S'):
+                    if( !strcmp(ptr,"SE") || !strcmp(ptr,"SI")) {
+                        return( AxesTok );
+                    }
+                    break;
+
+               case('T'):
                     if( !*ptr ) {
                         return( ATTok );
                     } else if( !strcmp(ptr,"OM") ) {
@@ -245,6 +288,8 @@ int LookUpKeyword( char *ptr )
         CADENAS              ChainTok
         CARTOON              CartoonTok
         CARTOONS             CartoonTok
+        CATENA               ChainTok
+        CATENE               ChainTok
         CENTER               CentreTok
         CENTRE               CentreTok
         CEX                  CEXTok
@@ -268,6 +313,7 @@ int LookUpKeyword( char *ptr )
         COORDINATES          CoordTok
         COORD                CoordTok
         COORDS               CoordTok
+        COPY                 CopyTok
         CPK                  CPKTok
         CYAN                 CyanTok
         CYCLIC               CyclicTok
@@ -283,6 +329,8 @@ int LookUpKeyword( char *ptr )
                         return( CartoonTok );
                     } else if( !strcmp(ptr,"RTOONS") ) {
                         return( CartoonTok );
+                    } else if( !strcmp(ptr,"TENA") || !strcmp(ptr,"TENE")) {
+                        return( ChainTok );
                     }
                     break;
 
@@ -353,6 +401,8 @@ int LookUpKeyword( char *ptr )
                         return( CoordTok );
                     } else if( !strcmp(ptr,"ORDS") ) {
                         return( CoordTok );
+                    } else if( !strcmp(ptr,"PY") ) {
+                        return( CopyTok );
                     }
                     break;
 
@@ -381,6 +431,7 @@ int LookUpKeyword( char *ptr )
         DASHES               DashTok
         DATA_...             CIFDataTok
         DEFINE               DefineTok
+		DEPTH                DepthTok
         DEPTHCUE             DepthCueTok
         DIBUJO               CartoonTok
         DIBUJOS              CartoonTok
@@ -406,6 +457,8 @@ int LookUpKeyword( char *ptr )
                 case('E'):
                     if( !strcmp(ptr,"FINE") ) {
                         return( DefineTok );
+                    } else if( !strcmp(ptr,"PTH") ) {
+                        return( DepthTok );
                     } else if( !strcmp(ptr,"PTHCUE") ) {
                         return( DepthCueTok );
                     }
@@ -447,11 +500,15 @@ int LookUpKeyword( char *ptr )
         ELANCES              BondTok
         ELEMNO               ElemNoTok
         ELEMENTNUMBER        ElemNoTok
+        ELICHE               HelixTok
         ENGLISH              EnglishTok
         EPSF                 EPSFTok
+        ELICHE               HelixTok
         ESQUELETO            BackboneTok
         ETIQUETA             LabelTok
         ETIQUETAS            LabelTok
+        ETICHETTA            LabelTok
+        ETICHETTE            LabelTok  
         EXIT                 ExitTok
       */
 
@@ -460,7 +517,7 @@ int LookUpKeyword( char *ptr )
                 case('\0'):
                     return( AndTok );
                     break;
-                    
+
                 case('C'):
                     if( !strcmp(ptr,"HO") ) {
                         return( EchoTok );
@@ -472,7 +529,7 @@ int LookUpKeyword( char *ptr )
                         return( AxesTok );
                     }
                     break;
-
+ 
                 case('L'):
                     if( !strcmp(ptr,"ANCE") || !strcmp(ptr,"ANCES" ) ) {
                         return( BondTok );
@@ -480,7 +537,9 @@ int LookUpKeyword( char *ptr )
                         return( ElemNoTok );
                     } else if( !strcmp(ptr,"EMENTNUMBER") ) {
                         return( ElemNoTok );
-                    }
+                     } else if( !strcmp(ptr,"ICHE") ) {
+                        return( HelixTok );
+                   }
                     break;
 
                 case('N'):
@@ -498,12 +557,16 @@ int LookUpKeyword( char *ptr )
                 case('S'):
                     if( !strcmp(ptr,"QUELETO") ) {
                         return( BackboneTok );
+                    } else if( !strcmp(ptr,"CI") ) {
+                        return( ExitTok );
                     }
                     break;
 
                 case('T'):
                     if( !strcmp(ptr,"IQUETA") || !strcmp(ptr,"IQUETAS") ) {
-                        return( ExitTok );
+                        return( LabelTok );
+                    } else if( !strcmp(ptr,"ICHETTA") || !strcmp(ptr,"ICHETTE") ) {
+                        return( LabelTok );
                     }
                     break;
 
@@ -519,8 +582,12 @@ int LookUpKeyword( char *ptr )
       /*
         FALSE                FalseTok
         FDAT                 FDATTok
+        FILODIFERRO          WireframeTok
+        FILDIFERRO           WireframeTok
+        FILI                 StrandsTok  
         FONTSIZE             FontSizeTok
         FONTSTROKE           FontStrokeTok
+        FRENCH               FrenchTok
         FS                   FSTok
       */
 
@@ -538,11 +605,25 @@ int LookUpKeyword( char *ptr )
                     }
                     break;
 
+                case('I'):
+                	if( !strcmp(ptr,"LODIFERRO") || !strcmp(ptr,"LDIFERRO")) {
+                        return( WireframeTok );
+                    } else if( !strcmp(ptr,"LI") ) {
+                        return( StrandsTok );
+                    }
+                    break;
+
                 case('O'):
                     if( !strcmp(ptr,"NTSIZE") ) {
                         return( FontSizeTok );
                     } else if( !strcmp(ptr,"NTSTROKE") ) {
                         return( FontStrokeTok );
+                    }
+                    break;
+                
+                case('R'):
+                    if( !strcmp(ptr,"ENCH") ) {
+                        return( FrenchTok );
                     }
                     break;
 
@@ -568,6 +649,7 @@ int LookUpKeyword( char *ptr )
         GREY                 GrayTok
         GROUP                GroupTok
         GRUPO                GroupTok
+        GRUPPO               GroupTok 
       */
 
         case('G'):
@@ -580,7 +662,7 @@ int LookUpKeyword( char *ptr )
 
                 case('I'):
                     if( !strcmp(ptr,"RO") || !strcmp(ptr,"ROS") ) {
-                        return( GIFTok );
+                        return( TurnTok );
                     } else if( (*ptr=='F') && !ptr[1] ) {
                         return( GIFTok );
                     }
@@ -605,7 +687,9 @@ int LookUpKeyword( char *ptr )
                         return( GrayTok );
                     } else if( !strcmp(ptr,"OUP") || !strcmp(ptr,"UPO") ) {
                         return( GroupTok );
-                    }
+                     } else if( !strcmp(ptr,"UPPO") ) {
+                        return( GroupTok );
+                   }
                     break;
 
             }
@@ -648,7 +732,7 @@ int LookUpKeyword( char *ptr )
                     break;
 
                 case('E'):
-	                if( !strcmp(ptr,"ADER") ) {
+	  	    if( !strcmp(ptr,"ADER") ) {
                         return( HeaderTok );
                     } else if( !strcmp(ptr,"BRAS") ) {
                         return( StrandsTok );
@@ -687,6 +771,7 @@ int LookUpKeyword( char *ptr )
       /*
         IDENT                IdentifyTok
         IDENTIFY             IdentifyTok
+		IMAGE				 ImageTok
         INFO                 InfoTok
         INFORMATION          InfoTok
         INLINE               InLineTok
@@ -694,6 +779,7 @@ int LookUpKeyword( char *ptr )
         ION                  IonTok
         IONS                 IonTok
         IRIS                 IRISTok
+        ITALIAN              ItalianTok
       */
 
         case('I'):
@@ -705,6 +791,11 @@ int LookUpKeyword( char *ptr )
                         return( IdentifyTok );
                     }
                     break;
+
+                case('M'):
+                    if( !strcmp(ptr,"AGE") )
+                        return( ImageTok );
+					break;
 
                 case('N'):
                     if( !strcmp(ptr,"FO") ) {
@@ -729,6 +820,12 @@ int LookUpKeyword( char *ptr )
                 case('R'):
                     if( !strcmp(ptr,"IS") ) {
                         return( IRISTok );
+                    }
+                    break;
+
+                case('T'):
+                    if( !strcmp(ptr,"ALIAN") ) {
+                        return( ItalianTok );
                     }
                     break;
 
@@ -803,6 +900,7 @@ int LookUpKeyword( char *ptr )
         MMDB                 MMDBTok
         MODEL                ModelTok
         MOL2                 Mol2Tok
+        MOLECULE             MoleculeTok
         MOLSCRIPT            MolScriptTok
         MONITOR              MonitorTok
         MONITORS             MonitorTok
@@ -852,6 +950,8 @@ int LookUpKeyword( char *ptr )
                         return( ModelTok );
                     } else if( !strcmp(ptr,"L2") ) {
                         return( Mol2Tok );
+                    } else if( !strcmp(ptr,"LECULE") ) {
+		                return( MoleculeTok );
                     } else if( !strcmp(ptr,"LSCRIPT") ) {
                         return( MolScriptTok );
                     } else if( !strcmp(ptr,"NITOR") ) {
@@ -879,6 +979,8 @@ int LookUpKeyword( char *ptr )
             break;
 
       /*
+        NASTRO               RibbonTok 
+        NASTRI               RibbonTok 
         NEGATIVE             AcidicTok
         NEUTRAL              NeutralTok
         NMRPDB               NMRPDBTok
@@ -890,6 +992,12 @@ int LookUpKeyword( char *ptr )
 
          case('N'):
             switch(*ptr++) {
+                case('A'):
+                	if( !strcmp(ptr,"STRO") || !strcmp(ptr,"STRI") ) {
+                        return( RibbonTok );
+                    }
+                    break;
+            
                 case('E'):
                     if( !strcmp(ptr,"GATIVE") ) {
                         return( AcidicTok );
@@ -958,6 +1066,7 @@ int LookUpKeyword( char *ptr )
             break;
 
       /*
+        PASTE				 PasteTok
         PAUSE                WaitTok
         PDB                  PDBTok
         PHIPSI               PhiPsiTok
@@ -969,6 +1078,7 @@ int LookUpKeyword( char *ptr )
         PNG                  PNGTok
         POLAR                PolarTok
         POSITIVE             BasicTok
+		POSITION			 PositionTok
         POTENTIAL            PotentialTok
         POVRAY               POVRayTok
         POVRAY2              POVRay2Tok
@@ -987,7 +1097,9 @@ int LookUpKeyword( char *ptr )
         case('P'):
             switch(*ptr++) {
                 case('A'):
-                    if( !strcmp(ptr,"USE") ) {
+                    if( !strcmp(ptr,"STE") ) {
+                        return( PasteTok );
+                    } else if( !strcmp(ptr,"USE") ) {
                         return( WaitTok );
                     }
                     break;
@@ -1028,6 +1140,8 @@ int LookUpKeyword( char *ptr )
                         return( PolarTok );
                     } else if( !strcmp(ptr,"SITIVE") ) {
                         return( BasicTok );
+                    } else if( !strcmp(ptr,"SITION") ) {
+                        return( PositionTok );
                     } else if( !strcmp(ptr,"TENTIAL") ) {
                         return( PotentialTok );
                     } else if( !strcmp(ptr,"VRAY") ) {
@@ -1125,8 +1239,11 @@ int LookUpKeyword( char *ptr )
         RIBBONS              RibbonTok
         RIBBONS1             Ribbon1Tok
         RIBBONS2             Ribbon2Tok
+        RIEMPIMENTO          SpacefillTok
         RNA                  RNATok
+        ROT                  RotateTok
         ROTATE               RotateTok
+        ROTATION             RotateTok
         RPP                  RamPrintTok
       */
 
@@ -1207,6 +1324,8 @@ int LookUpKeyword( char *ptr )
                         return( Ribbon1Tok );
                     } else if( !strcmp(ptr,"BBONS2") ) {
                         return( Ribbon2Tok );
+                    } else if( !strcmp(ptr,"EMPIMENTO") ) {
+                        return( SpacefillTok );
                     }
                     break;
 
@@ -1218,6 +1337,10 @@ int LookUpKeyword( char *ptr )
 
                 case('O'):
                     if( !strcmp(ptr,"TATE") ) {
+                        return( RotateTok );
+                    } else if( !strcmp(ptr,"T") ) {
+                        return( RotateTok );
+                    } else if( !strcmp(ptr,"TATION") ) {
                         return( RotateTok );
                     }
                     break;
@@ -1233,13 +1356,16 @@ int LookUpKeyword( char *ptr )
       /*
         SALIR                ExitTok
         SAVE                 SaveTok
+        SCHELETRO            BackboneTok
         SCRIPT               ScriptTok
         SECTION              SectionTok
         SEAGREEN             SeaGreenTok
         SELECT               SelectTok
         SELECTED             SelectedTok
+        SELECTION            SelectionTok
         SEQUENCE             SequenceTok
         SET                  SetTok
+        SHADEPOWER           ShadePowerTok
         SHADOW               ShadowTok
         SHADOWS              ShadowTok
         SHAPELY              ShapelyTok
@@ -1287,6 +1413,8 @@ int LookUpKeyword( char *ptr )
                 case('C'):
                     if( !strcmp(ptr,"RIPT") ) {
                         return( ScriptTok );
+                    } else if( !strcmp(ptr,"HELETRO") ) {
+                        return( BackboneTok );
                     }
                     break;
 
@@ -1299,7 +1427,9 @@ int LookUpKeyword( char *ptr )
                         return( SelectTok );
                     } else if( !strcmp(ptr,"LECTED") ) {
                         return( SelectedTok );
-                    } else if( !strcmp(ptr,"QUENCE") ) {
+                    } else if( !strcmp(ptr,"LECTION") ) {
+                        return( SelectedTok );
+                     } else if( !strcmp(ptr,"QUENCE") ) {
                         return( SequenceTok );
                     } else if( (*ptr=='T') && !ptr[1] ) {
                         return( SetTok );
@@ -1307,8 +1437,10 @@ int LookUpKeyword( char *ptr )
                     break;
 
                 case('H'):
-                    if( !strcmp(ptr,"ADOW") ) {
-                        return( ShadowTok );
+                     if( !strcmp(ptr,"ADEPOWER") ) {
+                        return( ShadePowerTok );
+                    } else if( !strcmp(ptr,"ADOW") ) {
+                       return( ShadowTok );
                     } else if( !strcmp(ptr,"ADOWS") ) {
                         return( ShadowTok );
                     } else if( !strcmp(ptr,"APELY") ) {
@@ -1418,15 +1550,17 @@ int LookUpKeyword( char *ptr )
       /*
         TEMPERATURE          TemperatureTok
         TITLE                TitleTok
-        TODO                 AllTok 
+        TODO                 AllTok
         TORSION              TorsionTok
         TORSIONS             TorsionTok
         TRACE                TraceTok
         TRANSLATE            TranslateTok
+        TRANSLATION          TranslateTok
         TRANSPARENT          TransparentTok
         TRUE                 TrueTok
         TURN                 TurnTok
         TURNS                TurnTok
+        TUTTO                AllTok 
         TYPE                 TypeTok
       */
 
@@ -1459,6 +1593,8 @@ int LookUpKeyword( char *ptr )
                         return( TraceTok );
                     } else if( !strcmp(ptr,"ANSLATE") ) {
                         return( TranslateTok );
+                    } else if( !strcmp(ptr,"ANSLATION") ) {
+                        return( TranslateTok );
                     } else if( !strcmp(ptr,"ANSPARENT") ) {
                         return( TransparentTok );
                     } else if( !strcmp(ptr,"UE") ) {
@@ -1471,6 +1607,8 @@ int LookUpKeyword( char *ptr )
                         return( TurnTok );
                     } else if( !strcmp(ptr,"RNS") ) {
                         return( TurnTok );
+                    } else if( !strcmp(ptr,"TTO") ) {
+                        return( AllTok );
                     }
                     break;
 
@@ -1484,6 +1622,7 @@ int LookUpKeyword( char *ptr )
             break;
 
       /*
+        UNBOND               UnBondTok
         UNITCELL             UnitCellTok
         USER                 UserTok
       */
@@ -1493,6 +1632,8 @@ int LookUpKeyword( char *ptr )
                 case('N'):
                     if( !strcmp(ptr,"ITCELL") ) {
                         return( UnitCellTok );
+                    } else if( !strcmp(ptr,"BOND") ) {
+                        return( UnBondTok );
                     }
                     break;
 
@@ -1508,7 +1649,10 @@ int LookUpKeyword( char *ptr )
       /*
         VDW                  VDWTok
         VECTPS               VectPSTok
+		VIEW                 ViewTok
+        VIGNETTA             CartoonTok
         VIOLET               VioletTok
+        VISUALIZZA           DisplayTok 
         VRML                 VRMLTok
       */
 
@@ -1527,8 +1671,14 @@ int LookUpKeyword( char *ptr )
                     break;
 
                 case('I'):
-                    if( !strcmp(ptr,"OLET") ) {
+                     if( !strcmp(ptr,"EW") ) {
+                        return( ViewTok );
+                    } else if( !strcmp(ptr,"GNETTA") ) {
+                        return( CartoonTok );
+                    } else if( !strcmp(ptr,"OLET") ) {
                         return( VioletTok );
+                    } else if( !strcmp(ptr,"SUALIZZA") ) {
+                        return( DisplayTok );
                     }
                     break;
 

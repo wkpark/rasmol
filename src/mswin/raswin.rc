@@ -16,6 +16,12 @@ BEGIN
         MENUITEM "P&rint Setup...", IDM_SETUP
         MENUITEM SEPARATOR
         MENUITEM "E&xit",           IDM_EXIT
+        MENUITEM SEPARATOR
+        MENUITEM "1."               IDM_MOL1
+        MENUITEM "2."               IDM_MOL2
+        MENUITEM "3."               IDM_MOL3
+        MENUITEM "4."               IDM_MOL4
+        MENUITEM "5."               IDM_MOL5
     END
 
     POPUP "&Edit"
@@ -65,6 +71,23 @@ BEGIN
         MENUITEM "&Labels",        IDM_LABELS,    CHECKED
     END
 
+    POPUP "&Settings"
+    BEGIN
+        MENUITEM "Pick Off",       IDM_PKNONE
+        MENUITEM "Pick Ident",     IDM_PKIDENT
+        MENUITEM "Pick Distance",  IDM_PKDIST
+        MENUITEM "Pick Monitor",   IDM_PKMONIT
+        MENUITEM "Pick Angle",     IDM_PKANGLE
+        MENUITEM "Pick Torsion",   IDM_PKTORSN
+        MENUITEM "Pick Label",     IDM_PKLABEL
+        MENUITEM "Pick Centre",    IDM_PKORIGN
+        MENUITEM "Pick Coord",     IDM_PKCOORD
+        MENUITEM "Pick Bond",      IDM_PKBOND
+        MENUITEM "Rotate Bond",    IDM_RTBOND
+        MENUITEM "Rotate Mol",     IDM_RTMOL
+        MENUITEM "Rotate All",     IDM_RTALL
+    END
+
     POPUP "&Export"
     BEGIN
         MENUITEM "&BMP",           IDM_BMP
@@ -91,7 +114,7 @@ BEGIN
     ICON "RasWinIcon" -1, 2, 2, 0, 0, SS_ICON
     CTEXT "RasWin Molecular Graphics"       -1, 25,  5, 125, 8
     CTEXT "Copyright (C) R.Sayle 1992-1999" -1, 0,  23, 150, 8
-    CTEXT "Windows Version 2.7.1.1"         -1, 0,  32, 150, 8
+    CTEXT "Windows Version 2.7.2.1"         -1, 0,  32, 150, 8
     CTEXT "Copyright (C) H. Bernstein 1998-2001" -1, 0,  41, 150, 8
     CTEXT "yaya@bernstein-plus-sons.com"    -1, 0,  50, 150, 8
     CTEXT "" IDD_HARDWARE,                      0,  68, 150, 8
@@ -106,7 +129,7 @@ FONT 8,"Helv"
 BEGIN
     ICON "RasWinIcon" -1, 2, 2, 0, 0, SS_ICON
     CTEXT "RasWin Molecular Graphics"   -1, 25,  5, 175, 8
-    CTEXT "Windows Version 2.7.1.1"     -1, 25, 14, 175, 8
+    CTEXT "Windows Version 2.7.2.1"     -1, 25, 14, 175, 8
     DEFPUSHBUTTON "OK" IDOK, 81, 96, 32, 14, WS_GROUP
 
     LTEXT "" IDD_INFOTEXT1, 0,  32, 200, 8, SS_LEFTNOWORDWRAP

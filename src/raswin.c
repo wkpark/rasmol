@@ -1,9 +1,9 @@
 /***************************************************************************
- *                            RasMol 2.7.1.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
- *                                RasMol                                   *
+ *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                            17 January 2001                              *
+ *                              14 April 2001                              *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -11,15 +11,34 @@
  *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
  *                   Copyright (C) Roger Sayle 1992-1999                   *
  *                                                                         *
- *                  and Based on Mods by Arne Mueller                      *
- *                      Version 2.6x1, May 1998                            *
- *                   Copyright (C) Arne Mueller 1998                       *
+ *                          and Based on Mods by                           *
+ *Author             Version, Date             Copyright                   *
+ *Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       *
+ *Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  *
+ *Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   *
  *                                                                         *
- *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
- *                      yaya@bernstein-plus-sons.com                       *
- *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
- *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   *
+ *                                                                         *
+ *Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    * 
+ *Bernstein          RasMol 2.7.1   Jun 99         1998-2001               *
+ *                   RasMol 2.7.1.1 Jan 01                                 *
+ *                   RasMol 2.7.2   Aug 00                                 *
+ *                   RasMol 2.7.2.1 Apr 01                                 *
+ *                                                                         *
+ *                    and Incorporating Translations by                    *
+ *  Author                               Item                      Language*
+ *  Isabel Serván Martínez,                                                *
+ *  José Miguel Fernández Fernández      2.6   Manual              Spanish *
+ *  José Miguel Fernández Fernández      2.7.1 Manual              Spanish *
+ *  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish *
+ *  Jean-Pierre Demailly                 2.7.1 menus and messages  French  *
+ *  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          *
+ *  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian *
+ *                                                                         *
+ *                             This Release by                             *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
+ *                       yaya@bernstein-plus-sons.com                      *
+ *               Copyright(C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    * 
@@ -49,7 +68,32 @@
  ***************************************************************************/
 
 /* raswin.c
+ $Log: raswin.c,v $
+ Revision 1.2  2001/02/08 01:14:46  yaya
+ *** empty log message ***
+
+ Revision 1.1  2001/01/31 02:13:45  yaya
+ Initial revision
+
+ Revision 1.6  2000/08/26 18:12:41  yaya
+ Updates to header comments in all files
+
+ Revision 1.5  2000/08/13 20:56:25  yaya
+ Conversion from toolbar to menus
+
+ Revision 1.4  2000/08/09 01:18:13  yaya
+ Rough cut with ucb
+
+ Revision 1.3  2000/08/03 18:32:42  yaya
+ Parametrization for alt conformer bond radius
+
+ Revision 1.2  2000/02/23 00:00:00  yaya
+ Prelininary 2.7.2 build
+
  */
+
+#define RASMOL
+#include "rasmol.h"
 
 #include <windows.h>
 #include <shellapi.h>
@@ -64,8 +108,6 @@
 #include <ctype.h>
 #include <math.h>
 
-#define RASMOL
-#include "rasmol.h"
 #include "raswin.idm"
 #include "molecule.h"
 #include "abstree.h"
@@ -77,6 +119,9 @@
 #include "render.h"
 #include "repres.h"
 #include "outfile.h"
+#include "multiple.h"
+#include "vector.h"
+#include "wbrotate.h"
 #include "langsel.h"
 
 
@@ -210,7 +255,6 @@ static HFONT TermFont;
 static HWND CmndWin;
 
 static int PointX,PointY;
-static int LabelOptFlag;
 static int InitX,InitY;
 static int HeldButton;
 static int FileFormat;
@@ -1007,7 +1051,13 @@ static void SendItemData( HWND hSrc, HWND hDst,
 	case(AdvPickCoord):
 		  if( QAtom )
 		  { sprintf( dst, "%ld\t%ld\t%ld",
-			     QAtom->xorg, QAtom->yorg, QAtom->zorg);
+			     QAtom->xorg+QAtom->fxorg,
+#ifdef INVERT
+                             -(QAtom->yorg+QAtom->fxorg),
+#else
+                             QAtom->yorg+QAtom->fyorg,
+#endif
+                             -(QAtom->zorg+QAtom->fzorg));
 		  } else *dst = '\0';
 		  break;
 
@@ -1145,9 +1195,13 @@ static void PrepareIPCAdviseItem( int item )
                   if( !QAtom )
                   {   *dst++ = '\n'; *dst = '\0';
                   } else sprintf( dst, "%ld\t%ld\t%ld\n",
-                             (long)QAtom->xorg,
-                             (long)QAtom->yorg,
-                             (long)QAtom->zorg);
+                             (long)(QAtom->xorg+QAtom->fxorg),
+#ifdef INVERT
+                             -(long)(QAtom->yorg+QAtom->fyorg),
+#else
+                             (long)(QAtom->yorg+QAtom->fyorg),
+#endif
+                             -(long)(QAtom->zorg+QAtom->fzorg));
                   break;
 
         default:  *dst++ = '\n';
@@ -1471,6 +1525,31 @@ LONG FAR PASCAL DDECallB( HWND hWin, UINT uMsg, WPARAM wArg, LPARAM lArg )
     }
 }
 
+/* [GSG 11/16/95] */
+void SetHScroll(int pos)
+{
+    float temp = (pos/50.0)-1.0;
+
+    if ( (RotMode == RotBond) && BondSelected)
+	BondSelected->BRotValue = temp;
+    else if ( RotMode == RotAll )
+	WRotValue[1] = temp;
+    else
+	DialValue[1] = temp;
+    ReDrawFlag |= RFRotateY;
+}
+  
+void SetVScroll(int pos)
+{
+    float temp = 1.0-(pos/50.0);
+
+    if ( RotMode == RotAll )
+	WRotValue[0] = temp;
+    else
+	DialValue[0] = temp;
+    ReDrawFlag |= RFRotateX;
+}
+
 
 static void ResizeTerminal( int x, int y )
 {
@@ -1756,7 +1835,7 @@ static BOOL HandleMenu( WPARAM option )
    
     switch(option)
     {   /* File Menu */
-	case(IDM_OPEN):   if( !Database )
+	case(IDM_OPEN):   if( NumMolecules < MAX_MOLECULES )
 			      LoadInputFile(FormatPDB);
 			  break;
 			  
@@ -1784,8 +1863,17 @@ static BOOL HandleMenu( WPARAM option )
 	case(IDM_SETUP):  HandlePrintSetUp();
                           break;
 
-	case(IDM_EXIT):   PostMessage(CanvWin,WM_CLOSE,0,0L);
+    case(IDM_EXIT):   PostMessage(CanvWin,WM_CLOSE,0,0L);
 			  break;
+
+    case(IDM_MOL1):   /* Molecule 1 */
+    case(IDM_MOL2):   /* Molecule 2 */
+    case(IDM_MOL3):   /* Molecule 3 */
+    case(IDM_MOL4):   /* Molecule 4 */
+    case(IDM_MOL5):   /* Molecule 5 */
+                      SelectMolecule(option-IDM_MOL1);
+                          break;
+
 			  
         /* Edit Menu */
         case(IDM_SELECT): mask = NormAtomFlag;
@@ -1827,7 +1915,7 @@ static BOOL HandleMenu( WPARAM option )
        
 	/* Display Menu */
 	case(IDM_WIREFRAME):  DisableSpacefill();
-			      EnableWireframe(WireFlag,0);
+			      EnableWireframe(WireFlag,0,0);
 			      SetRibbonStatus(False,0,0);
 			      DisableBackbone();
 			      ReDrawFlag |= RFRefresh;
@@ -1836,14 +1924,14 @@ static BOOL HandleMenu( WPARAM option )
 	case(IDM_BACKBONE):   DisableSpacefill();
 			      DisableWireframe();
 			      SetRibbonStatus(False,0,0);
-			      EnableBackbone(CylinderFlag,80);
+			      EnableBackbone(CylinderFlag,80,64);
 			      ReDrawFlag |= RFRefresh;
 			      break;
 
 	case(IDM_STICKS):     DisableSpacefill();
 			      if( MainAtomCount<256 )
-			      {   EnableWireframe(CylinderFlag,40);
-			      } else EnableWireframe(CylinderFlag,80);
+			      {   EnableWireframe(CylinderFlag,40,32);
+			      } else EnableWireframe(CylinderFlag,80,64);
 			      SetRibbonStatus(False,0,0);
 			      DisableBackbone();
 			      ReDrawFlag |= RFRefresh;
@@ -1857,7 +1945,7 @@ static BOOL HandleMenu( WPARAM option )
 			      break;
 
 	case(IDM_BALLSTICK):  SetRadiusValue(120, SphereFlag);
-			      EnableWireframe(CylinderFlag,40);
+			      EnableWireframe(CylinderFlag,40,32);
 			      SetRibbonStatus(False,0,0);
 			      DisableBackbone();
 			      ReDrawFlag |= RFRefresh;
@@ -1954,7 +2042,12 @@ static BOOL HandleMenu( WPARAM option )
 
 	case(IDM_STEREO):    /* Stereo */
                              if( UseStereo )
-                             {   SetStereoMode(False);
+                             {   StereoAngle = -StereoAngle;
+                                 if ( StereoAngle > 0.0 ) {
+                                   SetStereoMode(False);
+                                  } else {
+                                    SetStereoMode(True);
+                                  }
                              } else SetStereoMode(True);
                              ReDrawFlag |= RFRefresh;
 			     break;
@@ -1964,6 +2057,38 @@ static BOOL HandleMenu( WPARAM option )
                              DefaultLabels(LabelOptFlag);
                              ReDrawFlag |= RFRefresh;
                              break;
+
+
+        /* Settings Menu */
+        case(IDM_PKNONE):    /* Pick Off */
+                             SetPickMode(PickNone); break;
+        case(IDM_PKIDENT):   /* Pick Ident */
+                             SetPickMode(PickIdent); break;
+        case(IDM_PKDIST):    /* Pick Distance */
+                             SetPickMode(PickDist); break;
+        case(IDM_PKMONIT):   /* Pick Monitor */
+                             SetPickMode(PickMonit); break;
+        case(IDM_PKANGLE):   /* Pick Angle */
+                             SetPickMode(PickAngle); break;
+        case(IDM_PKTORSN):   /* Pick Torsion */
+                             SetPickMode(PickTorsn); break;
+        case(IDM_PKLABEL):   /* Pick Label */
+                             SetPickMode(PickLabel); break;
+        case(IDM_PKORIGN):   /* Pick Centre */
+                             SetPickMode(PickOrign); break;
+        case(IDM_PKCOORD):   /* Pick Coord */
+                             SetPickMode(PickCoord); break;
+        case(IDM_PKBOND):    /* Pick Bond */
+                             SetPickMode(PickBond); break;
+        case(IDM_RTBOND):    /* Rotate Bond */
+                             if ( BondSelected ) {
+                               RotMode = RotBond; break;
+                             }
+        case(IDM_RTMOL):     /* Rotate Mol */
+                             RotMode = RotMol; UpdateScrollBars(); break;
+        case(IDM_RTALL):     /* Rotate All */
+                             RotMode = RotAll; UpdateScrollBars(); break;
+
 
 	/* Save Menu */
 	case(IDM_BMP):   case(IDM_GIF):
@@ -2252,7 +2377,32 @@ static void AdjustMenus( WPARAM wArg, LPARAM lArg )
 {
     register HMENU hMenu;
     register int status;
-    
+    register int curitems;
+    register int i;
+ 
+
+    if( lArg == 0)
+    {   /* File Menu */
+        hMenu = (HMENU)wArg;
+        curitems = GetMenuItemCount(hMenu);
+        if (curitems > 8) {
+          for (i = curitems; i > 8; i--) {
+            RemoveMenu(hMenu, i-1, MF_BYPOSITION);
+          }
+        }
+        if (NumMolecules > 0 ) {
+          DrawMoleculeList();
+          AppendMenu(hMenu,MF_SEPARATOR,0,NULL);
+          for (i = 0; i < NumMolecules; i++) {
+            AppendMenu(hMenu,MF_STRING|MF_ENABLED|MF_UNCHECKED,
+              IDM_MOL1+i,MolName[i]);
+            if (i==MoleculeIndex){
+              CheckMenuItem(hMenu,IDM_MOL1+i,MF_CHECKED);
+            }
+          }
+        }
+    }
+   
     if( lArg == 4 )
     {   /* Options Menu */
         hMenu = (HMENU)wArg;
@@ -2277,6 +2427,51 @@ static void AdjustMenus( WPARAM wArg, LPARAM lArg )
 
         status = LabelOptFlag ? MF_CHECKED : MF_UNCHECKED;
         CheckMenuItem(hMenu,IDM_LABELS,status);
+    }
+
+    if( lArg == 5 )
+    {   /* Settings Menu */
+        hMenu = (HMENU)wArg;
+
+        status = (PickMode==PickNone) ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_PKNONE,status);
+
+        status = (PickMode==PickIdent) ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_PKIDENT,status);
+
+        status = (PickMode==PickDist) ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_PKDIST,status);
+
+        status = (PickMode==PickMonit) ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_PKMONIT,status);
+
+        status = (PickMode==PickAngle) ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_PKANGLE,status);
+
+        status = (PickMode==PickTorsn) ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_PKTORSN,status);
+
+        status = (PickMode==PickLabel) ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_PKLABEL,status);
+
+        status = (PickMode==PickOrign) ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_PKORIGN,status);
+
+        status = (PickMode==PickCoord) ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_PKCOORD,status);
+
+        status = (PickMode==PickBond) ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_PKBOND,status);
+
+        status = (RotMode==RotBond) ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_RTBOND,status);
+
+        status = (RotMode==RotMol) ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_RTMOL,status);
+
+        status = (RotMode==RotAll) ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_RTALL,status);
+  
     }
 }
 
@@ -2304,7 +2499,7 @@ LONG FAR PASCAL MainCallB( HWND hWin, UINT uMsg, WPARAM wArg, LPARAM lArg )
     {   case(WM_DROPFILES):   /* Disable Drag & Drop */
                               if( IsPaused ) break;
 
-                              ZapDatabase();
+                              /* ZapDatabase(); */
 			      *fnamebuf = '\0';
 			      DragQueryFile((HDROP)wArg,0,fnamebuf,127);
 			      FetchFile(FormatPDB,False,fnamebuf);
@@ -2404,8 +2599,7 @@ LONG FAR PASCAL MainCallB( HWND hWin, UINT uMsg, WPARAM wArg, LPARAM lArg )
 				  pos += 100; 
 			     
 			      SetScrollPos(hWin,SB_HORZ,pos,TRUE);
-			      DialValue[1] = (pos/50.0)-1.0;
-			      ReDrawFlag |= RFRotateY;
+                              SetHScroll(pos);
 			      break;                      
 
 	case(WM_VSCROLL):     /* Vertical Scroll */
@@ -2437,14 +2631,13 @@ LONG FAR PASCAL MainCallB( HWND hWin, UINT uMsg, WPARAM wArg, LPARAM lArg )
 				  pos += 100; 
 			     
 			      SetScrollPos(hWin,SB_VERT,pos,TRUE);
-			      DialValue[0] = 1.0-(pos/50.0);
-			      ReDrawFlag |= RFRotateX;
+                              SetVScroll(pos);
 			      break;                      
 
 	case(WM_LBUTTONDOWN): 
 	case(WM_MBUTTONDOWN):
-	case(WM_RBUTTONDOWN): x = LOWORD(lArg);
-                              y = YRange-HIWORD(lArg);
+    case(WM_RBUTTONDOWN): x = LOWORD(lArg);
+                              y = HIWORD(lArg);
                               status = GetStatus(wArg);
                               ProcessMouseDown(x,y,status);
                               break;
@@ -2453,7 +2646,7 @@ LONG FAR PASCAL MainCallB( HWND hWin, UINT uMsg, WPARAM wArg, LPARAM lArg )
 	case(WM_MBUTTONUP):
 	case(WM_RBUTTONUP): /* Mouse Buttons */
                               x = LOWORD(lArg);
-                              y = YRange-HIWORD(lArg);
+                              y = HIWORD(lArg);
                               status = GetStatus(wArg);
                               ProcessMouseUp(x,y,status);
 			      break;
@@ -2461,7 +2654,7 @@ LONG FAR PASCAL MainCallB( HWND hWin, UINT uMsg, WPARAM wArg, LPARAM lArg )
 
 	case(WM_MOUSEMOVE):   /* Mouse Movement */
                               x = LOWORD(lArg);
-                              y = YRange-HIWORD(lArg);
+                              y = HIWORD(lArg);
                               status = GetStatus(wArg);
                               ProcessMouseMove(x,y,status);
 			      break;
@@ -2642,9 +2835,9 @@ static void InitFileDialogBoxes( void )
     register char *dst;
 
     dst = ifilters;
-    dst = RegisterFormat(dst,"Brookhaven Databank","*.PDB;*.ENT");
+    dst = RegisterFormat(dst,"Protein Databank","*.PDB;*.ENT");
     dst = RegisterFormat(dst,"Alchemy File Format","*.ALC;*.MOL");
-    dst = RegisterFormat(dst,"Sybyl MOL2 Format","*.SYB;*.MOL");
+    dst = RegisterFormat(dst,"Sybyl MOL2 Format","*.SYB;*.ML2;*.SY2;*.MOL");
     dst = RegisterFormat(dst,"MDL Mol File Format","*.MDL;*.MOL");
     dst = RegisterFormat(dst,"MSC (XMol) XYZ Format","*.XYZ");
     dst = RegisterFormat(dst,"CHARMm File Format","*.CHM");
@@ -2851,13 +3044,18 @@ static int ProcessOptions( char __far *ptr )
 }
 
 
+#ifdef _WIN32
+int WINAPI WinMain( HINSTANCE hCurrent, HINSTANCE hPrevious,
+                    LPSTR lpCmdLine, int nCmdShow )
+#else
 int PASCAL WinMain( HINSTANCE hCurrent, HINSTANCE hPrevious,
                     LPSTR lpCmdLine, int nCmdShow )
+#endif
 {
     register FILE *fp;
     MSG event;
     static char VersionStr[255];
-     
+
     Interactive = False;
     SwitchLang (English);
 
@@ -2900,6 +3098,9 @@ int PASCAL WinMain( HINSTANCE hCurrent, HINSTANCE hPrevious,
     InitialiseOutFile();
     InitialiseRepres();
     InitHelpFile();
+    InitialiseMultiple();
+    InitialiseWBRotate();
+    
 
 #ifdef SOCKETS
     OpenSocket(CanvWin);

@@ -1,4 +1,4 @@
-RasMol_2.7.1.1 is a molecular graphics program intended for the 
+RasMol 2.7.2.1 is a molecular graphics program intended for the 
 visualisation of proteins, nucleic acids and small molecules, based on Roger 
 Sayles' RasMol_2.6. The program is aimed at display, teaching and generation 
 of publication quality images. RasMol runs on Microsoft Windows, Apple 
@@ -18,7 +18,11 @@ notices" for important notices.
 
 RasMol Copyright (C) Roger Sayle 1992-1999
 Version 2.6x1 Mods Copyright (C) Arne Mueller 1998
-Version 2.7.0, 2.7.1 Mods Copyright (C) Herbert J. Bernstein 1998-1999
+Versions 2.5-ucb and 2.6-ucb Mods Copyright (C)
+UC Regents/ModularCHEM Consortium 1995, 1996
+RasTop 1.3 Copyright (C) Philippe Valadon 2000
+Version 2.7.0, 2.7.1, 2.7.1.1, 2.7.2, 2.7.2.1 Mods
+Copyright (C) Herbert J. Bernstein 1998-2001
 rasmol@bernstein-plus-sons.com
 
 
@@ -37,6 +41,10 @@ the RasMol2.6x1 revisions by Arne Mueller. See:
 The Ramachandran printer plot code was derived from fisipl created by 
 Frances C. Bernstein. See the Protein Data Bank program tape. 
 
+The code to display multiple molecules and to allow bond rotation is derived 
+in large part from the UCB mods by Gary Grossman and Marco Molinaro, 
+included with permission of Eileen Lewis of the ModularCHEM Consortium. 
+
 The CIF modifications make use of a library based in part on CBFlib by Paul 
 J. Ellis and Herbert J. Bernstein. See: 
       http://www.bernstein-plus-sons.com/software/CBF
@@ -52,34 +60,62 @@ version, type the RasMol command 'help oldnotice'.
 
 ?copyright
 Copyright
-                               RasMol 2.7.1.1
+                               RasMol 2.7.2.1
                      Molecular Graphics Visualisation Tool
-                               21 January 2001
+                               14 April 2001
 
-                            Based on RasMol 2.6 by
-                                 Roger Sayle
-        Biomolecular Structures Group,Glaxo Wellcome Research & Development
-                            Stevenage, Hertfordshire, UK
-                Version 2.6, August 1995, Version 2.6.4, December 1998
-                         Copyright (C) Roger Sayle 1992-1999
-                         and Based on Mods by Arne Mueller
-                               Version 2.6x1, May 1998
-                         Copyright (C) Arne Mueller 1998
+                      Based on RasMol 2.6 by Roger Sayle
+       Biomolecular Structures Group,Glaxo Wellcome Research & Development
+                         Stevenage, Hertfordshire, UK
+             Version 2.6, August 1995, Version 2.6.4, December 1998
+                      Copyright (C) Roger Sayle 1992-1999
 
-                      Version 2.7.0, 2.7.1, 2.7.1.1 Mods by
-                              Herbert J. Bernstein
-                Bernstein + Sons, P.O. Box 177, Bellport, NY, USA,
-                           yaya@bernstein-plus-sons.com
-             2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 January 2001
-                  Copyright (C) Herbert J. Bernstein 1998-2001
+                            and Based on Mods by
+
+ Author             Version, Date             Copyright
+
+ Arne Mueller       RasMol 2.6x1 May 98       (C) Arne Mueller 1998
+
+ Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM
+ Marco Molinaro     RasMol 2.5-ucb Nov 96         Consortium 1995, 1996
+
+ Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000
+
+ Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein
+ Bernstein          RasMol 2.7.1   Jun 99         1998-2001
+                    RasMol 2.7.1.1 Jan 01
+                    RasMol 2.7.2   Aug 00
+                    RasMol 2.7.2.1 Apr 01
+
+                     and Incorporating Translations by
+
+ Author                               Item                     Language
+
+ Isabel Serván Martínez,              2.6 Manual               Spanish
+ José Miguel Fernández Fernández
+ José Miguel Fernández Fernández      2.7.1 Manual             Spanish
+ Fernando Gabriel Ranea               2.7.1 menus and messages Spanish
+
+ Jean-Pierre Demailly                 2.7.1 menus and messages French
+
+ Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages Italian
+ A. Davassi, M. Masullo, C. Liotto    2.7.1 help file
+
+                              This Release by
+   Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA
+                        yaya@bernstein-plus-sons.com
+                Copyright (C) Herbert J. Bernstein 1998-2001
 ?copying rasmol
 Copying RasMol
 
 
-This version is based on RasMol version 2.6_CIF.2, RasMol 2.6x1 and 
-RasMol_2.6.4. If you are not going to make changes to RasMol, you are not 
-only permitted to freely make copies and distribute them, you are encouraged 
-to do so, provided you do the following: 
+This version is based in large part on RasMol version 2.7.2, RasMol version 
+2.7.1.1 and RasTop version 1.3 and indirectly on the RasMol 2.5-ucb and 
+2.6-ucb versions and version 2.6_CIF.2, RasMol 2.6x1 and RasMol_2.6.4. 
+
+If you are not going to make changes to RasMol, you are not only permitted 
+to freely make copies and distribute them, you are encouraged to do so, 
+provided you do the following: 
 
  1. Either include the complete documentation, especially the file NOTICE, 
 with what you distribute or provide a clear indication where people can get 
@@ -203,7 +239,7 @@ use, including death, bankruptcy or outbreak of war.
 ?iucr policy
 IUCR Policy
 The IUCr Policy for the Protection and the Promotion of the STAR File and 
-CIF Standards for Exchanging and Archiving Electronic Data 
+CIF Standards for Exchanging and Archiving Electronic Data. 
 
 Overview 
 
@@ -263,20 +299,26 @@ to verify that software meets these conformance conditions.
 
 Glossary of terms 
 
-[1] CIF: is a data file conformant to the file syntax defined at 
+[1] CIF: 
+
+is a data file conformant to the file syntax defined at 
 http://www.iucr.org/iucr-top/cif/spec/index.html 
 
-[2] STAR File: is a data file conformant to the file syntax defined at 
+[2] STAR File: 
+
+is a data file conformant to the file syntax defined at 
 http://www.iucr.org/iucr-top/cif/spec/star/index.html 
 
-[3] DDL: is a language used in a data dictionary to define data items in 
-terms of "attributes". Dictionaries currently approved by the IUCr, and the 
-DDL versions used to construct these dictionaries, are listed at 
+[3] DDL: 
+
+is a language used in a data dictionary to define data items in terms of 
+"attributes". Dictionaries currently approved by the IUCr, and the DDL 
+versions used to construct these dictionaries, are listed at 
 http://www.iucr.org/iucr-top/cif/spec/ddl/index.html 
 
 Last modified: 30 September 2000 
 
-IUCR Policy Copyright (C) 2000 International Union of Crystallography 
+IUCr Policy Copyright (C) 2000 International Union of Crystallography 
 
 ?cbflib
 CBFLIB
@@ -334,6 +376,9 @@ representations. Currently available representations include depth-cued
 wireframes, 'Dreiding' sticks, spacefilling (CPK) spheres, ball and stick, 
 solid and strand biomolecular ribbons, atom labels and dot surfaces. 
 
+Up to 5 molecules may be loaded and displayed at once. Any one or all of  
+the molecules may be rotated and translated. 
+
 The RasMol help facility can be accessed by typing "help <topic>" or "help 
 <topic> <subtopic>" from the command line. A complete list of RasMol 
 commands may be displayed by typing "help commands". A single question mark 
@@ -342,7 +387,10 @@ notices" for important notices.
 
 RasMol Copyright (C) Roger Sayle 1992-1999
 Version 2.6x1 Mods Copyright (C) Arne Mueller 1998
-Version 2.7.0. 2.7.1, 2.7.1.1 Mods
+Version 2.5-ucb, 2.6-ucb Mods
+  Copyright (C) UC Regents/ModularCHEM Consortium 1995, 1996
+RasTop 1.3 Copyright (C) Philippe Valadon 2000
+Version 2.7.0. 2.7.1, 2.7.1.1, 2.7.2, 2.7.2.1 Mods
   Copyright (C) Herbert J. Bernstein 1998-2001
   (yaya@bernstein-plus-sons.com)
 
@@ -359,16 +407,17 @@ The commands/keywords currently recognised by RasMol are given below.
 Type "help <command>" for more information on each RasMol function.
 
 
-    backbone      background    cartoon       centre        clipboard
-    colour        connect       cpk           define        dots
-    echo          English       exit          hbonds        help
-    label         load          monitor       pause         print
-    quit          refresh       renumber      reset         restrict
-    ribbons       rotate        save          script        select
-    set           show          slab          source        spacefill
-    Spanish       ssbonds       star          stereo        strands
-    structure     trace         translate     wireframe     write
-    zap           zoom
+    backbone     background   bond         cartoon      centre
+    clipboard    colour       connect      cpk          define
+    depth        dots         echo         english      exit
+    french       hbonds       help         italian      label
+    load         molecule     monitor      pause        print
+    quit         refresh      renumber     reset        restrict
+    ribbons      rotate       save         script       select
+    set          show         slab         source       spacefill
+    spanish      ssbonds      star         stereo       strands
+    structure    trace        translate    unbond       wireframe
+    write        zap          zoom
 
 
 ?backbone
@@ -410,6 +459,22 @@ RasMol also recognises colours in the X server's colour name database.
 The 'background' command is synonymous with the RasMol 'set background' 
 command. 
 
+?bond
+Bond
+Syntax:  bond <number> <number> +
+         bond <number> <number> pick
+         bond rotate {<boolean>}
+
+The RasMol command 'bond <number> <number> +' adds the designated bond to 
+the drawing, increasing the bond order if the bond already exists. The 
+command 'bond <number> <number> pick' selects the two atoms specified by the 
+atom serial numbers as the two ends of a bond around which the 'rotate bond 
+<angle>' command will be applied. If no bond exists, it is created. 
+
+Rotation around a previously picked bond may be specified by the 'rotate 
+bond <angle>' command, or may also be controlled with the mouse, using the 
+'bond rotate on/off' or the equivalent 'rotate bond on/off' commands. 
+
 ?cartoon
 Cartoon
 Syntax:  cartoon {<number>}
@@ -431,8 +496,8 @@ values.
 ?center
 ?centre
 Centre
-Syntax:  centre {<expression>}
-         center {<expression>}
+Syntax:  centre {<expression>} {translate|center}
+         center {<expression>} {translate|center}
 
 The RasMol 'centre' command defines the point about which the 'rotate' 
 command and the scroll bars rotate the current molecule. Without a parameter 
@@ -447,6 +512,12 @@ Type 'help expression' for more information on RasMol atom expressions.
 Alternatively the centring may be given as a comma separated triple of 
 [CenX, CenY, CenZ] offsets in RasMol units (1/250 of an Angstrom) from the 
 centre of gravity. The triple must be enclosed in square brackets. 
+
+The optional forms 'centre ... translate' and 'centre ... center' may be 
+used to specify use of a translated centre of rotation (not necessarily in 
+the centre of the canvas) or a centre of rotation which is placed at the 
+centre of the canvas. Starting with RasMol 2.7.2, the default is to center 
+the new axis on the canvas. 
 
 ?clipboard
 Clipboard
@@ -513,6 +584,21 @@ sets. These sets are declared statically, i.e. once defined the contents of
 the set do not change, even if the expression defining them depends on the 
 current transformation and representation of the molecule. 
 
+?depth
+Depth
+Syntax:  depth {<boolean>}
+         depth <value>
+
+The RasMol 'depth' command enables, disables or positions the back-clipping 
+plane of the molecule. The program only draws those portions of the molecule 
+that are closer to the viewer than the clipping plane. Integer values range 
+from zero at the very back of the molecule to 100 which is completely in 
+front of the molecule. Intermediate values determine the percentage of the 
+molecule to be drawn. 
+
+This command interacts with the 'slab <value>' command, which clips to the 
+front of a given z-clipping plane. 
+
 ?dot surface
 ?surface
 ?dots
@@ -550,8 +636,16 @@ English
 Syntax:  English
 
 The RasMol 'English' command sets the menus and messages to the English 
-versions. The command 'Spanish' may be used to select Spanish menus and 
-messages. 
+versions. The commands 'French', 'Italian' and 'Spanish' may be used to 
+select French, Italian and Spanish menus and messages. 
+
+?french
+French
+Syntax:  French
+
+The RasMol 'French' command sets the menus and messages to the French 
+versions. The commands 'English', 'Italian' and 'Spanish' may be used to 
+select English, Italian and Spanish menus and messages. 
 
 ?hbond
 ?hbonds
@@ -581,6 +675,14 @@ Syntax:  help {<topic> {<subtopic>}}
          ? {<topic> {<subtopic>}
 
 The RasMol 'help' command provides on-line help on the given topic. 
+
+?italian
+Italian
+Syntax:  Italian
+
+The RasMol 'Italian' command sets the menus and messages to the Italian 
+versions. The commands 'English', 'French' and 'Spanish' may be used to 
+select English, French and Spanish menus and messages. 
 
 ?labels
 ?label
@@ -640,8 +742,9 @@ format), 'alchemy' (Tripos' Alchemy file format), 'mol2' (Tripos' Sybyl Mol2
 file format), 'charmm' (CHARMm file format), 'xyz' (MSC's XMol XYZ file 
 format), 'mopac' (J. P. Stewart's MOPAC file format) or 'cif' (IUCr CIF or 
 mmCIF file format). If no file format is specified, 'PDB', 'CIF', or 'mmCIF' 
-is assumed by default. Only a single molecule may be loaded at a time. To 
-delete a molecule prior to loading another use the RasMol 'zap' command. 
+is assumed by default. Up to 5 molecules may be loaded at a time. To delete 
+a molecule prior to loading another use the RasMol 'zap' command. To select 
+a molecule for manipulation use the RasMol 'molecule <n>' command. 
 
 The 'load' command selects all the atoms in the molecule, centres it on the 
 screen and renders it as a CPK coloured wireframe model. If the molecule 
@@ -655,6 +758,16 @@ executed inside a script file may specify the keyword 'inline' instead of a
 conventional filename. This option specifies that the coordinates of the 
 molecule to load are stored in the same file as the currently executing 
 commands. 
+
+?molecule
+Molecule
+Syntax:  molecule <number>
+
+The RasMol 'molecule' command selects one of up to 5 previously loaded 
+molecules for active manipulation. While all the molcules are displayed and 
+may be rotated collectively (see the 'rotate all' command), only one 
+molecule at a time time is active for manipulation by the commands which 
+control the details of rendering. 
 
 ?monitor
 Monitor
@@ -806,13 +919,24 @@ renders the biomolecular ribbon as parallel depth-cued curves.
 ?rotate
 Rotate
 Syntax:  rotate <axis> {-} <value>
+         rotate bond {<boolean>}
+         rotate molecule {<boolean>}
+         rotate all {<boolean>}
 
 Rotate the molecule about the specified axis. Permitted values for the axis 
-parameter are "x", "y" and "z". The integer parameter states the angle in 
-degrees for the structure to be rotated. For the X and Y axes, positive 
-values move the closest point up and right, and negative values move it down 
-and left, respectively. For the Z axis, a positive rotation acts clockwise 
-and a negative angle anti-clockwise. 
+parameter are "x", "y", "z" and "bond". The integer parameter states the 
+angle in degrees for the structure to be rotated. For the X and Y axes, 
+positive values move the closest point up and right, and negative values 
+move it down and left, respectively. For the Z axis, a positive rotation 
+acts clockwise and a negative angle anti-clockwise. 
+
+Alternatively, this command may be used to specify which rotations the mouse 
+or dials will control. If 'rotate bond true' is selected, the horizontal 
+scroll bar will control rotation around the axis selected by the 'bond src 
+dst pick' command. If 'rotate all true' is selected, and multiple molecules 
+have been loaded, then all molecules will rotate together. In all other 
+cases, the mouseand dials control the the rotation of the molecule selected 
+by the 'molecule n' command. 
 
 ?save
 Save
@@ -881,36 +1005,46 @@ parameter type "help set parameter".
     cisangle        display         fontsize        fontstroke
     hbond           hetero          hourglass       hydrogen
     kinemage        menus           monitor         mouse
-    picking         radius          shadow          slabmode
-    solvent         specular        specpower       stereo
-    ssbonds         strands         transparent     unitcell
-    vectps          write
+    picking         radius          shadepower      shadow
+    slabmode        solvent         specular        specpower
+    stereo          ssbonds         strands         transparent
+    unitcell        vectps          write
 
 
 ?show
 Show
 Syntax:  show information
+         show centre
          show phipsi
          show RamPrint
+         show rotation
          show selected { group | chain |atom }
          show sequence
          show symmetry
+         show translation
+         show zoom
 
 The RasMol 'show' command display details of the status of the currently 
 loaded molecule. The command 'show information' lists the molecule's name, 
 classification, PDB code and the number of atoms, chains, groups it 
 contains. If hydrogen bonding, disulphide bridges or secondary structure 
 have been determined, the number of hbonds, ssbonds, helices, ladders and 
-turns are also displayed, respectively. The command 'show phipsi' shows the 
-phi and psi angles of the currently selected residues and the omega angles 
-of cis peptide bonds. The command 'show RamPrint' (or 'show RPP' or 'show 
-RamachandranPrinterPlot') shows a simple Ramachandran printer plot in the 
-style of Frances Bernstein's fisipl program. The command 'show selected' (or 
-'show selected group' or 'show selected chain' or 'show selected atom' ) 
-shows the groups (default), chains or atoms of the current selection. The 
-command 'show sequence' lists the residues that comprise each chain of the 
-molecule. The command 'show symmetry' shows the space group and unit cell of 
-the molecule. 
+turns are also displayed, respectively. The command 'show centre' shows any 
+non-zero centering values selected by the 'centre [CenX, CenY, CenZ]' 
+command. The command 'show phipsi' shows the phi and psi angles of the 
+currently selected residues and the omega angles of cis peptide bonds. The 
+command 'show RamPrint' (or 'show RPP' or 'show RamachandranPrinterPlot') 
+shows a simple Ramachandran printer plot in the style of Frances Bernstein's 
+fisipl program. The command 'show rotation' (or 'show rot' or 'show 
+'rotate') shows the currently selected values of z, y, x and bond rotations, 
+if any. The command 'show selected' (or 'show selected group' or 'show 
+selected chain' or 'show selected atom' ) shows the groups (default), chains 
+or atoms of the current selection. The command 'show sequence' lists the 
+residues that comprise each chain of the molecule. The command 'show 
+symmetry' shows the space group and unit cell of the molecule. The command 
+'show translation' shows any non-zero translation values selected by the 
+'translate <axis> <value>' command. The command 'show zoom' shows any 
+non-zero zoom value selected by the 'zoom <value>' command. 
 
 ?slab
 Slab
@@ -923,6 +1057,9 @@ that are further from the viewer than the slabbing plane. Integer values
 range from zero at the very back of the molecule to 100 which is completely 
 in front of the molecule. Intermediate values determine the percentage of 
 the molecule to be drawn. 
+
+This command interacts with the 'depth <value>' command, which clips to the 
+rear of a given z-clipping plane. 
 
 ?cpk
 ?spacefill
@@ -955,8 +1092,8 @@ Spanish
 Syntax:  Spanish
 
 The RasMol 'Spanish' command sets the menus and messages to the Spanish 
-versions. The command 'English' may be used to select English menus and 
-messages. 
+versions. The commands 'English', 'French' and 'Italian' may be used to 
+select English, French and Italian menus and messages. 
 
 ?ssbond
 ?bridges
@@ -1022,11 +1159,18 @@ Syntax:  stereo on
 The RasMol 'stereo' command provides side-by-side stereo display of images. 
 Stereo viewing of a molecule may be turned on (and off) either by selecting 
 'Stereo' from the 'Options' menu, or by typing the commands 'stereo on' or 
-'stereo off'. The separation angle between the two views may be adjusted 
-with the 'set stereo [-] <number>' command, where positive values result in 
-crossed eye viewing and negative values in relaxed (wall-eyed) viewing. The 
-inclusion of '[-] <number>' in the 'stereo' command, as for example in 
-'stereo 3' or 'stereo -5', also controls angle and direction. 
+'stereo off'. 
+
+Starting with RasMol version 2.7.2.1, the 'Stereo' menu selection and the 
+command 'stereo' without arguments cycle from the initial state of 'stereo 
+off' to 'stereo on' in cross-eyed mode to 'stereo on' in wall-eyed mode and 
+then back to 'stereo off'. 
+
+The separation angle between the two views may be adjusted with the 'set 
+stereo [-] <number>' command, where positive values result in crossed eye 
+viewing and negative values in relaxed (wall-eyed) viewing. The inclusion of 
+'[-] <number>' in the 'stereo' command, as for example in 'stereo 3' or 
+'stereo -5', also controls angle and direction. 
 
 The stereo command is only partially implemented. When stereo is turned on, 
 the image is not properly recentred. (This can be done with a 'translate x 
@@ -1109,10 +1253,21 @@ and a positive "y" displacement moves the molecule down the screen. The pair
 of commands 'translate x 0' and 'translate y 0' centres the molecule on the 
 screen. 
 
+?unbond
+UnBond
+Syntax:  unbond <number> <number>
+         unbond
+
+The RasMol command 'unbond <number> <number>' removes the designated bond 
+from the drawing. 
+
+The command 'unbond' without arguments removes a bond previously picked by 
+the 'bond <number> <number> pick' command. 
+
 ?wireframe
 Wireframe
 Syntax:  wireframe {<boolean>}
-         wireframe <value>
+         wireframe <value> {<value>}
 
 The RasMol 'wireframe' command represents each bond within the selected 
 region of the molecule as a cylinder, a line or a depth-cued vector. The 
@@ -1122,7 +1277,9 @@ selected bonds are displayed as cylinders by specifying a radius either as
 an integer in RasMol units or containing a decimal point as a value in 
 Angstroms. A parameter value of 500 (2.0 Angstroms) or above results in an 
 "Parameter value too large" error. Bonds may be coloured using the 'colour 
-bonds' command. 
+bonds' command. If the selected bonds involved atoms of alternate conformers 
+then the bonds are narrowed in the middle to a radius of .8 of the specified 
+radius (or to the radius specifed as the optional second parameter). 
 
 Non-bonded atoms, which could become invisible in an ordinary 'wireframe' 
 display can be marked by a preceding 'set bondmode not bonded' command. If 
@@ -1487,6 +1644,7 @@ users.
 
 ?pick
 ?picking
+?setpick
 ?set picking
 Set Picking
 Syntax:  set picking <boolean>
@@ -1501,17 +1659,20 @@ Syntax:  set picking <boolean>
          set picking centre
          set picking center
          set picking coord
+         set picking bond
+         set picking atom
+         set picking group
+         set picking chain
 
-?setpick
 The RasMol 'set picking' series of commands affects how a user may interact 
 with a molecule displayed on the screen in RasMol. 
 
-Enabling/Disabling Atom Picking: Clicking on an atom with the mouse results 
-in identification and the display of its residue name, residue number, atom 
-name, atom serial number and chain in the command window. This behavior may 
-be disabled with the command 'set picking none' and restored with the 
-command 'set picking ident'. The command 'set picking coord' adds the atomic 
-coordinates of the atom to the display. 
+Enabling/Disabling Atom Identification Picking: Clicking on an atom with the 
+mouse results in identification and the display of its residue name, residue 
+number, atom name, atom serial number and chain in the command window. This 
+behavior may be disabled with the command 'set picking none' and restored 
+with the command 'set picking ident'. The command 'set picking coord' adds 
+the atomic coordinates of the atom to the display. 
 
 Disabling picking, by using 'set picking off' is useful when executing the 
 'pause' command in RasMol scripts as it prevents the display of spurious 
@@ -1542,6 +1703,31 @@ atom position using the RasMol commands 'set picking centre' or 'set picking
 center'. In this mode, picking an atom causes all futher rotations to be 
 about that point. 
 
+Picking a Bond as a Rotation Axis: Any bond may be picked as an axis of 
+rotation for the portion of the molecule beyond the second atom selected. 
+This feature should be used with caution, since, naturally, it changes the 
+conformation of the molecule. After executing 'set picking bond' or using 
+the equivalent "Pick Bond" in the "Settings" menu, a bond to be rotated is 
+picked with the same sort of mouse clicks as are used for picking atoms for 
+a distance measurement. Normally this should be done where a bond exists, 
+but if no bond exists, it will be added. The bond cannot be used for 
+rotation if it is part of a ring of any size. All bonds selected for 
+rotation are remembered so that they can be properly reported when writing a 
+script, but only the most recently selected bond may be actively rotated. 
+
+Enabling Atom/Group/Chain Selection Picking: Atoms, groups and chains may be 
+selected (as if with the 'select' command), with the 'set picking atom', 
+'set picking group', 'set picking chain' commands. For each of these 
+commands, the shift key may be used to have a new selection added to the 
+old, and the control key may be used to have a new selection deleted from 
+the old. When the 'set picking atom' command is given, the mouse can be used 
+to pick or to drag a box around the atoms for which selection is desired. 
+When the 'set picking group' command is given, picking any an atom will 
+cause selection of all atoms which agree in residue number with the picked 
+atom, even if in different chains. When the 'set picking chain' command is 
+given, picking any atom will cause selection of all atoms which agree in 
+chain identifier with the picked atom. 
+
 ?radius
 ?set radius
 Set Radius
@@ -1557,6 +1743,23 @@ parameter determines the 'probe sphere' (solvent) radius. The parameter may
 be given as an integer in rasmol units or containing a decimal point in 
 Angstroms. The default value of this parameter is determined by the value of 
 'solvent' and changing 'solvent' resets 'radius' to its new default value. 
+
+?shadepower
+?set shadepower
+Set ShadePower
+Syntax:  set shadepower {<value>}
+
+The 'shadepower' parameter (adopted from RasTop) determines the shade 
+repartition (the contrast) used in rendering solid objects. This value 
+between 0 and 100 adjusts shading on an object surface oriented along the 
+direction to the light source. Changing the shadepower parameter does not 
+change the maximum or the minimum values of this shading, as does changing 
+the 'ambient' parameter. A value of 100 concentrates the light on the top of 
+spheres, giving a highly specular, glassy rendering (see the 'specpower' 
+parameter). A value of 0 distributes the light on the entire object. 
+
+This implementation of shadepower differs from the one in RasTop only in the 
+choice of range (0 to 100 versus -20 to 20 in RasTop). 
 
 ?shadow
 ?shadows
@@ -2262,7 +2465,6 @@ polar         * * * * * *   *     *       * *
 positive      *             *     *
 small       *             *               *
 surface       * * *   * * * *     *     * * *   *
-<TR><TH>           <TD>A<TD>R<TD>N<TD>D<TD>C<TD>E<TD>Q<TD>G<TD>H<TD>I<TD>L<TD>K<TD>M<TD>F<TD>P<TD>S<TD>T<TD>W<TD>Y<TD>V
 
 
 ?colors

@@ -12,6 +12,8 @@
         ANGLE                AngleTok
         ANGLES               AngleTok
         AROMATIC             AromaticTok
+        ASSE                 AxesTok
+        ASSI                 AxesTok
         AT                   ATTok
         ATOM                 AtomTok
         ATOMNO               AtomNoTok
@@ -46,6 +48,8 @@
         CADENAS              ChainTok
         CARTOON              CartoonTok
         CARTOONS             CartoonTok
+        CATENA               ChainTok
+        CATENE               ChainTok
         CENTER               CentreTok
         CENTRE               CentreTok
         CEX                  CEXTok
@@ -69,6 +73,7 @@
         COORDINATES          CoordTok
         COORD                CoordTok
         COORDS               CoordTok
+        COPY                 CopyTok
         CPK                  CPKTok
         CYAN                 CyanTok
         CYCLIC               CyclicTok
@@ -80,6 +85,7 @@
         DASHES               DashTok
         DATA_...             CIFDataTok
         DEFINE               DefineTok
+		DEPTH                DepthTok
         DEPTHCUE             DepthCueTok
         DIBUJO               CartoonTok
         DIBUJOS              CartoonTok
@@ -99,19 +105,27 @@
         ELANCES              BondTok
         ELEMNO               ElemNoTok
         ELEMENTNUMBER        ElemNoTok
+        ELICHE               HelixTok
         ENGLISH              EnglishTok
         EPSF                 EPSFTok
+        ELICHE               HelixTok
         ESQUELETO            BackboneTok
         ETIQUETA             LabelTok
         ETIQUETAS            LabelTok
+        ETICHETTA            LabelTok
+        ETICHETTE            LabelTok  
         EXIT                 ExitTok
       */
 
       /*
         FALSE                FalseTok
         FDAT                 FDATTok
+        FILODIFERRO          WireframeTok
+        FILDIFERRO           WireframeTok
+        FILI                 StrandsTok  
         FONTSIZE             FontSizeTok
-        FONTSTROKE           FontStroke
+        FONTSTROKE           FontStrokeTok
+        FRENCH               FrenchTok
         FS                   FSTok
       */
 
@@ -128,6 +142,7 @@
         GREY                 GrayTok
         GROUP                GroupTok
         GRUPO                GroupTok
+        GRUPPO               GroupTok 
       */
 
       /*
@@ -151,6 +166,7 @@
       /*
         IDENT                IdentifyTok
         IDENTIFY             IdentifyTok
+		IMAGE				 ImageTok
         INFO                 InfoTok
         INFORMATION          InfoTok
         INLINE               InLineTok
@@ -158,6 +174,7 @@
         ION                  IonTok
         IONS                 IonTok
         IRIS                 IRISTok
+        ITALIAN              ItalianTok
       */
 
       /*
@@ -187,6 +204,7 @@
         MMDB                 MMDBTok
         MODEL                ModelTok
         MOL2                 Mol2Tok
+        MOLECULE             MoleculeTok
         MOLSCRIPT            MolScriptTok
         MONITOR              MonitorTok
         MONITORS             MonitorTok
@@ -200,6 +218,8 @@
       */
 
       /*
+        NASTRO               RibbonTok 
+        NASTRI               RibbonTok 
         NEGATIVE             AcidicTok
         NEUTRAL              NeutralTok
         NMRPDB               NMRPDBTok
@@ -218,6 +238,7 @@
       */
 
       /*
+        PASTE				 PasteTok
         PAUSE                WaitTok
         PDB                  PDBTok
         PHIPSI               PhiPsiTok
@@ -279,21 +300,27 @@
         RIBBONS              RibbonTok
         RIBBONS1             Ribbon1Tok
         RIBBONS2             Ribbon2Tok
+        RIEMPIMENTO          SpacefillTok
         RNA                  RNATok
+        ROT                  RotateTok
         ROTATE               RotateTok
+        ROTATION             RotateTok
         RPP                  RamPrintTok
       */
 
       /*
         SALIR                ExitTok
         SAVE                 SaveTok
+        SCHELETRO            BackboneTok
         SCRIPT               ScriptTok
         SECTION              SectionTok
         SEAGREEN             SeaGreenTok
         SELECT               SelectTok
         SELECTED             SelectedTok
+        SELECTION            SelectionTok
         SEQUENCE             SequenceTok
         SET                  SetTok
+        SHADEPOWER           ShadePowerTok
         SHADOW               ShadowTok
         SHADOWS              ShadowTok
         SHAPELY              ShapelyTok
@@ -331,19 +358,22 @@
       /*
         TEMPERATURE          TemperatureTok
         TITLE                TitleTok
-        TODO                 AllTok 
+        TODO                 AllTok
         TORSION              TorsionTok
         TORSIONS             TorsionTok
         TRACE                TraceTok
         TRANSLATE            TranslateTok
+        TRANSLATION          TranslateTok
         TRANSPARENT          TransparentTok
         TRUE                 TrueTok
         TURN                 TurnTok
         TURNS                TurnTok
+        TUTTO                AllTok 
         TYPE                 TypeTok
       */
 
       /*
+        UNBOND               UnBondTok
         UNITCELL             UnitCellTok
         USER                 UserTok
       */
@@ -351,7 +381,10 @@
       /*
         VDW                  VDWTok
         VECTPS               VectPSTok
+		VIEW                 ViewTok
+        VIGNETTA             CartoonTok
         VIOLET               VioletTok
+        VISUALIZZA           DisplayTok 
         VRML                 VRMLTok
       */
 

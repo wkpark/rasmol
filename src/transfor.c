@@ -1,9 +1,9 @@
 /***************************************************************************
- *                              RasMol 2.7.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
  *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                              22 June 1999                               *
+ *                              14 April 2001                              *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -11,15 +11,34 @@
  *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
  *                   Copyright (C) Roger Sayle 1992-1999                   *
  *                                                                         *
- *                  and Based on Mods by Arne Mueller                      *
- *                      Version 2.6x1, May 1998                            *
- *                   Copyright (C) Arne Mueller 1998                       *
+ *                          and Based on Mods by                           *
+ *Author             Version, Date             Copyright                   *
+ *Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       *
+ *Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  *
+ *Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   *
  *                                                                         *
- *           Version 2.7.0, 2.7.1 Mods by Herbert J. Bernstein             *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
- *                      yaya@bernstein-plus-sons.com                       *
- *                    2.7.0 March 1999, 2.7.1 June 1999                    *
- *              Copyright (C) Herbert J. Bernstein 1998-1999               *
+ *Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   *
+ *                                                                         *
+ *Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    * 
+ *Bernstein          RasMol 2.7.1   Jun 99         1998-2001               *
+ *                   RasMol 2.7.1.1 Jan 01                                 *
+ *                   RasMol 2.7.2   Aug 00                                 *
+ *                   RasMol 2.7.2.1 Apr 01                                 *
+ *                                                                         *
+ *                    and Incorporating Translations by                    *
+ *  Author                               Item                      Language*
+ *  Isabel Serván Martínez,                                                *
+ *  José Miguel Fernández Fernández      2.6   Manual              Spanish *
+ *  José Miguel Fernández Fernández      2.7.1 Manual              Spanish *
+ *  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish *
+ *  Jean-Pierre Demailly                 2.7.1 menus and messages  French  *
+ *  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          *
+ *  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian *
+ *                                                                         *
+ *                             This Release by                             *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
+ *                       yaya@bernstein-plus-sons.com                      *
+ *               Copyright(C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    * 
@@ -49,6 +68,31 @@
  ***************************************************************************/
 
 /* transfor.c
+ $Log: transfor.c,v $
+ Revision 1.1  2001/01/31 02:13:45  yaya
+ Initial revision
+
+ Revision 1.10  2000/08/27 00:54:51  yaya
+ create rotation bond database
+
+ Revision 1.9  2000/08/26 18:12:48  yaya
+ Updates to header comments in all files
+
+ Revision 1.8  2000/08/26 17:31:10  yaya
+ Fix for world rot, remove refs to toolbar
+
+ Revision 1.6  2000/08/21 21:07:52  yaya
+ semi-final ucb mods
+
+ Revision 1.5  2000/08/18 16:40:49  yaya
+ *** empty log message ***
+
+ Revision 1.4  2000/08/13 20:56:32  yaya
+ Conversion from toolbar to menus
+
+ Revision 1.3  2000/08/09 01:18:21  yaya
+ Rough cut with ucb
+
  */
 #include "rasmol.h"
 
@@ -76,6 +120,9 @@
 #include "render.h"
 #include "repres.h"
 #include "graphics.h"
+#include "multiple.h" /* [GSG 11/9/95] */
+#include "vector.h"   /* [GSG 11/14/95] */
+#include "wbrotate.h" /* [GSG 11/14/95] */
 
 
 #define CPKMAX  16
@@ -199,10 +246,6 @@ static ShadeRef PotentialShade[] = {
 static int MaskColour[MAXMASK];
 static int MaskShade[MAXMASK];
 
-static Real LastRX,LastRY,LastRZ;
-static Real Zoom;
-
-
 
 void DetermineClipping( void )
 {
@@ -227,34 +270,37 @@ void SetRadiusValue( int rad , int flag)
     register int irad,change;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
 
     if( !Database )
         return;
 
-    irad = (int)(Scale*rad);
+    irad = (int)(Scale*(Real)(rad));
     MaxAtomRadius = 0;
-    if (flag == SphereFlag )
-    { DrawAtoms = False;
-    } else { 
-      DrawStars = False; 
-    }
+	DrawAtoms = False;
+	DrawStars = False; 
      change = False;
 
     ForEachAtom
         if( ptr->flag & SelectFlag )
         {   if( irad>MaxAtomRadius )
                 MaxAtomRadius = irad;
-            ptr->flag |= flag;
+			if (flag == SphereFlag )
+			{	ptr->flag |= SphereFlag;
+				ptr->flag &= ~StarFlag;
+			} else
+			{	ptr->flag |= StarFlag;
+				ptr->flag &= ~SphereFlag;
+			}
             ptr->radius = rad;
             ptr->irad = irad;
             change = True;
-        } else if( ptr->flag & flag )
-        {   if (flag == SphereFlag )
-            { DrawAtoms = True;
-            } else { 
-              DrawStars = True;
-            }
+        } else if( ptr->flag & SphereFlag )
+        {	DrawAtoms = True;
+            if( ptr->irad>MaxAtomRadius )
+                MaxAtomRadius = ptr->irad;
+        } else if( ptr->flag & StarFlag )
+		{	DrawStars = True;
             if( ptr->irad>MaxAtomRadius )
                 MaxAtomRadius = ptr->irad;
         }
@@ -277,17 +323,14 @@ void SetRadiusTemperature( int flag )
     register int rad,irad,change;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
 
     if( !Database )
         return;
 
     MaxAtomRadius = 0;
-    if( flag == SphereFlag )
-    { DrawAtoms = False;
-    } else { 
-      DrawStars = False; 
-    }
+	DrawAtoms = False;
+	DrawStars = False; 
     change = False;
 
     ForEachAtom
@@ -295,19 +338,25 @@ void SetRadiusTemperature( int flag )
         {   rad = (5*ptr->temp)>>1;
             if( rad>750 ) rad = 750;
 
-            irad = (int)(Scale*rad);
+            irad = (int)(Scale*(Real)(rad));
             if( irad>MaxAtomRadius )
                 MaxAtomRadius = irad;
-            ptr->flag |= flag;
+			if (flag == SphereFlag )
+			{	ptr->flag |= SphereFlag;
+				ptr->flag &= ~StarFlag;
+			} else 
+			{	ptr->flag |= StarFlag;
+				ptr->flag &= ~SphereFlag;
+			}
             ptr->radius = rad;
             ptr->irad = irad;
             change = True;
-        } else if( ptr->flag & flag )
-        {   if ( flag == SphereFlag )
-            { DrawAtoms = True;
-            } else { 
-              DrawStars = True;
-            }
+        } else if( ptr->flag & SphereFlag )
+        {	DrawAtoms = True;
+            if( ptr->irad>MaxAtomRadius )
+                MaxAtomRadius = ptr->irad;
+        } else if( ptr->flag & StarFlag )
+		{	DrawStars = True;
             if( ptr->irad>MaxAtomRadius )
                 MaxAtomRadius = ptr->irad;
         }
@@ -330,36 +379,39 @@ void SetVanWaalRadius( int flag )
     register int rad,change;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
 
     if( !Database )
         return;
 
     MaxAtomRadius = 0;
-    if (flag == SphereFlag )
-    { DrawAtoms = False;
-    } else { 
-      DrawStars = False; 
-    }
-    DrawAtoms = False;
+	DrawAtoms = False;
+	DrawStars = False; 
+    change = False;
 
     ForEachAtom
         if( ptr->flag&SelectFlag )
         {   rad = ElemVDWRadius(ptr->elemno);
-            ptr->irad = (int)(Scale*rad);
+            ptr->irad = (int)(Scale*(Real)(rad));
             ptr->radius = rad;
             change = True;
 
-            ptr->flag |=flag;
+			if (flag == SphereFlag )
+			{	ptr->flag |= SphereFlag;
+				ptr->flag &= ~StarFlag;
+			} else 
+			{	ptr->flag |= StarFlag;
+				ptr->flag &= ~SphereFlag;
+			}
             if( ptr->irad>MaxAtomRadius )
                 MaxAtomRadius = ptr->irad;
-        } else if( ptr->flag&flag )
-        {   if (flag == SphereFlag )
-            { DrawAtoms = True;
-            } else { 
-              DrawStars = True;
-            }
+        } else if( ptr->flag & SphereFlag )
+        {	DrawAtoms = True;
             if( ptr->irad>MaxAtomRadius )
+                MaxAtomRadius = ptr->irad;
+        } else if( ptr->flag & StarFlag )
+		{	DrawStars = True;
+           if( ptr->irad>MaxAtomRadius )
                 MaxAtomRadius = ptr->irad;
         }
 
@@ -380,9 +432,9 @@ void DisableSpacefill( void )
 {
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
 
-    if( !Database || !DrawAtoms )
+    if( !Database )
         return;
 
     MaxAtomRadius = 0;
@@ -401,7 +453,7 @@ void DisableSpacefill( void )
                     MaxAtomRadius = ptr->irad;
                 DrawStars = True;
             }
-        } else if( ptr->flag&SphereFlag )
+        } else if( ptr->flag&SphereFlag || ptr->flag&StarFlag )
           {
             ptr->flag &= ~SphereFlag;
             ptr->flag &= ~StarFlag;
@@ -413,13 +465,13 @@ void DisableSpacefill( void )
 }
 
 
-void EnableWireframe( int mask, int rad )
+void EnableWireframe( int mask, int rad, int arad )
 {
     register Bond __far *bptr;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
-    register int flag, irad;
+    register RAtom __far *ptr;
+    register int flag, irad, iarad;
     register int starrad, istarrad, change;
 
     if( !Database )
@@ -427,7 +479,12 @@ void EnableWireframe( int mask, int rad )
 
     DrawBonds = False;
     MaxBondRadius = 0;
-    irad = (int)(Scale*rad);
+    irad = (int)(Scale*(Real)(rad));
+    if ( arad < rad ) {
+      iarad = (int)(Scale*(Real)(arad));
+    } else {
+      iarad = irad;
+    }
 
     ForEachBond
     {   flag = ZoneBoth? bptr->dstatom->flag & bptr->srcatom->flag
@@ -442,6 +499,13 @@ void EnableWireframe( int mask, int rad )
                     MaxBondRadius = irad;
                 bptr->radius = rad;
                 bptr->irad = irad;
+                if ( arad < rad ) {
+                  bptr->aradius = arad;
+                  bptr->iarad = iarad;
+                } else {
+		  bptr->aradius = rad;
+                  bptr->iarad = irad;
+                }
             }
         } else if( bptr->flag&DrawBondFlag )
         {    DrawBonds = True;
@@ -452,24 +516,33 @@ void EnableWireframe( int mask, int rad )
     }
 
     if ( MarkAtoms & (AllAtomFlag | NonBondFlag) )
-    { starrad = 75;
-      istarrad = (int)(Scale*starrad);
+    { if( rad <= 50 )
+		starrad = 75;
+	  else
+		starrad = (int) (1.5*rad);
+      istarrad = (int)(Scale*(Real)(starrad));
       change = False;
       ForEachAtom
       { if ( (ptr->flag & SelectFlag) &&
           (MarkAtoms&AllAtomFlag) || (ptr->flag&NonBondFlag) ) 
-        {  ptr->flag |= ( rad == 0 )?StarFlag:SphereFlag;
+        {	if( rad == 0 )
+			{	ptr->flag |= StarFlag;
+				ptr->flag &= ~SphereFlag;
+			} else
+			{	ptr->flag |= SphereFlag;
+				ptr->flag &= ~StarFlag;
+			}
            ptr->radius = starrad;
            ptr->irad = istarrad;
            change = True;
         }
       }
       if ( change )
-	{  if ( rad == 0 )
-	   { DrawStars = True;
-           } else {
-             DrawAtoms = True;
-           }
+	{   if ( rad == 0 )
+	    {  DrawStars = True;
+        } else {
+           DrawAtoms = True;
+        }
         MaxAtomRadius = istarrad;
         DetermineClipping();
         VoxelsClean = False;
@@ -508,16 +581,21 @@ void DisableWireframe( void )
 }
 
 
-void EnableBackbone( int mask, int rad )
+void EnableBackbone( int mask, int rad, int arad )
 {
     register Chain __far *chain;
     register Bond __far *bptr;
-    register int flag,irad;
+    register int flag,irad,iarad;
 
     if( !Database )
         return;
 
-    irad = (int)(Scale*rad);
+    irad = (int)(Scale*(Real)(rad));
+    if ( arad < rad ) {
+      iarad = (int)(Scale*(Real)(arad));
+    } else {
+      iarad = irad;
+    }
 
     ForEachBack
     {   flag = ZoneBoth? bptr->dstatom->flag & bptr->srcatom->flag
@@ -529,6 +607,13 @@ void EnableBackbone( int mask, int rad )
             if( mask == CylinderFlag )
             {   bptr->radius = rad;
                 bptr->irad = irad;
+                if (arad < rad) {
+                  bptr->aradius = arad;
+                  bptr->iarad = iarad;
+                } else {
+                  bptr->aradius = rad;
+                  bptr->iarad = irad;
+                }
             }
         } 
     }
@@ -553,13 +638,13 @@ void DisableBackbone( void )
 }
 
 
-void SetHBondStatus( int hbonds, int enable, int rad )
+void SetHBondStatus( int hbonds, int enable, int rad, int arad )
 {
     register HBond __far *list;
     register HBond __far *ptr;
-    register Atom __far *src;
-    register Atom __far *dst;
-    register int flag, irad;
+    register RAtom __far *src;
+    register RAtom __far *dst;
+    register int flag, irad, iarad;
 
     if( !Database )
         return;
@@ -574,7 +659,13 @@ void SetHBondStatus( int hbonds, int enable, int rad )
         list = Database->slist;
     }
 
-    irad = (int)(Scale*rad);
+    irad = (int)(Scale*(Real)(rad));
+    if ( arad < rad ) {
+      iarad = (int)(Scale*(Real)(arad));
+    } else {
+      iarad = irad;
+    }
+
     for( ptr=list; ptr; ptr=ptr->hnext )
     {   src = ptr->src;  dst = ptr->dst;
 
@@ -586,6 +677,13 @@ void SetHBondStatus( int hbonds, int enable, int rad )
                 {   ptr->flag |= CylinderFlag;
                     ptr->radius = rad;
                     ptr->irad = irad;
+                    if ( arad < rad ) {
+                      ptr->aradius = arad;
+                      ptr->iarad = iarad;
+                    } else {
+                      ptr->aradius = rad;
+                      ptr->iarad = irad;
+                    }
                 } else ptr->flag |= WireFlag;
             }
         }
@@ -597,7 +695,7 @@ void SetRibbonStatus( int enable, int flag, int width )
 {
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
 
     if( !Database )
         return;
@@ -660,7 +758,7 @@ void SetRibbonCartoons( void )
 {
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
 
     if( !Database )
         return;
@@ -709,7 +807,7 @@ void SetTraceTemperature( void )
 {
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
     register int init,flag;
     register int min = 0,max = 0;
     register Real coeff;
@@ -772,7 +870,7 @@ void SetTraceTemperature( void )
 /* Atom Selection Functions! */
 /*===========================*/
 
-static void DisplaySelectCount( void )
+void DisplaySelectCount( void )
 {
     char buffer[40];
 
@@ -792,12 +890,106 @@ static void DisplaySelectCount( void )
 }
 
 
+void SelectArea( int mode, int count, int xo, int yo, int x, int y )
+{
+    register Bond __far *bptr;
+    register Chain __far *chain;
+    register Group __far *group;
+    register RAtom __far *ptr;
+	register int x1,x2,y1,y2;
+	register int Cx,Cy;
+
+    if( !Database )
+        return;
+
+#ifdef INVERT
+	yo = YRange - yo;
+	y = YRange - y;
+#endif
+
+/*Adjust to cursor display*/
+#ifdef IBMPC
+	Cx = 0;
+	Cy = 1;
+#else
+	Cx = 0;
+	Cy = 0;
+#endif
+	
+	x1 = MinFun(xo,x) - Cx;
+	x2 = MaxFun(xo,x) - Cx;
+	y1 = MinFun(yo,y) - Cy;
+	y2 = MaxFun(yo,y) - Cy;
+
+	if( DrawArea )
+	{	AreaX1 = x1;
+		AreaX2 = x2;
+		AreaY1 = y1;
+		AreaY2 = y2;
+	}
+  
+	/*if count, perform a full atom selection and count atoms*/
+	if( count )
+	{	SelectCount = 0;
+		if( mode==0 )
+		{    ForEachAtom
+			   if( ptr->x>x1 && ptr->x<=x2 && ptr->y>y1 && ptr->y<=y2 )
+			    {   ptr->flag |= SelectFlag;
+			        SelectCount++;
+			    } else ptr->flag &= ~SelectFlag;
+		} else if( mode==1 )
+		{    ForEachAtom
+			   if( ptr->x>x1 && ptr->x<=x2 && ptr->y>y1 && ptr->y<=y2 )
+			    {   ptr->flag |= SelectFlag;
+			        SelectCount++;
+			    } else if( ptr->flag&SelectFlag )
+				{   SelectCount++;
+				}
+		} else /*mode = -1 */
+		{    ForEachAtom
+			   if( ptr->x>x1 && ptr->x<=x2 && ptr->y>y1 && ptr->y<=y2 )
+			    {   ptr->flag &= ~SelectFlag;
+			    } else if( ptr->flag&SelectFlag )
+				{   SelectCount++;
+				}
+		}
+
+	    if( ZoneBoth )
+	    {   ForEachBond
+	           if( (bptr->srcatom->flag&bptr->dstatom->flag) & SelectFlag )
+	           {   bptr->flag |= SelectFlag;
+	           } else bptr->flag &= ~SelectFlag;
+	    } else
+	        ForEachBond
+	           if( (bptr->srcatom->flag|bptr->dstatom->flag) & SelectFlag )
+	           {   bptr->flag |= SelectFlag;
+	           } else bptr->flag &= ~SelectFlag;
+		DisplaySelectCount();
+	} else {	/*Go fast for quick redraw*/
+		if( mode==0 )
+		{    ForEachAtom
+			    if( ptr->x>x1 && ptr->x<=x2 && ptr->y>y1 && ptr->y<=y2 )
+			    {   ptr->flag |= SelectFlag;
+			    } else ptr->flag &= ~SelectFlag;
+		} else if( mode==1 )
+		{    ForEachAtom
+			    if( ptr->x>x1 && ptr->x<=x2 && ptr->y>y1 && ptr->y<=y2 )
+					ptr->flag |= SelectFlag;
+		} else /*mode = -1 */
+		{    ForEachAtom
+			    if( ptr->x>x1 && ptr->x<=x2 && ptr->y>y1 && ptr->y<=y2 )
+					ptr->flag &= ~SelectFlag;
+		}
+	}
+}
+
+
 void SelectZone( int mask )
 {
     register Bond __far *bptr;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
 
     if( !Database )
         return;
@@ -829,7 +1021,7 @@ void RestrictZone( int mask )
     register Bond __far *bptr;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
     register int flag;
 
     if( !Database )
@@ -911,18 +1103,39 @@ void RestrictZone( int mask )
 void SelectZoneExpr( Expr *expr )
 {
     register Bond __far *bptr;
+    register AtomSet __far *pset;
+	register int i;
 
     if( !Database )
         return;
 
     SelectCount = 0;
-    for( QChain=Database->clist; QChain; QChain=QChain->cnext )
+	/*Shortcut for defined atomsets*/
+	if( expr->type==OpMember )
+	{	for( QChain=Database->clist; QChain; QChain=QChain->cnext )
+		    for( QGroup=QChain->glist; QGroup; QGroup=QGroup->gnext )
+		        for( QAtom=QGroup->alist; QAtom; QAtom=QAtom->anext )
+		            QAtom->flag &= ~SelectFlag;
+
+		pset = expr->rgt.set;
+	    while( pset )
+		{   for( i=0; i<pset->count; i++ )
+		    {   QAtom = pset->data[i];
+				QAtom->flag |= SelectFlag;
+		        SelectCount++;
+			}
+			pset = pset->next;
+		}
+    } else
+	{	for( QChain=Database->clist; QChain; QChain=QChain->cnext )
         for( QGroup=QChain->glist; QGroup; QGroup=QGroup->gnext )
             for( QAtom=QGroup->alist; QAtom; QAtom=QAtom->anext )
                 if( EvaluateExpr(expr) )
                 {   QAtom->flag |= SelectFlag;
                     SelectCount++;
                 } else QAtom->flag &= ~SelectFlag;
+    }
+    
     DisplaySelectCount();
 
     if( ZoneBoth )
@@ -943,7 +1156,7 @@ void RestrictZoneExpr( Expr *expr )
     register Bond __far *bptr;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
     register int flag;
 
     if( !Database )
@@ -1021,6 +1234,123 @@ void RestrictZoneExpr( Expr *expr )
     DetermineClipping();
     VoxelsClean = False;
     BucketFlag = False;
+}
+
+void SelectAtom( int shift, RAtom __far *PAtom, Group __far *PGroup )
+{	register Bond __far *bptr;
+	
+	SelectCount = 0;
+	for( QChain=Database->clist; QChain; QChain=QChain->cnext )
+		for( QGroup=QChain->glist; QGroup; QGroup=QGroup->gnext )
+			for( QAtom=QGroup->alist; QAtom; QAtom=QAtom->anext )
+				if( QAtom->serno == PAtom->serno || 
+					(ModelInclude && 
+					 QGroup->serno == PGroup->serno &&
+					 QAtom->serno - QGroup->alist->serno == 
+					 PAtom->serno - PGroup->alist->serno) )
+	            {	if( shift == -1 )
+					{	QAtom->flag &= ~SelectFlag;
+					} else
+					{	QAtom->flag |= SelectFlag;
+						SelectCount++;
+					}
+				} else 
+				{	if( !shift ) 
+					{	QAtom->flag &= ~SelectFlag;
+					} else
+					{	if( QAtom->flag & SelectFlag)
+							SelectCount++;
+					}
+				}
+
+	DisplaySelectCount();
+
+	if( ZoneBoth )
+	{   ForEachBond
+		if( (bptr->srcatom->flag&bptr->dstatom->flag) & SelectFlag )
+           {   bptr->flag |= SelectFlag;
+           } else bptr->flag &= ~SelectFlag;
+	} else
+        ForEachBond
+           if( (bptr->srcatom->flag|bptr->dstatom->flag) & SelectFlag )
+           {   bptr->flag |= SelectFlag;
+           } else bptr->flag &= ~SelectFlag;
+}
+
+void SelectGroup( int shift, Group __far *PGroup )
+{	register Bond __far *bptr;
+
+	SelectCount = 0;
+	for( QChain=Database->clist; QChain; QChain=QChain->cnext )
+		for( QGroup=QChain->glist; QGroup; QGroup=QGroup->gnext )
+			for( QAtom=QGroup->alist; QAtom; QAtom=QAtom->anext )
+				if( QGroup->serno == PGroup->serno && 
+					(ModelInclude || QGroup->model == PGroup->model) )
+	            {	if( shift == -1 )
+					{	QAtom->flag &= ~SelectFlag;
+					} else
+					{	QAtom->flag |= SelectFlag;
+						SelectCount++;
+					}
+				} else 
+				{	if( !shift ) 
+					{	QAtom->flag &= ~SelectFlag;
+					} else
+					{	if( QAtom->flag & SelectFlag)
+							SelectCount++;
+					}
+				}
+
+	DisplaySelectCount();
+
+	if( ZoneBoth )
+	{   ForEachBond
+		if( (bptr->srcatom->flag&bptr->dstatom->flag) & SelectFlag )
+           {   bptr->flag |= SelectFlag;
+           } else bptr->flag &= ~SelectFlag;
+	} else
+        ForEachBond
+           if( (bptr->srcatom->flag|bptr->dstatom->flag) & SelectFlag )
+           {   bptr->flag |= SelectFlag;
+           } else bptr->flag &= ~SelectFlag;
+}
+
+void SelectChain( int shift, Chain __far *PChain )
+{	register Bond __far *bptr;
+
+	SelectCount = 0;
+	for( QChain=Database->clist; QChain; QChain=QChain->cnext )
+		for( QGroup=QChain->glist; QGroup; QGroup=QGroup->gnext )
+			for( QAtom=QGroup->alist; QAtom; QAtom=QAtom->anext )
+				if( QChain->ident == PChain->ident &&
+					(ModelInclude || QChain->model == PChain->model) )
+	            {	if( shift == -1)
+					{	QAtom->flag &= ~SelectFlag;
+					} else
+					{	QAtom->flag |= SelectFlag;
+						SelectCount++;
+					}
+				} else 
+				{	if( !shift  ) 
+					{	QAtom->flag &= ~SelectFlag;
+					} else
+					{	if( QAtom->flag & SelectFlag)
+							SelectCount++;
+					}
+				}
+
+	DisplaySelectCount();
+
+	if( ZoneBoth )
+	{   ForEachBond
+		if( (bptr->srcatom->flag&bptr->dstatom->flag) & SelectFlag )
+           {   bptr->flag |= SelectFlag;
+           } else bptr->flag &= ~SelectFlag;
+	} else
+        ForEachBond
+           if( (bptr->srcatom->flag|bptr->dstatom->flag) & SelectFlag )
+           {   bptr->flag |= SelectFlag;
+           } else bptr->flag &= ~SelectFlag;
 }
 
 
@@ -1112,7 +1442,7 @@ void ScaleColourMap( int count )
 }
 
 
-static void SetLutEntry( int i, int r, int g, int b )
+void SetLutEntry( int i, int r, int g, int b )
 {
     ULut[i] = True;
     RLut[i] = r;
@@ -1132,11 +1462,9 @@ static Real Power( Real x, int y )
     register Real result;
 
     result = x;
-    while( y > 1 )
-    {   if( y & 1 )
-            result *= x;
-        result *= result;
-        y >>= 1;
+    while( y >= 1 )
+    {   result *= x;
+        y -= 1;
     }
     return result;
 }
@@ -1178,6 +1506,10 @@ void DefineColourMap( void )
     } else
         for( i=0; i<ColourDepth; i++ )
         {   temp = (Real)i/ColourMask;
+ 			
+			if( ShadePower )
+				temp = pow(temp,exp((double)ShadePower/10));
+
             inten = diffuse*temp + Ambient;
             fade = 1.0-inten;
 
@@ -1228,12 +1560,16 @@ void ResetColourMap( void )
 
     SpecPower = 8;
     FakeSpecular = False;
+    ShadePower = 0;
     Ambient = DefaultAmbient;
     UseBackFade = False;
+	UseDotColPot = False;
 
     BackR = BackG = BackB = 0;
     BoxR = BoxG = BoxB = 255;
     LabR = LabG = LabB = 255;
+	DotR = DotG = DotB = 255;
+	UseDotColPot = False;
 
     for( i=0; i<LastShade; i++ )
         Shade[i].refcount = 0;
@@ -1326,8 +1662,8 @@ void ColourHBondNone( int hbonds )
 {
     register HBond __far *list;
     register HBond __far *ptr;
-    register Atom __far *src;
-    register Atom __far *dst;
+    register RAtom __far *src;
+    register RAtom __far *dst;
 
     if( !Database )
         return;
@@ -1432,7 +1768,7 @@ void ColourRibbonNone( int flag )
 {
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
 
     if( !Database )
         return;
@@ -1464,7 +1800,7 @@ void ColourRibbonAttrib( int flag, int r, int g, int b )
     register int shade, col;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
 
     if( Database )
     {   if( Info.helixcount >= 0 )
@@ -1541,6 +1877,11 @@ void ColourDotsAttrib( int r, int g, int b )
     register DotStruct __far *ptr;
     register int i,shade,col;
 
+	DotR = r;
+	DotG = g;
+	DotB = b;
+	UseDotColPot = False;
+
     if( Database )
     {   for( ptr=DotPtr; ptr; ptr=ptr->next )
             for( i=0; i<ptr->count; i++ )
@@ -1565,7 +1906,7 @@ int CalculatePotential( Long x, Long y, Long z )
 {
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
     register Long dx,dy,dz;
     register Long result;
     register Card dist;
@@ -1581,13 +1922,13 @@ int CalculatePotential( Long x, Long y, Long z )
 
     result = 0;
     ForEachAtom
-    {   dx = ptr->xorg-x;
+    {   dx = ptr->xorg + ptr->fxorg - x;
         if( (dist=dx*dx) < max )
-        {   dy = ptr->yorg - y;
+        {   dy = ptr->yorg + ptr->fyorg - y;
             if( (dist+=dy*dy) < max )
-            {   dz = ptr->zorg - z;
+            {   dz = ptr->zorg + ptr->fzorg - z;
                 if( (dist+=dz*dz) < max )
-                    result += (CoulombScale*ptr->temp) / (int)isqrt(dist);
+                    result += (CoulombScale*(Real)(ptr->temp)) / (int)isqrt(dist);
             }
         }
     }
@@ -1603,6 +1944,8 @@ void ColourDotsPotential( void )
     register DotStruct __far *ptr;
     register int i,shade,result;
     register ShadeRef *ref;
+
+	UseDotColPot = True;
 
     if( Database )
     {   for( i=0; i<8; i++ )
@@ -1654,7 +1997,7 @@ static void ResetColourAttrib( void )
 {
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
 
     ForEachAtom
         if( (ptr->flag&SelectFlag) && ptr->col )
@@ -1667,7 +2010,7 @@ void MonoColourAttrib( int r, int g, int b )
     register int shade,col;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
 
     if( Database )
     {   ResetColourAttrib();
@@ -1688,7 +2031,7 @@ void AddAltlColours( void )
     register ShadeRef *ref;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
 
     /* Add colours for any alternate conformations used */    
 
@@ -1720,9 +2063,9 @@ void ScaleColourAttrib( int attr )
     register int count, attrno, factor;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
     register Long temp;
-    register int i, ic;
+    register int i;
 
     if( !Database ) return;
 
@@ -1952,7 +2295,7 @@ void UserMaskAttrib( int fields )
     register int i, rad, match;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
 
     if( !Database ) return;
 
@@ -2029,7 +2372,7 @@ void UserMaskAttrib( int fields )
 
         if( fields & MaskRadiusFlag )
         {   rad = match? mptr->radius : 375;
-            ptr->irad = (int)(Scale*rad);
+            ptr->irad = (int)(Scale*(Real)(rad));
             ptr->flag |= SphereFlag;
             ptr->radius = rad;
 
@@ -2064,7 +2407,7 @@ void CPKColourAttrib( void )
     register ShadeRef *ref;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
     register int i;
 
     if( !Database ) return;
@@ -2095,7 +2438,7 @@ void AminoColourAttrib( void )
     register ShadeRef *ref;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
     register int i;
 
     if( !Database ) return;
@@ -2128,7 +2471,7 @@ void ShapelyColourAttrib( void )
     register ShadeRef *ref;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
     register int i;
 
     if( !Database ) return;
@@ -2174,7 +2517,7 @@ void StructColourAttrib( void )
     register ShadeRef *ref;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
     register int i;
 
     if( !Database )
@@ -2210,7 +2553,7 @@ void StructColourAttrib( void )
 }
 
 
-int IsCPKColour( Atom __far *ptr )
+int IsCPKColour( RAtom __far *ptr )
 {
     register ShadeRef *cpk;
     register ShadeDesc *col;
@@ -2223,7 +2566,7 @@ int IsCPKColour( Atom __far *ptr )
 }
 
 
-int IsVDWRadius( Atom __far *ptr )
+int IsVDWRadius( RAtom __far *ptr )
 {
     register int rad;
 
@@ -2239,12 +2582,11 @@ void DefaultRepresentation( void )
     if( Database )
     {   ReDrawFlag |= RFRefresh | RFColour;
         if( Info.bondcount < 1 )
-        {   EnableBackbone(CylinderFlag,80);
-        } else EnableWireframe(WireFlag,0);
+        {   EnableBackbone(CylinderFlag,80,64);
+        } else EnableWireframe(WireFlag,0,0);
         CPKColourAttrib();
     }
 }
-
 
 void InitialTransform( void )
 {
@@ -2252,7 +2594,7 @@ void InitialTransform( void )
     register double fdist,fmax;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
     register Card ax, ay, az;
     register Long dx, dy, dz;
 
@@ -2274,6 +2616,9 @@ void InitialTransform( void )
     {   ptr->xorg -= OrigCX;
         ptr->yorg -= OrigCY;
         ptr->zorg -= OrigCZ;
+        ptr->fxorg = 0;
+        ptr->fyorg = 0;
+        ptr->fzorg = 0;
     }
 
     if( Offset > 37836 )
@@ -2301,19 +2646,22 @@ void InitialTransform( void )
         fmax = (double)max;
     }
 
-    WorldRadius = ((Card)sqrt(fmax))+750;
-    WorldSize = WorldRadius<<1;
-    DScale = 1.0/WorldSize;
+    LocalRadius = ((Card)sqrt(fmax))+750.;
+    if (LocalRadius > WorldRadius) {
+      WorldRadius = LocalRadius;
+      WorldSize = WorldRadius<<1;
+      DScale = 1.0/WorldSize;
 
-    /* Code should match ReSizeScreen() */
-    /* MaxZoom*DScale*Range*750 == 252  */
-    MaxZoom = 0.336*WorldSize/Range;
-    if( MaxZoom < 1.0 )
-    {   DScale *= MaxZoom;
-        MaxZoom = 1.0;
+      /* Code should match ReSizeScreen() */
+      /* MaxZoom*DScale*Range*750 == 252  */
+      MaxZoom = 0.336*WorldSize/Range;
+      if( MaxZoom < 1.0 )
+      {   DScale *= MaxZoom;
+          MaxZoom = 1.0;
+      }
+      ZoomRange = Range;
+      MaxZoom -= 1.0;
     }
-    ZoomRange = Range;
-    MaxZoom -= 1.0;
 }
 
 
@@ -2337,90 +2685,300 @@ void ReviseInvMatrix( void )
     ShadowTransform();
 }
 
+/*
+    RMatZtoV computes rotation matrix, RMat, to rotate the Z axis
+    into nomalized vector V, keeping the axis orthogonal to the
+    VZ plane fixed.
 
+    Returns 0 if sucessful, nonzero if the computation fails
+
+  */
+
+void RMatInv( Real RMX[3], Real RMY[3], Real RMZ[3],
+              Real RIX[3], Real RIY[3], Real RIZ[3] ) {
+              
+  RIX[0] = RMX[0];
+  RIX[1] = RMY[0];
+  RIX[2] = RMZ[0];
+  
+  RIY[0] = RMX[1];
+  RIY[1] = RMY[1];
+  RIY[2] = RMZ[1];
+  
+  RIZ[0] = RMX[2];
+  RIZ[1] = RMY[2];
+  RIZ[2] = RMZ[2];
+
+  return;
+  
+}
+
+void RMatVec( Real VecOut[3], 
+              Real RMX[3], Real RMY[3], Real RMZ[3],
+              Real VecIn[3] ) {
+              
+  VecOut[0] = RMX[0]*VecIn[0] + RMX[1]*VecIn[1] + RMX[2]*VecIn[2];
+  VecOut[1] = RMY[0]*VecIn[0] + RMY[1]*VecIn[1] + RMY[2]*VecIn[2];
+  VecOut[2] = RMZ[0]*VecIn[0] + RMZ[1]*VecIn[1] + RMZ[2]*VecIn[2];
+  return;
+}
+ 
+void RMatRMat( Real MatOut[3][3], 
+              Real RMX[3], Real RMY[3], Real RMZ[3],
+              Real MatIn[3][3] ) {
+              
+  int ii;
+  
+  for (ii = 0; ii < 3; ii++) {              
+  MatOut[0][ii] = RMX[0]*MatIn[0][ii] + RMX[1]*MatIn[1][ii] + RMX[2]*MatIn[2][ii];
+  MatOut[1][ii] = RMY[0]*MatIn[0][ii] + RMY[1]*MatIn[1][ii] + RMY[2]*MatIn[2][ii];
+  MatOut[2][ii] = RMZ[0]*MatIn[0][ii] + RMZ[1]*MatIn[1][ii] + RMZ[2]*MatIn[2][ii];
+  }
+  return;
+}
+
+void RV2RMat( Real RX, Real RY, Real RZ, 
+  Real RMX[3], Real RMY[3], Real RMZ[3]  ) {
+  
+  Real theta, cost, sint, x, y, z;
+      
+  theta = PI*RX;
+  if (theta > PI ) theta = theta - 2*PI;
+  if (theta < -PI ) theta = theta + 2*PI;
+  cost = cos(theta);  sint = sin(theta);
+
+  RMY[1]=cost;
+  RMZ[1]=-sint;
+
+  RMY[2]=sint;
+  RMZ[2]=cost;
+
+  theta = PI*RY;
+  if (theta > PI ) theta = theta - 2*PI;
+  if (theta < -PI ) theta = theta + 2*PI;
+  cost = cos(theta);  sint = sin(theta);
+
+  RMX[0]=cost;
+  RMZ[0]=-sint;
+
+  z=RMZ[1];
+  RMX[1]=sint*z;
+  RMZ[1]=cost*z;
+
+  z=RMZ[2];
+  RMX[2]=sint*z;
+  RMZ[2]=cost*z;
+    
+  theta = PI*RZ;
+  if (theta > PI ) theta = theta - 2*PI;
+  if (theta < -PI ) theta = theta + 2*PI;
+  cost = cos(theta);  sint = sin(theta);
+
+  x=RMX[0];
+  RMX[0]=cost*x;
+  RMY[0]=sint*x;
+
+  x=RMX[1]; y=RMY[1];
+  RMX[1]=cost*x-sint*y;
+  RMY[1]=cost*y+sint*x;
+
+  x=RMX[2]; y=RMY[2];
+  RMX[2]=cost*x-sint*y;
+  RMY[2]=cost*y+sint*x;
+  
+  return;
+
+}
+
+void RMat2RV( Real *RX, Real *RY, Real *RZ, 
+  Real RMX[3], Real RMY[3], Real RMZ[3]  ) {
+  
+  Real SRX, SRY, SRZ, TRX, TRY, TRZ;
+  Real NSum;
+  Real TSum;
+
+  if (RMZ[0] < 1. ) {
+    if (RMZ[0] > -1.) {
+      SRY = asin(-RMZ[0])/PI;
+    } else {
+      SRY = .5;
+    }
+  } else {
+    SRY = -.5;
+  } 
+  TRY = 1.-SRY;
+  if ( TRY > 2. ) TRY -= 2.;
+  TRZ = 1.;
+  if (RMZ[0] > .9999995) {
+    SRX = atan2(-RMX[1],RMY[1])/PI;
+    TRX = SRX;
+    SRZ = 0;
+  } else {
+    if (RMZ[0] < -.9999995 ) {
+    SRX = atan2(RMX[1],RMY[1])/PI;
+    TRX = SRX;
+    SRZ = 0;
+    } else {
+      SRX = atan2(-RMZ[1],RMZ[2])/PI;
+      TRX = 1.+SRX;
+      if ( TRX > 2. ) TRX -= 2.;
+      SRZ = atan2(RMY[0],RMX[0])/PI;
+      TRZ = 1.+SRZ;
+      if ( TRZ > 2. ) TRZ -= 2.;
+    }
+  }
+  
+  NSum = 0;
+  TSum = 0;
+  NSum += fabs(cos(SRX*PI)-cos((*RX)*PI)) + fabs(sin(SRX*PI)-sin((*RX)*PI))
+    + fabs(cos(SRY*PI)-cos((*RY)*PI)) + fabs(sin(SRY*PI)-sin((*RY)*PI))
+    + fabs(cos(SRZ*PI)-cos((*RZ)*PI)) + fabs(sin(SRZ*PI)-sin((*RZ)*PI));
+  TSum += fabs(cos(TRX*PI)-cos((*RX)*PI)) + fabs(sin(TRX*PI)-sin((*RX)*PI))
+    + fabs(cos(TRY*PI)-cos((*RY)*PI)) + fabs(sin(TRY*PI)-sin((*RY)*PI))
+    + fabs(cos(TRZ*PI)-cos((*RZ)*PI)) + fabs(sin(TRZ*PI)-sin((*RZ)*PI));
+  
+  if (NSum < TSum) {
+    *RX = SRX; *RY = SRY; *RZ = SRZ;
+  } else {
+    *RX = TRX; *RY = TRY; *RZ = TRZ;
+  }
+  
+}
 void PrepareTransform( void )
 {
     register Real theta, temp;
     register Real cost, sint;
     register Real x, y, z;
     register Real ncost;
+    register int ii;
+    
+    Real NRotX[3], NRotY[3], NRotZ[3];
+    Real RMat[3][3], SMat[3][3], TMat[3][3];
+    
+    Real VecIn[3], VecOut[3];
 
-    if( (ReDrawFlag&RFRotateX) && (DialValue[0]!=LastRX) )
-    {   theta = PI*(DialValue[0]-LastRX);
-        cost = cos(theta);  sint = sin(theta);
-        LastRX = DialValue[0];
+    if ( BondSelected )
+	BondRotate();
 
-        y=RotY[0]; z=RotZ[0];
-        RotY[0]=cost*y+sint*z; 
-        RotZ[0]=cost*z-sint*y;
+    if( ReDrawFlag )
+    {         
+ 
+    if ( (DialValue[DialTX] != LastTX ) ||
+         (DialValue[DialTY] != LastTY ) ||
+         (DialValue[DialTZ] != LastTZ ) ) {
+         
+      VecIn[0] = (DialValue[DialTX]-LastTX)*XRange;
+      VecIn[1] = (DialValue[DialTY]-LastTY)*YRange;
+      VecIn[2] = (DialValue[DialTZ]-LastTZ)*ZRange;
 
-        y=RotY[1]; z=RotZ[1];
-        RotY[1]=cost*y+sint*z;
-        RotZ[1]=cost*z-sint*y;
+      RMatVec(VecOut,WIRotX,WIRotY,WIRotZ,VecIn);
+      
+      LastTX += VecOut[0]/XRange;
+      LastTY += VecOut[1]/YRange;
+      LastTZ += VecOut[2]/ZRange;
+      
+      DialValue[DialTX] = LastTX;
+      DialValue[DialTY] = LastTY;
+      DialValue[DialTZ] = LastTZ;
+     
+    } 
 
-        y=RotY[2]; z=RotZ[2];
-        RotY[2]=cost*y+sint*z;
-        RotZ[2]=cost*z-sint*y;
+    LOffset[0] = WRange + (int)(Zoom*DialValue[DialTX]*XRange);
+    LOffset[1] = HRange + (int)(Zoom*DialValue[DialTY]*YRange);
+    LOffset[2] = 10000 + (int)(Zoom*DialValue[DialTZ]*ZRange);
+        
 
+    if ( ( DialValue[DialRX] != LastRX ) || 
+         ( DialValue[DialRY] != LastRY ) ||
+         ( DialValue[DialRZ] != LastRZ ) ) {
+         
+/*      RV2RMat(DialValue[DialRX]-LastRX, 
+        DialValue[DialRY]-LastRY, 
+        DialValue[DialRZ]-LastRZ,
+        NRotX, NRotY, NRotZ);
+
+      RV2RMat(LastRX, LastRY, LastRZ,
+        RMat[0], RMat[1], RMat[2]);
+  */
+  
+      RV2RMat(DialValue[DialRX]-LastRX,
+        DialValue[DialRY]-LastRY,
+        DialValue[DialRZ]-LastRZ,
+        SMat[0],SMat[1],SMat[2]);
+      
+      /* SMat is the incremental rotation on the World frame       */
+      /* We transform to WInv S W, the rotation in the local frame */
+      
+      RMatRMat(TMat,WIRotX,WIRotY,WIRotZ,SMat);
+      
+      for (ii = 0; ii < 3; ii++) {
+        RMat[0][ii] = WLRotX[ii];
+        RMat[1][ii] = WLRotY[ii];
+        RMat[2][ii] = WLRotZ[ii];
+      }
+      RMatRMat(SMat,TMat[0],TMat[1],TMat[2],RMat);
+      
+      for (ii = 0; ii < 3; ii++) {
+        RMat[0][ii] = LRotX[ii];
+        RMat[1][ii] = LRotY[ii];
+        RMat[2][ii] = LRotZ[ii];
+        NRotX[ii] = SMat[0][ii];
+        NRotY[ii] = SMat[1][ii];
+        NRotZ[ii] = SMat[2][ii];
+      }
+
+      LRotX[0] = NRotX[0]*RMat[0][0]+NRotX[1]*RMat[1][0]+NRotX[2]*RMat[2][0];
+      LRotX[1] = NRotX[0]*RMat[0][1]+NRotX[1]*RMat[1][1]+NRotX[2]*RMat[2][1];
+      LRotX[2] = NRotX[0]*RMat[0][2]+NRotX[1]*RMat[1][2]+NRotX[2]*RMat[2][2];
+
+      LRotY[0] = NRotY[0]*RMat[0][0]+NRotY[1]*RMat[1][0]+NRotY[2]*RMat[2][0];
+      LRotY[1] = NRotY[0]*RMat[0][1]+NRotY[1]*RMat[1][1]+NRotY[2]*RMat[2][1];
+      LRotY[2] = NRotY[0]*RMat[0][2]+NRotY[1]*RMat[1][2]+NRotY[2]*RMat[2][2];
+
+      LRotZ[0] = NRotZ[0]*RMat[0][0]+NRotZ[1]*RMat[1][0]+NRotZ[2]*RMat[2][0];
+      LRotZ[1] = NRotZ[0]*RMat[0][1]+NRotZ[1]*RMat[1][1]+NRotZ[2]*RMat[2][1];
+      LRotZ[2] = NRotZ[0]*RMat[0][2]+NRotZ[1]*RMat[1][2]+NRotZ[2]*RMat[2][2];
+      
+      RMat2RV(&(DialValue[0]), 
+        &(DialValue[1]), 
+        &(DialValue[2]), 
+        LRotX, LRotY, LRotZ);
+
+      RV2RMat(DialValue[0], DialValue[1], DialValue[2],
+        LRotX, LRotY, LRotZ);
+
+      LastRX = DialValue[0];
+      LastRY = DialValue[1];
+      LastRZ = DialValue[2];
+ 
+/*    } else {
+    
+      RV2RMat(DialValue[0], DialValue[1], DialValue[2],
+        LRotX, LRotY, LRotZ);
+ */
     }
-
-    if( (ReDrawFlag&RFRotateY) && (DialValue[1]!=LastRY) )
-    {   theta = PI*(DialValue[1]-LastRY);
-        cost = cos(theta);  sint = sin(theta);
-        LastRY = DialValue[1];
-
-        x=RotX[0]; z=RotZ[0];
-        RotX[0]=cost*x+sint*z;
-        RotZ[0]=cost*z-sint*x;
-
-        x=RotX[1]; z=RotZ[1];
-        RotX[1]=cost*x+sint*z;
-        RotZ[1]=cost*z-sint*x;
-
-        x=RotX[2]; z=RotZ[2];
-        RotX[2]=cost*x+sint*z;
-        RotZ[2]=cost*z-sint*x;
-
     }
-
-    if( (ReDrawFlag&RFRotateZ) && (DialValue[2]!=LastRZ) )
-    {   theta = PI*(DialValue[2]-LastRZ);
-        cost = cos(theta);  sint = sin(theta);
-        LastRZ = DialValue[2];
-
-        x=RotX[0]; y=RotY[0];
-        RotX[0]=cost*x-sint*y;
-        RotY[0]=cost*y+sint*x;
-
-        x=RotX[1]; y=RotY[1];
-        RotX[1]=cost*x-sint*y;
-        RotY[1]=cost*y+sint*x;
-
-        x=RotX[2]; y=RotY[2];
-        RotX[2]=cost*x-sint*y;
-        RotY[2]=cost*y+sint*x;
-
-   }
+    WorldRotate();
 }
 
 
-void ApplyTransform( void )
+static void ApplyTransformOne( void )
 {
     register int temp;
     register Real x, y, z;
-    register int oldx,oldy;
     register Chain __far *chain;
     register Group __far *group;
     register HBond __far *hptr;
     register Bond __far *bptr;
-    register Atom __far *ptr;
-
+    register RAtom __far *ptr;
 
     if( ReDrawFlag & (RFMagnify | RFZoom) )
-    {   if( DialValue[3] <= 0.0 )
-        {   Zoom = DialValue[3]+1.0;
+    {   
+
+        if( DialValue[DialZoom] <= 0.0 )
+        {   Zoom = DialValue[DialZoom]+1.0;
             if( Zoom<0.1 ) Zoom=0.1;
-        } else Zoom = (DialValue[3]*MaxZoom) + 1.0;
+        } else Zoom = (DialValue[DialZoom]*MaxZoom) + 1.0;
 
         Scale = Zoom*DScale*Range;
         ImageSize = (int)(Scale*WorldSize);
@@ -2433,15 +2991,16 @@ void ApplyTransform( void )
 
         MaxAtomRadius = 0;
         MaxBondRadius = 0;
+
     }
 
-    if( ReDrawFlag & RFRotate )
+    if( ReDrawFlag & (RFRotate|RFMagnify|RFZoom|RFTrans) )
     {   PrepareTransform();
         if( UseShadow )
             ShadowTransform();
     }
 
-    if( ReDrawFlag & (RFRotate|RFMagnify|RFZoom) )
+    if( ReDrawFlag & (RFRotate|RFMagnify|RFZoom|RFTrans) )
     {   MatX[0] = Scale*RotX[0]; 
         MatX[1] = Scale*RotX[1];
         MatX[2] = Scale*RotX[2];
@@ -2468,45 +3027,15 @@ void ApplyTransform( void )
             InvZ[2] = IScale*RotZ[2];
         }
     }
-
-    oldx = XOffset;
-    oldy = YOffset;
-
-    /* Zoom dependent Translation! */
-    /* XOffset = WRange + (int)(DialValue[4]*ImageSize); */
-    /* YOffset = HRange + (int)(DialValue[5]*ImageSize); */
-
-    if( PickMode == PickOrign )
-    {   /* Zoom about Center of Screen */
-        XOffset = WRange + (int)(Zoom*DialValue[4]*XRange);
-        YOffset = HRange + (int)(Zoom*DialValue[5]*YRange);
-    } else
-    {   XOffset = WRange + (int)(DialValue[4]*XRange);
-        YOffset = HRange + (int)(DialValue[5]*YRange);
-    }
-
-    if( UseStereo ) XOffset /= 2;
-
+   
     switch( ReDrawFlag )
-    {   case(RFTransX):
-                if( XOffset != oldx ) 
-                {   temp = XOffset - oldx;
-                    ForEachAtom ptr->x += temp;
-                }
-                break;
-
-        case(RFTransY):
-                if( YOffset != oldy ) 
-                {   temp = YOffset - oldy;
-                    ForEachAtom ptr->y += temp;
-                }
-                break;
+    {
 
         case(RFRotateX):
             ForEachAtom
-            {   x = ptr->xorg - CenX; 
-                y = ptr->yorg - CenY; 
-                z = ptr->zorg - CenZ;
+            {   x = ptr->xorg + ptr->fxorg - CenX; 
+                y = ptr->yorg + ptr->fyorg - CenY; 
+                z = ptr->zorg + ptr->fzorg - CenZ;
                 ptr->y = (int)(x*MatY[0]+y*MatY[1]+z*MatY[2])+YOffset;
                 ptr->z = (int)(x*MatZ[0]+y*MatZ[1]+z*MatZ[2])+ZOffset;
             }
@@ -2514,9 +3043,9 @@ void ApplyTransform( void )
 
         case(RFRotateY):
             ForEachAtom
-            {   x = ptr->xorg - CenX; 
-                y = ptr->yorg - CenY; 
-                z = ptr->zorg - CenZ;
+            {   x = ptr->xorg + ptr->fxorg - CenX; 
+                y = ptr->yorg + ptr->fyorg - CenY; 
+                z = ptr->zorg + ptr->fzorg - CenZ;
                 ptr->x = (int)(x*MatX[0]+y*MatX[1]+z*MatX[2])+XOffset;
                 ptr->z = (int)(x*MatZ[0]+y*MatZ[1]+z*MatZ[2])+ZOffset;
             }
@@ -2524,9 +3053,9 @@ void ApplyTransform( void )
 
         case(RFRotateZ):
             ForEachAtom
-            {   x = ptr->xorg - CenX; 
-                y = ptr->yorg - CenY; 
-                z = ptr->zorg - CenZ;
+            {   x = ptr->xorg + ptr->fxorg - CenX; 
+                y = ptr->yorg + ptr->fyorg - CenY; 
+                z = ptr->zorg + ptr->fzorg - CenZ;
                 ptr->x = (int)(x*MatX[0]+y*MatX[1]+z*MatX[2])+XOffset;
                 ptr->y = (int)(x*MatY[0]+y*MatY[1]+z*MatY[2])+YOffset;
             }
@@ -2536,23 +3065,23 @@ void ApplyTransform( void )
             /* This condition scales atomic radii! */
             if( (DrawAtoms || DrawStars) && (ReDrawFlag&(RFMagnify | RFZoom)) )
             {   ForEachAtom 
-                {   x = ptr->xorg - CenX; 
-                    y = ptr->yorg - CenY; 
-                    z = ptr->zorg - CenZ;
+                {   x = ptr->xorg + ptr->fxorg - CenX; 
+                    y = ptr->yorg + ptr->fyorg - CenY; 
+                    z = ptr->zorg + ptr->fzorg - CenZ;
                     ptr->x = (int)(x*MatX[0]+y*MatX[1]+z*MatX[2])+XOffset;
                     ptr->y = (int)(x*MatY[0]+y*MatY[1]+z*MatY[2])+YOffset;
                     ptr->z = (int)(x*MatZ[0]+y*MatZ[1]+z*MatZ[2])+ZOffset;
                     if( ptr->flag&SphereFlag )
-                    {   ptr->irad = (int)(Scale*ptr->radius);
+                    {   ptr->irad = (int)(Scale*(Real)(ptr->radius));
                         if( ptr->irad>MaxAtomRadius )
                             MaxAtomRadius = ptr->irad;
                     }
                 }
             } else
                 ForEachAtom 
-                {   x = ptr->xorg - CenX; 
-                    y = ptr->yorg - CenY; 
-                    z = ptr->zorg - CenZ;
+                {   x = ptr->xorg + ptr->fxorg - CenX; 
+                    y = ptr->yorg + ptr->fyorg - CenY; 
+                    z = ptr->zorg + ptr->fzorg - CenZ;
                     ptr->x = (int)(x*MatX[0]+y*MatX[1]+z*MatX[2])+XOffset;
                     ptr->y = (int)(x*MatY[0]+y*MatY[1]+z*MatY[2])+YOffset;
                     ptr->z = (int)(x*MatZ[0]+y*MatZ[1]+z*MatZ[2])+ZOffset;
@@ -2562,22 +3091,29 @@ void ApplyTransform( void )
             {   if( DrawBonds )
                     ForEachBond
                         if( bptr->flag&CylinderFlag )
-                        {   bptr->irad = (int)(Scale*bptr->radius);
+                        {   bptr->irad = (int)(Scale*(Real)(bptr->radius));
+                            bptr->iarad = (int)(Scale*(Real)(bptr->aradius));
                             if( bptr->irad>MaxBondRadius )
                             MaxBondRadius = bptr->irad;
                         }
 
                 for( hptr=Database->hlist; hptr; hptr=hptr->hnext )
-                    if( hptr->flag&CylinderFlag )
-                        hptr->irad = (int)(Scale*hptr->radius);
+		    if( hptr->flag&CylinderFlag ) {
+                        hptr->irad = (int)(Scale*(Real)(hptr->radius));
+                        hptr->iarad = (int)(Scale*(Real)(hptr->aradius));
+                    }
 
                 for( hptr=Database->slist; hptr; hptr=hptr->hnext )
-                    if( hptr->flag&CylinderFlag )
-                        hptr->irad = (int)(Scale*hptr->radius);
+		    if( hptr->flag&CylinderFlag ) {
+                        hptr->irad = (int)(Scale*(Real)(hptr->radius));
+                        hptr->iarad = (int)(Scale*(Real)(hptr->aradius));
+		    }
 
                 ForEachBack
-                    if( bptr->flag&CylinderFlag )
-                        bptr->irad = (int)(Scale*bptr->radius);
+		    if( bptr->flag&CylinderFlag ) {
+                        bptr->irad = (int)(Scale*(Real)(bptr->radius));
+                        bptr->iarad = (int)(Scale*(Real)(bptr->aradius));
+                    }
             }
     }
 
@@ -2587,13 +3123,125 @@ void ApplyTransform( void )
 }
 
 
+
+void CentreTransform( int xo, int yo, int zo, int xlatecen )
+{	register Real x, y, z;
+
+	x = xo - CenX;
+	y = yo - CenY; 
+	z = zo - CenZ;
+
+	if( xlatecen )
+	{	DialValue[DialTX] += (x*MatX[0]+y*MatX[1]+z*MatX[2])/XRange;
+		DialValue[DialTY] += (x*MatY[0]+y*MatY[1]+z*MatY[2])/YRange;
+		DialValue[DialTZ] += (x*MatZ[0]+y*MatZ[1]+z*MatZ[2])/ZRange;
+	}
+
+	if( UseSlabPlane )
+	{	DialValue[DialSlab] -= (x*MatZ[0]+y*MatZ[1]+z*MatZ[2])/ImageRadius;
+		if( DialValue[DialSlab]<-1 )
+		{	DialValue[DialSlab] = -1;
+			UseSlabPlane = False;
+			UseShadow = True;
+		}
+		if( DialValue[DialSlab]>1 )
+			DialValue[DialSlab] = 1;
+	}
+
+	if( UseDepthPlane )
+	{	DialValue[DialBClip] -= (x*MatZ[0]+y*MatZ[1]+z*MatZ[2])/ImageRadius;
+		if( DialValue[DialBClip]<-1 )
+			DialValue[DialBClip] = -1;
+		if( DialValue[DialBClip]>1 )
+		{	DialValue[DialBClip] = 1;
+			UseDepthPlane = False;
+			UseShadow = True;
+		}
+	}
+
+	CenX = xo;
+    CenY = yo;
+    CenZ = zo;
+
+    ReDrawFlag |= RFRotate;
+}
+
+
+/* [GSG 11/9/95] Multiple ApplyTransform added */
+void ApplyTransform( void )
+{
+    /* Do global operation if scaling */
+    int Global, i, SaveMolecule, SaveRD;
+
+    Global = (ReDrawFlag & RFMagnify) || (RotMode == RotAll);
+    
+    if (Global) {
+	SaveMolecule = MoleculeIndex;
+      SaveRD = ReDrawFlag;
+	  for (i=0; i<NumMolecules; i++) {
+	    SwitchMolecule(i);
+            ReDrawFlag |= SaveRD;
+	    ApplyTransformOne();
+	  }
+	  SwitchMolecule(SaveMolecule);
+    } else
+	ApplyTransformOne();
+    
+}
+
+
 void ResetTransform( void )
 {
     RotX[0] = 1.0;  RotX[1] = 0.0;  RotX[2] = 0.0;
     RotY[0] = 0.0;  RotY[1] = 1.0;  RotY[2] = 0.0;
     RotZ[0] = 0.0;  RotZ[1] = 0.0;  RotZ[2] = 1.0;
+
+    LRotX[0] = 1.0;  LRotX[1] = 0.0;  LRotX[2] = 0.0;
+    LRotY[0] = 0.0;  LRotY[1] = 1.0;  LRotY[2] = 0.0;
+    LRotZ[0] = 0.0;  LRotZ[1] = 0.0;  LRotZ[2] = 1.0;
+    
     LastRX = LastRY = LastRZ = 0.0;
+    LastTX = LastTY = LastTZ = 0.0;
+    
+    WRotValue[0] = 0;
+    WRotValue[1] = 0;
+    WRotValue[2] = 0;
+
+    WLRotX[0] = 1.0;  WLRotX[1] = 0.0;  WLRotX[2] = 0.0;
+    WLRotY[0] = 0.0;  WLRotY[1] = 1.0;  WLRotY[2] = 0.0;
+    WLRotZ[0] = 0.0;  WLRotZ[1] = 0.0;  WLRotZ[2] = 1.0;
+ 
+    WIRotX[0] = 1.0;  WIRotX[1] = 0.0;  WIRotX[2] = 0.0;
+    WIRotY[0] = 0.0;  WIRotY[1] = 1.0;  WIRotY[2] = 0.0;
+    WIRotZ[0] = 0.0;  WIRotZ[1] = 0.0;  WIRotZ[2] = 1.0;
+
+    WLastRX = WLastRY = WLastRZ = 0;
+    WTransX = WTransY = WTransZ = 0;
+    WLastTX = WLastTY = WLastTZ = 0;
+    
+       /* Remove all bonds from the list of selected bonds */
+
+    if (BondsSelected) {
+      BondRot __far *brptr=BondsSelected;
+      BondRot __far *pbrptr=NULL;
+
+      while (brptr) {
+        if( BondSelected == brptr ) {
+          BondSelected = brptr->brnext;
+        }
+        BondsSelected = brptr->brnext;
+        _ffree(brptr);
+        brptr = BondsSelected;
+      }
+    }
+
+    BondsSelected = (BondRot __far *)NULL;
+    BondSelected = (BondRot __far *)NULL;
+
     CenX = CenY = CenZ = 0;
+    ShiftS = 0;
+    XlateCen = False;
+    BLastRot = -99999.;
 }
 
 

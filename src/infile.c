@@ -1,9 +1,9 @@
 /***************************************************************************
- *                            RasMol 2.7.1.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
- *                                RasMol                                   *
+ *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                            17 January 2001                              *
+ *                              14 April 2001                              *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -11,15 +11,34 @@
  *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
  *                   Copyright (C) Roger Sayle 1992-1999                   *
  *                                                                         *
- *                  and Based on Mods by Arne Mueller                      *
- *                      Version 2.6x1, May 1998                            *
- *                   Copyright (C) Arne Mueller 1998                       *
+ *                          and Based on Mods by                           *
+ *Author             Version, Date             Copyright                   *
+ *Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       *
+ *Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  *
+ *Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   *
  *                                                                         *
- *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
- *                      yaya@bernstein-plus-sons.com                       *
- *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
- *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   *
+ *                                                                         *
+ *Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    * 
+ *Bernstein          RasMol 2.7.1   Jun 99         1998-2001               *
+ *                   RasMol 2.7.1.1 Jan 01                                 *
+ *                   RasMol 2.7.2   Aug 00                                 *
+ *                   RasMol 2.7.2.1 Apr 01                                 *
+ *                                                                         *
+ *                    and Incorporating Translations by                    *
+ *  Author                               Item                      Language*
+ *  Isabel Serván Martínez,                                                *
+ *  José Miguel Fernández Fernández      2.6   Manual              Spanish *
+ *  José Miguel Fernández Fernández      2.7.1 Manual              Spanish *
+ *  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish *
+ *  Jean-Pierre Demailly                 2.7.1 menus and messages  French  *
+ *  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          *
+ *  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian *
+ *                                                                         *
+ *                             This Release by                             *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
+ *                       yaya@bernstein-plus-sons.com                      *
+ *               Copyright(C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    *
@@ -49,6 +68,19 @@
  ***************************************************************************/
 
 /* infile.c
+ $Log: infile.c,v $
+ Revision 1.1  2001/01/31 02:13:45  yaya
+ Initial revision
+
+ Revision 1.4  2000/08/26 18:12:31  yaya
+ Updates to header comments in all files
+
+ Revision 1.3  2000/08/09 01:18:01  yaya
+ Rough cut with ucb
+
+ Revision 1.2  2000/02/23 00:00:00  yaya
+ Prelininary 2.7.2 build
+
  */
 
 #include "rasmol.h"
@@ -81,6 +113,7 @@
 #include "command.h"
 #include "cmndline.h"
 #include "transfor.h"
+#include "langsel.h"
 #include "cif.h"
 #include "cif_fract.h"
 #include "cif_ctonum.h"
@@ -104,8 +137,6 @@
 #define FeatHelix    1
 #define FeatSheet    2
 #define FeatTurn     3
-
-#define GroupPool    8
 
 
 /* Macros for commonly used loops */
@@ -145,7 +176,7 @@ static ConvTable AlcAtomTable[MAXALCATOM] = {
 
 static char PDBInsert;
 static Feature __far *FeatList;
-static Atom __far *ConnectAtom;
+static RAtom __far *ConnectAtom;
 static char __far Record[256];
 static FILE *DataFile;
 
@@ -244,7 +275,7 @@ static void ExtractString( int len, char *src, char *dst )
 
 static void ExtractNBString( int len, char *src, char *dst )
 {
-    register char *ptr, *osrc;
+    register char *ptr;
     register char xm, ch, och;
     register int i;
 
@@ -392,7 +423,7 @@ static FeatEntry __far *AllocFeature( void )
  
     if( !FeatList || (FeatList->count==FeatSize) )
     {   ptr = (Feature __far*)_fmalloc(sizeof(Feature));
-        if( !ptr ) FatalInFileError("Memory allocation failed");
+        if( !ptr ) FatalInFileError(MsgStrs[StrMalloc]);
         /* Features are always deallocated! */
  
         ptr->fnext = FeatList;
@@ -530,7 +561,7 @@ static void ApplyBondInfo( char __far *ResName1, char Chain1,int ResNum1,
     register Group __far *group1;
     register Group __far *group2;
     register int   refno1, refno2;
-    register Atom __far *aptr1, __far *aptr2;
+    register RAtom __far *aptr1, __far *aptr2;
     int xbonds = 0;
     char Symmd[6] = "1_555";
 
@@ -572,13 +603,13 @@ static void ApplyBondInfo( char __far *ResName1, char Chain1,int ResNum1,
            (Model2 == 0 || Model2 == group2->model) )
            for(aptr1=group1->alist; aptr1; aptr1=aptr1->anext)
            if ( ((AtomName1[0] == '\0') || (strncmp(AtomName1, 
-             ElemDesc[(aptr1->refno)],4)==0)) && 
+             ElemDesc[(aptr1->refno)],12)==0)) && 
              ((Altl1 == '\0' && aptr1->altl == ' ')
              || Altl1 == aptr1->altl) &&
 	     (AtomNum1 == 0 || AtomNum1 == aptr1->serno)) {
              for(aptr2=group2->alist; aptr2; aptr2=aptr2->anext)
                if ( ((AtomName2[0] == '\0') || (strncmp(AtomName2, 
-                 ElemDesc[(aptr2->refno)],4)==0)) && 
+                 ElemDesc[(aptr2->refno)],12)==0)) && 
                  ((Altl2 == '\0'&&aptr2->altl == ' ') 
                  || Altl2 == aptr2->altl) &&
 		 (AtomNum2 == 0 || AtomNum2 == aptr2->serno)) {
@@ -645,7 +676,7 @@ static void ProcessPDBGroup( int heta, int serno )
 {
     PDBInsert = Record[26];
     if( !CurChain || (CurChain->ident!=Record[21]) )
-    {   ConnectAtom = (Atom __far*)0;
+    {   ConnectAtom = (RAtom __far*)0;
         CreateChain( Record[21] );
     }
     CreateGroup( GroupPool );
@@ -659,7 +690,7 @@ static void ProcessPDBGroup( int heta, int serno )
 static void ProcessPDBAtom( int heta )
 {
     register Bond __far *bptr;
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
     register Long dx,dy,dz;
     register int temp,serno;
  
@@ -741,9 +772,9 @@ static void ProcessPDBAtom( int heta )
     ptr->xorg =  dx/4;
     ptr->yorg =  dy/4;
     ptr->zorg = -dz/4;
-    ptr->xtrl =  10*(dx-4*ptr->xorg);
-    ptr->ytrl =  10*(dy-4*ptr->yorg);
-    ptr->ztrl =  10*(-dz-4*ptr->zorg);
+    ptr->xtrl =  (short) (10*(dx-4*ptr->xorg));
+    ptr->ytrl =  (short) (10*(dy-4*ptr->yorg));
+    ptr->ztrl =  (short) (10*(-dz-4*ptr->zorg));
  
     if( heta ) ptr->flag |= HeteroFlag;
     ProcessAtom( ptr );
@@ -776,24 +807,25 @@ static void ProcessPDBAtom( int heta )
 
 static void ProcessPDBBond( void )
 {
-    register int srcatm;
-    register int dstatm;
-    register int i, len;
+    register Long srcatm;
+    register Long dstatm;
+    register int i;
+    register size_t len;
 
     len = strlen(Record);
-    if( len < 16 ) return;
-    srcatm = (int)ReadValue(6,5);
+    if( len < (size_t)16 ) return;
+    srcatm = (Long)ReadValue(6,5);
     if( !srcatm ) return;
 
     for( i=11; i<=26 && Record[i]; i+=5 )
-    { if( len < i+5 ) return;
-      dstatm = (int)ReadValue(i,5);
+    { if( len < (size_t)(i+5) ) return;
+      dstatm = (Long)ReadValue(i,5);
       if( dstatm )
       CreateNewBond(srcatm,dstatm);
     }
 
     for( i=31; i<=56 && Record[i]; i+=5 )
-    { if( len < i+5 ) return;
+    { if( len < (size_t)(i+5) ) return;
       dstatm = (int)ReadValue(i,5);
       if( i < 41 || (i > 45 && i < 56)) {
         if( dstatm && srcatm < dstatm )
@@ -1056,9 +1088,9 @@ int LoadPDBMolecule( FILE *fp,  int flag )
 int LoadMDLMolecule( FILE *fp )
 {
     register Bond __far *bptr;
-    register Atom __far *src;
-    register Atom __far *dst;
-    register Atom __far *ptr;
+    register RAtom __far *src;
+    register RAtom __far *dst;
+    register RAtom __far *ptr;
  
     register int i,type;
     register int atoms, bonds;
@@ -1109,9 +1141,9 @@ int LoadMDLMolecule( FILE *fp )
         ptr->xorg =  dx/40;
         ptr->yorg =  dy/40;
         ptr->zorg = -dz/40;
-        ptr->xtrl  = dx-40*ptr->xorg;
-        ptr->ytrl  = dy-40*ptr->yorg;
-        ptr->ztrl  = -dz-40*ptr->zorg;
+        ptr->xtrl  = (short)(dx-40*ptr->xorg);
+        ptr->ytrl  = (short)(dy-40*ptr->yorg);
+        ptr->ztrl  = (short)(-dz-40*ptr->zorg);
         ProcessAtom( ptr );
     }
  
@@ -1171,7 +1203,7 @@ int LoadXYZMolecule( FILE *fp )
     auto double charge, u, v, w;
     auto long atoms;
  
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
     register char *src,*dst;
     register int count;
     register Long i;
@@ -1213,9 +1245,9 @@ int LoadXYZMolecule( FILE *fp )
             ptr->xorg =  (Long)(250.0*xpos);
             ptr->yorg =  (Long)(250.0*ypos);
             ptr->zorg = -(Long)(250.0*zpos);
-            ptr->xtrl = (10000.0*xpos-40.*(double)ptr->xorg);
-            ptr->ytrl = (10000.0*ypos-40.*(double)ptr->yorg);
-            ptr->ztrl = (-10000.0*zpos-40.*(double)ptr->zorg);
+            ptr->xtrl = (short)(10000.0*xpos-40.*(double)ptr->xorg);
+            ptr->ytrl = (short)(10000.0*ypos-40.*(double)ptr->yorg);
+            ptr->ztrl = (short)(-10000.0*zpos-40.*(double)ptr->zorg);
  
             if( (count==5) || (count==8) )
             {   ptr->temp = (short)(100.0*charge);
@@ -1271,12 +1303,12 @@ int LoadMol2Molecule( FILE *fp )
     double xpos, ypos, zpos;
     long features, sets, serno;
     long atoms, bonds, structs;
-    long srcatm, dstatm;
+    Long srcatm, dstatm;
  
     char name[20];
     char type[8];
  
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
     register char *src;
     register Long i;
  
@@ -1312,15 +1344,15 @@ int LoadMol2Molecule( FILE *fp )
  
                  ptr = CreateAtom(); 
                  ptr->refno = FindSybylRefNo( type );
-                 ptr->serno = serno;
+                 ptr->serno = (Long)serno;
                  /* ptr->serno = i; */
  
                  ptr->xorg =  (Long)(250.0*xpos);
                  ptr->yorg =  (Long)(250.0*ypos);
                  ptr->zorg = -(Long)(250.0*zpos);
-                 ptr->xtrl = (10000.0*xpos-40.*(double)ptr->xorg);
-                 ptr->ytrl = (10000.0*ypos-40.*(double)ptr->yorg);
-                 ptr->ztrl = (-10000.0*zpos-40.*(double)ptr->zorg);
+                 ptr->xtrl = (short)(10000.0*xpos-40.*(double)ptr->xorg);
+                 ptr->ytrl = (short)(10000.0*ypos-40.*(double)ptr->yorg);
+                 ptr->ztrl = (short)(-10000.0*zpos-40.*(double)ptr->zorg);
                  ProcessAtom( ptr );
             }
  
@@ -1370,8 +1402,8 @@ static int FindAlchemyRefNo( void )
 
 int LoadAlchemyMolecule( FILE *fp )
 {
-    auto long serno,srcatm,dstatm;
-    register Atom __far *ptr;
+    auto Long serno,srcatm,dstatm;
+    register RAtom __far *ptr;
     register Long atoms, bonds;
     register char *chptr;
     register Long i;
@@ -1402,9 +1434,9 @@ int LoadAlchemyMolecule( FILE *fp )
         ptr->xorg =  dx/4;
         ptr->yorg =  dy/4;
         ptr->zorg = -dz/4;
-        ptr->xtrl =  10*(dx-4*ptr->xorg);
-        ptr->ytrl =  10*(dy-4*ptr->yorg);
-        ptr->ztrl =  10*(-dz-4*ptr->zorg);
+        ptr->xtrl =  (short)(10*(dx-4*ptr->xorg));
+        ptr->ytrl =  (short)(10*(dy-4*ptr->yorg));
+        ptr->ztrl =  (short)(10*(-dz-4*ptr->zorg));
 
         ProcessAtom( ptr );
     }
@@ -1435,7 +1467,7 @@ int LoadAlchemyMolecule( FILE *fp )
 int LoadCharmmMolecule( FILE *fp )
 {
     auto char buffer[4];
-    register Atom __far *ptr;
+    register RAtom __far *ptr;
     register Long atoms,serno;
     register Long dx, dy, dz;
     register int chain,resno;
@@ -1461,7 +1493,7 @@ int LoadCharmmMolecule( FILE *fp )
         if( !CurChain || strncmp(Record+51,buffer,4) )
         {   for( i=0; i<4; i++ )
                 buffer[i] = Record[51+i];
-            ConnectAtom = (Atom __far*)0;
+            ConnectAtom = (RAtom __far*)0;
             CreateChain(chain+49);
             chain++;
         }
@@ -1490,9 +1522,9 @@ int LoadCharmmMolecule( FILE *fp )
         ptr->xorg =  dx/4;
         ptr->yorg =  dy/4;
         ptr->zorg = -dz/4;
-        ptr->xtrl =  10*(dx-4*ptr->xorg);
-        ptr->ytrl =  10*(dy-4*ptr->yorg);
-        ptr->ztrl =  10*(-dz-4*ptr->zorg);
+        ptr->xtrl =  (short)(10*(dx-4*ptr->xorg));
+        ptr->ytrl =  (short)(10*(dy-4*ptr->yorg));
+        ptr->ztrl =  (short)(10*(-dz-4*ptr->zorg));
         ProcessAtom( ptr );
     }
     return True;
@@ -1553,7 +1585,7 @@ static int MOPACAtomType( char *type )
  
 static int ReadMOPACOutputFile( void )
 {
-    register Atom __far *atm;
+    register RAtom __far *atm;
     register int i,init;
     register char *ptr;
     register Long dx, dy, dz;
@@ -1578,7 +1610,7 @@ static int ReadMOPACOutputFile( void )
             while( FetchRecord(DataFile,Record) && 
                    *Record && isdigit(Record[5]) )
             {   if( !Database )
-                {   atm = (Atom __far*)0;
+                {   atm = (RAtom __far*)0;
                     CreateMolGroup();
                     init = True;
                 }
@@ -1600,9 +1632,9 @@ static int ReadMOPACOutputFile( void )
                 atm->xorg =  dx/40;
                 atm->yorg =  dy/40;
                 atm->zorg = -dz/40;
-                atm->xtrl  = dx-40*atm->xorg;
-                atm->ytrl  = dy-40*atm->yorg;
-                atm->ztrl  = -dz-40*atm->zorg;
+                atm->xtrl  = (short)(dx-40*atm->xorg);
+                atm->ytrl  = (short)(dy-40*atm->yorg);
+                atm->ztrl  = (short)(-dz-40*atm->zorg);
 
                 ProcessAtom(atm);
                 atm = atm->anext;
@@ -1622,7 +1654,7 @@ static int ReadMOPACOutputFile( void )
             while( FetchRecord(DataFile,Record) && 
                    strncmp(Record," DIPOLE",7) )
             {   if( !Database )
-                {   atm = (Atom __far*)0;
+                {   atm = (RAtom __far*)0;
                     CreateMolGroup();
                 }
  
@@ -1671,7 +1703,7 @@ int LoadMOPACMolecule( FILE *fp )
     static int na,nb,nc,lopt;
     static double dist,angle,dihed;
     register IntCoord __far *coord;
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
     register int count,refno;
     register int cartflag;
     register char *ptr;
@@ -1810,7 +1842,7 @@ int RightJustify( char __far *str, int len )
 {
     register int lstr, ii;
 
-    lstr = strlen(str);
+    lstr = (int)strlen(str);
     for (ii = lstr; ii > 0; ii--)
     {
       if (str[ii-1] != ' ' && str[ii-1] != '\t') {
@@ -1834,7 +1866,7 @@ int ReadCIFDouble( cif_handle cif, double __far *dvalue,
   if (!cif_findtag(cif, tag)
      || (alttag && (!cif_findtag(cif, alttag)))) {
     cif_get_value(cif, (char __far * __far *) &value);
-    return cif_ctonum(value, strlen(value), dvalue, 
+    return cif_ctonum(value, (int)strlen(value), dvalue, 
       NULL, NULL, NULL, NULL, NULL, NULL, NULL);
   }
   return 1;
@@ -1847,7 +1879,7 @@ int ReadCIFRowValue( cif_handle cif, double __far *dvalue,
   if (column == -1) return 1;
   if (!cif_select_column(cif,column)){
     cif_get_value(cif, (char __far * __far *) &value);
-    if (cif_ctonum(value, strlen(value), dvalue, 
+    if (cif_ctonum(value, (int)strlen(value), dvalue, 
       NULL, NULL, NULL, NULL, NULL, NULL, NULL)) return 1;
     return 0;
   }
@@ -1887,8 +1919,8 @@ void ConvertNames( char __far type_symbol[5],  char __far label_atom_id[5] )
     char __far tmparg[5];
     char symbol[5]="  ";
 
-    laid = strlen(label_atom_id);
-    lat = type_symbol?strlen(type_symbol):0;
+    laid = (int)strlen(label_atom_id);
+    lat = type_symbol?(int)strlen(type_symbol):0;
     if (lat > 1) {
       if ((type_symbol[lat-1] =='+') || (type_symbol[lat-1] == '-')) {
         if (strchr("0123456789",type_symbol[lat-2])) {
@@ -1939,7 +1971,6 @@ void ConvertNames( char __far type_symbol[5],  char __far label_atom_id[5] )
 int LoadCIFMolecule( FILE *fp )
 {
     cif_handle cif;
-    char __far * value;
     double length_a = 1., 
            length_b = 1.,
            length_c = 1., 
@@ -2045,7 +2076,6 @@ int LoadCIFMolecule( FILE *fp )
     result_vector = True;
     if ((!cif_findtag(cif,"_atom_sites.fract_transf_matrix[1][1]")) ||
 	(!cif_findtag(cif,"_atom_sites_fract_tran_matrix_11"))){
-      unsigned int col_matrix[3][3];
       int i, j;
       char mmcifname[40];
       char corecifname[40];
@@ -2091,7 +2121,6 @@ int LoadCIFMolecule( FILE *fp )
     if (result_scale &&
       ((!cif_findtag(cif,"_atom_sites.cartn_transf_matrix[1][1]")) ||
 	(!cif_findtag(cif,"_atom_sites_cartn_tran_matrix_11")))){
-      unsigned int col_matrix[3][3];
       int i, j;
       char mmcifname[40];
       char corecifname[40];
@@ -2157,9 +2186,8 @@ int LoadCIFMolecule( FILE *fp )
       int heta;
       int fcoord=False;
       register Bond __far *bptr;
-      register Atom __far *ptr;
+      register RAtom __far *ptr;
       int oNMRModel;
-      int i;
   
       /* Load column numbers for the tags we have */
       if ((!cif_find_column(cif,"cartn_x"))||
@@ -2231,7 +2259,7 @@ int LoadCIFMolecule( FILE *fp )
         ReadCIFstr(cif,col_label_alt_id,label_alt_id,1);
         if (label_alt_id[0] == '\0') strcpy(label_alt_id," ");
         ReadCIFstr(cif,col_label_comp_id,label_comp_id,3);
-        if (strlen(label_comp_id)<3) RightJustify(label_comp_id,3);
+        if (strlen(label_comp_id)<(size_t)3) RightJustify(label_comp_id,3);
         ReadCIFstr(cif,col_label_asym_id,label_asym_id,1);
         if (label_asym_id[0] == '\0') {
           strcpy(label_asym_id," ");
@@ -2246,12 +2274,12 @@ int LoadCIFMolecule( FILE *fp )
           if (auth_asym_id[0] == '\0') strcpy(auth_asym_id," ");
         }
         {
-          int seqlen, seqnum, sseqnum, icode, sicode, auth_seq;
+          int seqnum, sseqnum, icode, sicode, auth_seq;
           char __far * endptr;
           ReadCIFstr(cif,col_model_id,modelstr,5);
           NMRModel = 0;
           if (modelstr[0]) {
-            NMRModel = strtol(modelstr,
+            NMRModel = (int)strtol(modelstr,
               (char __far * __far *)&endptr, 10);
             if (! (NMRModel == oNMRModel) ) {
                ConnectAtom = (void __far*)0;
@@ -2264,14 +2292,14 @@ int LoadCIFMolecule( FILE *fp )
           icode = sicode = ' ';
           if((auth_seq=!ReadCIFstr(cif,col_auth_seq_id,label_seq_id,5))||
 	    (!ReadCIFstr(cif,col_label_seq_id,label_seq_id,5))){
-            seqnum = strtol(label_seq_id, 
+            seqnum = (int)strtol(label_seq_id, 
               (char __far * __far *)&endptr, 10);
             icode = ' ';
             if (*endptr != '\0') icode = *endptr;
           }
           if (auth_seq &&
 	    (!ReadCIFstr(cif,col_label_seq_id,label_seq_id,5))){
-            sseqnum = strtol(label_seq_id, 
+            sseqnum = (int)strtol(label_seq_id, 
               (char __far * __far *)&endptr, 10);
             sicode = ' ';
             if (*endptr != '\0') sicode = *endptr;
@@ -2281,7 +2309,7 @@ int LoadCIFMolecule( FILE *fp )
 	    || (PDBInsert != icode) ) {
             PDBInsert = icode;
             if( !CurChain || (CurChain->ident!=label_asym_id[0] )) {
-              ConnectAtom = (Atom __far*)0;
+              ConnectAtom = (RAtom __far*)0;
               CreateChain (label_asym_id[0]);
             }
             CreateGroup( GroupPool );
@@ -2296,7 +2324,7 @@ int LoadCIFMolecule( FILE *fp )
         ptr = CreateAtom();
         {
           char __far * endptr;
-          ptr->serno = strtol(idstr, (char __far * __far *)&endptr,10);
+          ptr->serno = (int)strtol(idstr, (char __far * __far *)&endptr,10);
           if (*endptr != '\0') ptr->serno = rownum+1;
 	} 
         ptr->altl = label_alt_id[0];
@@ -2344,7 +2372,7 @@ int LoadCIFMolecule( FILE *fp )
           int i, laid, lat;
           char __far tmparg[5];
 
-          lat = strlen(type_symbol);
+          lat = (int)strlen(type_symbol);
           if (lat > 1) {
             if ((type_symbol[lat-1] =='+') || (type_symbol[lat-1] == '-')) {
               if (strchr("0123456789",type_symbol[lat-2])) {
@@ -2354,7 +2382,7 @@ int LoadCIFMolecule( FILE *fp )
               }
             }
           }
-          laid = strlen(label_atom_id);
+          laid = (int)strlen(label_atom_id);
           for (i = laid; i < 5; i++) label_atom_id[i] = '\0';
           strcpy(tmparg,label_atom_id);
           if ((label_atom_id[0] < '0') || (label_atom_id[0] > '9') ){
@@ -2448,9 +2476,9 @@ int LoadCIFMolecule( FILE *fp )
         col_ptnr2_auth_seq_id=-1;
       unsigned int rows, rownum;
       char __far CType[7];
-      char __far Alt1[2], AtomName1[5], Asym1[2], CompId1[4]="   ", 
+      char __far Alt1[2], AtomName1[13], Asym1[2], CompId1[4]="   ", 
         SeqId1[6], ModelId1[6], SiteId1[7], Symm1[8], 
-        Alt2[2], AtomName2[5], Asym2[2], CompId2[4]="   ", 
+        Alt2[2], AtomName2[13], Asym2[2], CompId2[4]="   ", 
         SeqId2[6], ModelId2[6], SiteId2[7], Symm2[8];
       char Icode1, Icode2, sIcode1, sIcode2;
       int ResNum1, ResNum2, sResNum1, sResNum2;
@@ -2458,7 +2486,6 @@ int LoadCIFMolecule( FILE *fp )
       short Model1, Model2;
   
       char __far * endptr;
-      int i;
        
   
       /* Load column numbers for the tags we have */
@@ -2533,12 +2560,12 @@ int LoadCIFMolecule( FILE *fp )
           ReadCIFstr(cif,col_ptnr1_auth_alt_id,Alt1,1);
         if (ReadCIFstr(cif,col_ptnr1_label_asym_id,Asym1,1))
           ReadCIFstr(cif,col_ptnr1_auth_asym_id,Asym1,1);
-        if (ReadCIFstr(cif,col_ptnr1_label_atom_id,AtomName1,4))
-          ReadCIFstr(cif,col_ptnr1_auth_atom_id,AtomName1,4);
+        if (ReadCIFstr(cif,col_ptnr1_label_atom_id,AtomName1,12))
+          ReadCIFstr(cif,col_ptnr1_auth_atom_id,AtomName1,12);
         if (ReadCIFstr(cif,col_ptnr1_label_comp_id,CompId1,3))
           ReadCIFstr(cif,col_ptnr1_auth_comp_id,CompId1,3);
         if (CompId1[0] &&strlen(CompId1)<3) RightJustify(CompId1,3);
-        ReadCIFstr(cif,col_ptnr1_auth_seq_id,SeqId1,5);
+        if (CompId1[0] &&strlen(CompId1)<(size_t)3) RightJustify(CompId1,3);
         ReadCIFstr(cif,col_ptnr1_label_model_id,ModelId1,5);
         ReadCIFstr(cif,col_ptnr1_atom_site_id,SiteId1,6);
         ReadCIFstr(cif,col_ptnr1_symmetry,Symm1,7);
@@ -2548,12 +2575,12 @@ int LoadCIFMolecule( FILE *fp )
           ReadCIFstr(cif,col_ptnr2_auth_alt_id,Alt2,1);
         if (ReadCIFstr(cif,col_ptnr2_label_asym_id,Asym2,1))
           ReadCIFstr(cif,col_ptnr2_auth_asym_id,Asym2,1);
-        if (ReadCIFstr(cif,col_ptnr2_label_atom_id,AtomName2,4))
-          ReadCIFstr(cif,col_ptnr2_auth_atom_id,AtomName2,4);
+        if (ReadCIFstr(cif,col_ptnr2_label_atom_id,AtomName2,12))
+          ReadCIFstr(cif,col_ptnr2_auth_atom_id,AtomName2,12);
         if (ReadCIFstr(cif,col_ptnr2_label_comp_id,CompId2,3))
           ReadCIFstr(cif,col_ptnr2_auth_comp_id,CompId2,3);
         if (CompId2[0] &&strlen(CompId2)<3) RightJustify(CompId2,3);
-        ReadCIFstr(cif,col_ptnr2_auth_seq_id,SeqId2,5);
+        if (CompId2[0] &&strlen(CompId2)<(size_t)3) RightJustify(CompId2,3);
         ReadCIFstr(cif,col_ptnr2_label_model_id,ModelId2,5);
         ReadCIFstr(cif,col_ptnr2_atom_site_id,SiteId2,6);
         ReadCIFstr(cif,col_ptnr2_symmetry,Symm2,7);
@@ -2561,13 +2588,13 @@ int LoadCIFMolecule( FILE *fp )
         Icode1 = Icode2 = '\0';
         ResNum1 = ResNum2 = -9999;
         if (SeqId1[0]){
-            ResNum1 = strtol(SeqId1, 
+            ResNum1 = (int)strtol(SeqId1, 
               (char __far * __far *)&endptr, 10);
             Icode1 = ' ';
             if (*endptr != '\0') Icode1 = *endptr;
         }
         if (SeqId2[0]){
-            ResNum2 = strtol(SeqId2, 
+            ResNum2 = (int)strtol(SeqId2, 
               (char __far * __far *)&endptr, 10);
             Icode2 = ' ';
             if (*endptr != '\0') Icode2 = *endptr;
@@ -2577,14 +2604,14 @@ int LoadCIFMolecule( FILE *fp )
         sResNum1 = sResNum2 = -9999;
         if(!ReadCIFstr(cif,col_ptnr1_label_seq_id,SeqId1,5))
         if (SeqId1[0]){
-            sResNum1 = strtol(SeqId1, 
+            sResNum1 = (int)strtol(SeqId1, 
               (char __far * __far *)&endptr, 10);
             sIcode1 = ' ';
             if (*endptr != '\0') sIcode1 = *endptr;
         }
         if(!ReadCIFstr(cif,col_ptnr2_label_seq_id,SeqId2,5))
         if (SeqId2[0]){
-            sResNum2 = strtol(SeqId2, 
+            sResNum2 = (int)strtol(SeqId2, 
               (char __far * __far *)&endptr, 10);
             sIcode2 = ' ';
             if (*endptr != '\0') sIcode2 = *endptr;
@@ -2592,21 +2619,21 @@ int LoadCIFMolecule( FILE *fp )
 
         Sitenum1 = Sitenum2 =0;
         if (SiteId1[0]) {
-            Sitenum1 = strtol(SiteId1, 
+            Sitenum1 = (int)strtol(SiteId1, 
               (char __far * __far *)&endptr, 10);
         }
         if (SiteId2[0]) {
-            Sitenum2 = strtol(SiteId2, 
+            Sitenum2 = (int)strtol(SiteId2, 
               (char __far * __far *)&endptr, 10);
         }
 
         Model1 = Model2 =0;
         if (ModelId1[0]) {
-            Model1 = strtol(ModelId1, 
+            Model1 = (short) strtol(ModelId1, 
               (char __far * __far *)&endptr, 10);
         }
         if (ModelId2[0]) {
-            Model2 = strtol(ModelId2, 
+            Model2 = (short) strtol(ModelId2, 
               (char __far * __far *)&endptr, 10);
         }
         ConvertNames(NULL,AtomName1);
@@ -2648,9 +2675,9 @@ int LoadCIFMolecule( FILE *fp )
         col_dist=-1,                     col_dist_esd=-1;
 
       unsigned int rows, rownum;
-      char __far Alt1[2], AtomName1[5], Asym1[2], CompId1[4]="   ", 
+      char __far Alt1[2], AtomName1[13], Asym1[2], CompId1[4]="   ", 
         SeqId1[6], ModelId1[6], SiteId1[7], oidstr1[6], Symm1[8], 
-        Alt2[2], AtomName2[5], Asym2[2], CompId2[4]="   ", 
+        Alt2[2], AtomName2[13], Asym2[2], CompId2[4]="   ", 
         SeqId2[6], ModelId2[6], SiteId2[7], oidstr2[6], Symm2[8];
       char Icode1, Icode2, sIcode1, sIcode2;
       int ResNum1, ResNum2, sResNum1, sResNum2;
@@ -2658,7 +2685,6 @@ int LoadCIFMolecule( FILE *fp )
       short Model1, Model2;
   
       char __far * endptr;
-      int i;
        
   
       /* Load column numbers for the tags we have */
@@ -2729,12 +2755,12 @@ int LoadCIFMolecule( FILE *fp )
           ReadCIFstr(cif,col_auth_alt_id_1,Alt1,1);
         if (ReadCIFstr(cif,col_label_asym_id_1,Asym1,1))
           ReadCIFstr(cif,col_auth_asym_id_1,Asym1,1);
-        if (ReadCIFstr(cif,col_label_atom_id_1,AtomName1,4))
-          ReadCIFstr(cif,col_auth_atom_id_1,AtomName1,4);
+        if (ReadCIFstr(cif,col_label_atom_id_1,AtomName1,12))
+          ReadCIFstr(cif,col_auth_atom_id_1,AtomName1,12);
         if (ReadCIFstr(cif,col_label_comp_id_1,CompId1,3))
           ReadCIFstr(cif,col_auth_comp_id_1,CompId1,3);
         if (CompId1[0] &&strlen(CompId1)<3) RightJustify(CompId1,3);
-        ReadCIFstr(cif,col_auth_seq_id_1,SeqId1,5);
+        if (CompId1[0] &&strlen(CompId1)<(size_t)3) RightJustify(CompId1,3);
         ReadCIFstr(cif,col_atom_site_id_1,SiteId1,6);
         strncpy(oidstr1,SiteId1,5);
         ReadCIFstr(cif,col_symmetry_1,Symm1,7);
@@ -2744,12 +2770,12 @@ int LoadCIFMolecule( FILE *fp )
           ReadCIFstr(cif,col_auth_alt_id_2,Alt2,1);
         if (ReadCIFstr(cif,col_label_asym_id_2,Asym2,1))
           ReadCIFstr(cif,col_auth_asym_id_2,Asym2,1);
-        if (ReadCIFstr(cif,col_label_atom_id_2,AtomName2,4))
-          ReadCIFstr(cif,col_auth_atom_id_2,AtomName2,4);
+        if (ReadCIFstr(cif,col_label_atom_id_2,AtomName2,12))
+          ReadCIFstr(cif,col_auth_atom_id_2,AtomName2,12);
         if (ReadCIFstr(cif,col_label_comp_id_2,CompId2,3))
           ReadCIFstr(cif,col_auth_comp_id_2,CompId2,3);
         if (CompId1[0] &&strlen(CompId2)<3) RightJustify(CompId2,3);
-        ReadCIFstr(cif,col_auth_seq_id_1,SeqId2,5);
+        if (CompId1[0] &&strlen(CompId2)<(size_t)3) RightJustify(CompId2,3);
         ReadCIFstr(cif,col_atom_site_id_2,SiteId2,6);
         strncpy(oidstr2,SiteId2,5);
         ReadCIFstr(cif,col_symmetry_2,Symm2,7);
@@ -2760,13 +2786,13 @@ int LoadCIFMolecule( FILE *fp )
         Icode1 = Icode2 = '\0';
         ResNum1 = ResNum2 = -9999;
         if (SeqId1[0]){
-            ResNum1 = strtol(SeqId1, 
+            ResNum1 = (int)strtol(SeqId1, 
               (char __far * __far *)&endptr, 10);
             Icode1 = ' ';
             if (*endptr != '\0') Icode1 = *endptr;
         }
         if (SeqId2[0]){
-            ResNum2 = strtol(SeqId2, 
+            ResNum2 = (int)strtol(SeqId2, 
               (char __far * __far *)&endptr, 10);
             Icode2 = ' ';
             if (*endptr != '\0') Icode2 = *endptr;
@@ -2776,14 +2802,14 @@ int LoadCIFMolecule( FILE *fp )
         sResNum1 = sResNum2 = -9999;
         if(!ReadCIFstr(cif,col_label_seq_id_1,SeqId1,5))
         if (SeqId1[0]){
-            sResNum1 = strtol(SeqId1, 
+            sResNum1 = (int)strtol(SeqId1, 
               (char __far * __far *)&endptr, 10);
             sIcode1 = ' ';
             if (*endptr != '\0') sIcode1 = *endptr;
         }
         if(!ReadCIFstr(cif,col_label_seq_id_1,SeqId2,5))
         if (SeqId2[0]){
-            sResNum2 = strtol(SeqId2, 
+            sResNum2 = (int)strtol(SeqId2, 
               (char __far * __far *)&endptr, 10);
             sIcode2 = ' ';
             if (*endptr != '\0') sIcode2 = *endptr;
@@ -2791,21 +2817,21 @@ int LoadCIFMolecule( FILE *fp )
 
         Sitenum1 = Sitenum2 =0;
         if (SiteId1[0]) {
-            Sitenum1 = strtol(SiteId1, 
+            Sitenum1 = (int)strtol(SiteId1, 
               (char __far * __far *)&endptr, 10);
         }
         if (SiteId2[0]) {
-            Sitenum2 = strtol(SiteId2, 
+            Sitenum2 = (int)strtol(SiteId2, 
               (char __far * __far *)&endptr, 10);
         }
 
         Model1 = Model2 =0;
         if (ModelId1[0]) {
-            Model1 = strtol(ModelId1, 
+            Model1 = (short) strtol(ModelId1, 
               (char __far * __far *)&endptr, 10);
         }
         if (ModelId2[0]) {
-            Model2 = strtol(ModelId2, 
+            Model2 = (short) strtol(ModelId2, 
               (char __far * __far *)&endptr, 10);
         }
         ConvertNames(NULL,AtomName1);
@@ -2852,9 +2878,9 @@ int LoadCIFMolecule( FILE *fp )
         col_end_auth_seq_id=-1;
       unsigned int rows, rownum;
       char __far CType[20];
-      char __far Alt1[2],  Asym1[2], CompId1[4]="   ", 
+      char __far Asym1[2], CompId1[4]="   ", 
         SeqId1[6],  
-        Alt2[2],  Asym2[2], CompId2[4]="   ", 
+        Asym2[2], CompId2[4]="   ", 
         SeqId2[6] ;
       char Icode1, Icode2, sIcode1, sIcode2;
       int ResNum1, ResNum2, sResNum1, sResNum2;
@@ -2909,26 +2935,26 @@ int LoadCIFMolecule( FILE *fp )
           ReadCIFstr(cif,col_beg_auth_asym_id,Asym1,1);
         if (ReadCIFstr(cif,col_beg_label_comp_id,CompId1,3))
           ReadCIFstr(cif,col_beg_auth_comp_id,CompId1,3);
-        if (CompId1[0] &&(i=strlen(CompId1))<3) RightJustify(CompId1,3);
+        if (CompId1[0] &&(i=(int)strlen(CompId1))<3) RightJustify(CompId1,3);
         ReadCIFstr(cif,col_beg_auth_seq_id,SeqId1,5);
 
         if (ReadCIFstr(cif,col_end_label_asym_id,Asym2,1))
           ReadCIFstr(cif,col_end_auth_asym_id,Asym2,1);
         if (ReadCIFstr(cif,col_end_label_comp_id,CompId2,3))
           ReadCIFstr(cif,col_end_auth_comp_id,CompId2,3);
-        if (CompId2[0] &&(i=strlen(CompId2))<3) RightJustify(CompId2,3);
+        if (CompId2[0] &&(i=(int)strlen(CompId2))<3) RightJustify(CompId2,3);
         ReadCIFstr(cif,col_end_auth_seq_id,SeqId2,5);
 
         Icode1 = Icode2 = '\0';
         ResNum1 = ResNum2 = -9999;
         if (SeqId1[0]){
-            ResNum1 = strtol(SeqId1, 
+            ResNum1 = (int)strtol(SeqId1, 
               (char __far * __far *)&endptr, 10);
             Icode1 = ' ';
             if (*endptr != '\0') Icode1 = *endptr;
         }
         if (SeqId2[0]){
-            ResNum2 = strtol(SeqId2, 
+            ResNum2 = (int)strtol(SeqId2, 
               (char __far * __far *)&endptr, 10);
             Icode2 = ' ';
             if (*endptr != '\0') Icode2 = *endptr;
@@ -2938,14 +2964,14 @@ int LoadCIFMolecule( FILE *fp )
         sResNum1 = sResNum2 = -9999;
         if(!ReadCIFstr(cif,col_beg_label_seq_id,SeqId1,5))
         if (SeqId1[0]){
-            sResNum1 = strtol(SeqId1, 
+            sResNum1 = (int)strtol(SeqId1, 
               (char __far * __far *)&endptr, 10);
             sIcode1 = ' ';
             if (*endptr != '\0') sIcode1 = *endptr;
         }
         if(!ReadCIFstr(cif,col_end_label_seq_id,SeqId2,5))
         if (SeqId2[0]){
-            sResNum2 = strtol(SeqId2, 
+            sResNum2 = (int)strtol(SeqId2, 
               (char __far * __far *)&endptr, 10);
             sIcode2 = ' ';
             if (*endptr != '\0') sIcode2 = *endptr;
@@ -3003,7 +3029,7 @@ int SavePDBMolecule( char *filename )
     register Group __far *prev;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
     register char *ptr;
     register int count;
     register int model;
@@ -3059,12 +3085,12 @@ int SavePDBMolecule( char *filename )
                      aptr->altl, Residue[group->refno],
                      chain->ident, group->serno );
  
-            x = (double)(aptr->xorg + OrigCX)/250.0
+            x = (double)(aptr->xorg + aptr->fxorg + OrigCX)/250.0
                 +(double)(aptr->xtrl)/10000.0;
-            y = (double)(aptr->yorg + OrigCY)/250.0
+            y = (double)(aptr->yorg + aptr->fyorg + OrigCY)/250.0
                 +(double)(aptr->ytrl)/10000.0;
-            z = (double)(aptr->zorg + OrigCZ)/250.0
-                +(double)(aptr->ztrl)/10000.0;
+            z = (double)(aptr->zorg + aptr->fzorg + OrigCZ)/250.0
+                -(double)(aptr->ztrl)/10000.0;
  
 #ifdef INVERT
             fprintf(DataFile,"%8.3f%8.3f%8.3f",x,-y,-z);
@@ -3095,7 +3121,7 @@ int SaveMDLMolecule( char *filename )
 {
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
     register Bond __far *bptr;
     register int atoms,bonds;
     register double x,y,z;
@@ -3146,12 +3172,12 @@ int SaveMDLMolecule( char *filename )
     atomno = 1;
     ForEachAtom
         if( aptr->flag & SelectFlag )
-        {   x = (double)(aptr->xorg + OrigCX)/250.0
+        {   x = (double)(aptr->xorg + aptr->fxorg + OrigCX)/250.0
                 +(double)(aptr->xtrl)/10000.0;
-            y = (double)(aptr->yorg + OrigCY)/250.0
+            y = (double)(aptr->yorg + aptr->fyorg + OrigCY)/250.0
                 +(double)(aptr->ytrl)/10000.0;
-            z = (double)(aptr->zorg + OrigCZ)/250.0
-                +(double)(aptr->ztrl)/10000.0;
+            z = (double)(aptr->zorg + aptr->fzorg + OrigCZ)/250.0
+                -(double)(aptr->ztrl)/10000.0;
 #ifdef INVERT
 #ifdef __STDC__
             fprintf(DataFile,"%10.4f%10.4f%10.4f ",x,-y,-z);
@@ -3223,7 +3249,7 @@ int SaveAlchemyMolecule( char *filename )
     register float xpos, ypos, zpos;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
     register Bond __far *bptr;
     register char *ptr;
     register int atomno;
@@ -3299,12 +3325,12 @@ int SaveAlchemyMolecule( char *filename )
                             } else fprintf(DataFile,"%.4s",ptr);
             }
  
-            x = (double)(aptr->xorg + OrigCX)/250.0
+            x = (double)(aptr->xorg + aptr->fxorg + OrigCX)/250.0
                 +(double)(aptr->xtrl)/10000.0;
-            y = (double)(aptr->yorg + OrigCY)/250.0
+            y = (double)(aptr->yorg + aptr->fyorg + OrigCY)/250.0
                 +(double)(aptr->ytrl)/10000.0;
-            z = (double)(aptr->zorg + OrigCZ)/250.0
-                +(double)(aptr->ztrl)/10000.0;
+            z = (double)(aptr->zorg + aptr->fzorg + OrigCZ)/250.0
+                -(double)(aptr->ztrl)/10000.0;
  
             /* Apply Current Viewpoint Rotation Matrix */
             xpos = (float)(x*RotX[0] + y*RotX[1] + z*RotX[2]);
@@ -3350,7 +3376,7 @@ int SaveXYZMolecule( char *filename )
     register double x, y, z;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
     register int atoms;
 
     if( !Database )
@@ -3377,12 +3403,12 @@ int SaveXYZMolecule( char *filename )
         {   fputc(Element[aptr->elemno].symbol[0],DataFile);
             fputc(Element[aptr->elemno].symbol[1],DataFile);
  
-            x = (double)(aptr->xorg + OrigCX)/250.0
+            x = (double)(aptr->xorg + aptr->fxorg + OrigCX)/250.0
                 +(double)(aptr->xtrl)/10000.0;
-            y = (double)(aptr->yorg + OrigCY)/250.0
+            y = (double)(aptr->yorg + aptr->fyorg + OrigCY)/250.0
                 +(double)(aptr->ytrl)/10000.0;
-            z = (double)(aptr->zorg + OrigCZ)/250.0
-                +(double)(aptr->ztrl)/10000.0;
+            z = (double)(aptr->zorg + aptr->fzorg + OrigCZ)/250.0
+                -(double)(aptr->ztrl)/10000.0;
 
 #ifdef INVERT
             fprintf(DataFile," %8.3f %8.3f %8.3f",x,-y,-z);

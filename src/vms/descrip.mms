@@ -1,9 +1,9 @@
 !###########################################################################
-!#                             RasMol 2.7.1.1                              # 
+!#                              RasMol 2.7.1                               # 
 !#                                                                         #
 !#                                 RasMol                                  #
 !#                 Molecular Graphics Visualisation Tool                   #
-!#                            17 January 2001                              #
+!#                              22 June 1999                               #
 !#                                                                         #
 !#                   Based on RasMol 2.6 by Roger Sayle                    #
 !# Biomolecular Structures Group, Glaxo Wellcome Research & Development,   #
@@ -15,10 +15,10 @@
 !#                      Version 2.6x1, May 1998                            #
 !#                   Copyright (C) Arne Mueller 1998                       #
 !#                                                                         #
-!#       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        #
+!#           Version 2.7.0, 2.7.1 Mods by Herbert J. Bernstein             #
 !#           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             #
 !#                      yaya@bernstein-plus-sons.com                       #
-!#           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           #
+!#                    2.7.0 March 1999, 2.7.1 June 1999                    #
 !#              Copyright (C) Herbert J. Bernstein 1998-1999               #
 !#                                                                         #
 !# Please read the file NOTICE for important notices which apply to this   #
@@ -55,23 +55,26 @@ LINK = LINK
 LIBS = 
 
 !CFLAGS = /standard=vaxc/debug/noopt
-CFLAGS= /optimize/standard=vaxc
+CFLAGS= /optimize/standard=RELAXED_ANSI89
 LFLAGS = 
        
  
 rasmol : rasmol.obj, molecule.obj, infile.obj, transfor.obj, command.obj, -
          abstree.obj, render.obj, repres.obj, x11win.obj, pixutils.obj, -
          outfile.obj, script.obj, cif.obj, cmndline.obj, tokens.obj -
-         cif_ctonum.obj, cif_stx.obj, string_case.c, langsel.c
+         cif_fract.obj, cif_ctonum.obj, cif_stx.obj, string_case.obj -
+         multiple.obj, vector.obj,  wbrotate.obj, langsel.obj
          $(LINK) /exec=rasmol $(LFLAGS) rasmol.obj, molecule.obj, -
-                infile.obj, transfor.obj, cmndline.obj, command.obj, abstree.obj, -
-                render.obj, repres.obj, x11win.obj, pixutils.obj, -
-                outfile.obj, script.obj, tokens.obj, cif_fract.obj, cif.obj, -
-                cif_ctonum.obj, cif_stx.obj, string_case.obj, langsel.obj, rasmol/opt
+                infile.obj,   transfor.obj, cmndline.obj, command.obj, -
+                abstree.obj,  render.obj,   repres.obj,   x11win.obj,  -
+                pixutils.obj, outfile.obj,  script.obj,   tokens.obj,  -
+                cif_fract.obj, cif.obj,     cif_ctonum.obj, cif_stx.obj, -
+                string_case.obj, multiple.obj, vector.obj, wbrotate.obj, -
+                langsel.obj,  rint.obj,     rasmol/opt
 
 rasmol.obj :   rasmol.c, rasmol.h, molecule.h, transfor.h, command.h, -
                infile.h, abstree.h, render.h, graphics.h, pixutils.h, -
-               outfile.h, repres.h
+               outfile.h, repres.h,  cmndline.h
                $(CC) $(CFLAGS) rasmol.c
 
 molecule.obj : molecule.c, molecule.h, rasmol.h, abstree.h, transfor.h, -
@@ -139,7 +142,25 @@ cif_stx.obj :  cif_stx.c, cif.h
 
 string_case.obj : string_case.c
                $(CC) $(CFLAGS) string_case.c
-               
-langsel.obj :  langsel.c langsel.h
+
+langsel.obj :   langsel.c, rasmol.h, graphics.h, langsel.h
                $(CC) $(CFLAGS) langsel.c
+
+multiple.obj : multiple.c, rasmol.h,   command.h, tokens.h, molecule.h, -
+               abstree.h,  transfor.h, render.h,  repres.h, graphics.h, -
+               pixutils.h, multiple.h, outfile.h, script.h, vector.h, -
+               wbrotate.h, langsel.h
+               $(CC) $(CFLAGS) multiple.c
+
+vector.obj :   vector.c, rasmol.h, command.h, tokens.h, molecule.h, -
+               abstree.h, transfor.h, vector.h multiple.h 
+               $(CC) $(CFLAGS) vector.c
+
+wbrotate.obj : wbrotate.c, rasmol.h, molecule.h, abstree.h, transfor.h, -
+               command.h, render.h, repres.h, graphics.h, multiple.h, -
+               vector.h, wbrotate.h
+               $(CC) $(CFLAGS) wbrotate.c
+
+rint.obj :     rint.c
+               $(CC) $(CFLAGS) rint.c
 

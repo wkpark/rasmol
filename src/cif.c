@@ -1,9 +1,9 @@
 /***************************************************************************
- *                              RasMol 2.7.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
  *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                              22 June 1999                               *
+ *                              14 April 2001                              *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -11,15 +11,34 @@
  *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
  *                   Copyright (C) Roger Sayle 1992-1999                   *
  *                                                                         *
- *                  and Based on Mods by Arne Mueller                      *
- *                      Version 2.6x1, May 1998                            *
- *                   Copyright (C) Arne Mueller 1998                       *
+ *                          and Based on Mods by                           *
+ *Author             Version, Date             Copyright                   *
+ *Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       *
+ *Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  *
+ *Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   *
  *                                                                         *
- *           Version 2.7.0, 2.7.1 Mods by Herbert J. Bernstein             *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
- *                      yaya@bernstein-plus-sons.com                       *
- *                    2.7.0 March 1999, 2.7.1 June 1999                    *
- *              Copyright (C) Herbert J. Bernstein 1998-1999               *
+ *Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   *
+ *                                                                         *
+ *Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    * 
+ *Bernstein          RasMol 2.7.1   Jun 99         1998-2001               *
+ *                   RasMol 2.7.1.1 Jan 01                                 *
+ *                   RasMol 2.7.2   Aug 00                                 *
+ *                   RasMol 2.7.2.1 Apr 01                                 *
+ *                                                                         *
+ *                    and Incorporating Translations by                    *
+ *  Author                               Item                      Language*
+ *  Isabel Serván Martínez,                                                *
+ *  José Miguel Fernández Fernández      2.6   Manual              Spanish *
+ *  José Miguel Fernández Fernández      2.7.1 Manual              Spanish *
+ *  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish *
+ *  Jean-Pierre Demailly                 2.7.1 menus and messages  French  *
+ *  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          *
+ *  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian *
+ *                                                                         *
+ *                             This Release by                             *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
+ *                       yaya@bernstein-plus-sons.com                      *
+ *               Copyright(C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    *
@@ -282,7 +301,7 @@ int cif_realloc (void __far * __far *old_block, size_t __far *old_nelem,
   void __far *new_block;
 
     /* Are the arguments valid? */
-  if (!old_block || elsize == 0) return CIF_ARGUMENT;
+  if (!old_block || elsize == (size_t)0) return CIF_ARGUMENT;
 
     /* Is the size alread correct? */
 
@@ -292,7 +311,7 @@ int cif_realloc (void __far * __far *old_block, size_t __far *old_nelem,
 
     /* Allocate the memory */
 
-  if (nelem > 0) {
+  if (nelem > (size_t)0) {
     new_block = _fmalloc (nelem * elsize);
     if (!new_block)
       return CIF_ALLOC;
@@ -303,7 +322,7 @@ int cif_realloc (void __far * __far *old_block, size_t __far *old_nelem,
 
     /* Copy the old data */
   if (old_nelem)
-      if (*old_block && *old_nelem > 0 && nelem > 0)
+      if (*old_block && *old_nelem > (size_t)0 && nelem > (size_t)0)
     {
       if (*old_nelem > nelem)
             *old_nelem = nelem;
@@ -320,7 +339,7 @@ int cif_realloc (void __far * __far *old_block, size_t __far *old_nelem,
   if (!old_nelem)
     memset (new_block, 0, nelem * elsize);
   else
-    if (nelem > 0 && nelem > *old_nelem)
+    if (nelem > (size_t)0 && nelem > *old_nelem)
       memset (((char __far *) new_block) + *old_nelem * elsize, 0,
                                      (nelem - *old_nelem) * elsize);
 
@@ -1339,7 +1358,7 @@ void cif_free_string (char __far *string)
 int cif_make_handle (cif_handle *handle)
 {
   int errorcode;
-  cif_failnez (cif_alloc ((void **) handle, NULL, sizeof (cif_handle), 1))
+  cif_failnez (cif_alloc ((void **) handle, NULL, sizeof (cif_handle_struct), 1))
 
   errorcode = cif_make_node (&(*handle)->node, CIF_ROOT, NULL);
   if (errorcode)
@@ -1528,11 +1547,7 @@ int cif_return_text (int code, YYSTYPE __far *val, int offset,
 int cif_lex (YYSTYPE __far *val, cif_file __far *file)
 {
   int data, loop, item, column, comment, word, string, length, 
-      c, count, reprocess, errorcode, firstfew;
-      
-  char linbuf[2];
-  long int id;
-  long start, posdata, initstr, size;
+      c, count, reprocess, errorcode;
   
 
   file->text_used = 0;
@@ -1545,7 +1560,7 @@ int cif_lex (YYSTYPE __far *val, cif_file __far *file)
 
   do
   {
-    length = file->text_used;
+    length = (int)(file->text_used);
     if (reprocess)
       reprocess = 0;
     else
@@ -1773,7 +1788,6 @@ int cif_select_column (cif_handle handle, unsigned int column)
 int cif_findtag (cif_handle handle, char __far *tag)
 {
   cif_node __far *node;
-  int errorcode;
   size_t catlen, collen;
   char __far catname[80];
   char __far colname[80];
@@ -1838,7 +1852,7 @@ int cif_set_textsize (cif_file __far *file, size_t size)
 
     /* Is the size already close enough? */
 
-  if (file->text_size > size && file->text_size <= size + 256 && size > 0)
+  if (file->text_size > size && file->text_size <= size + 256 && size > (size_t)0)
 
     return 0;
 
@@ -1865,10 +1879,10 @@ int cif_save_character (cif_file __far *file, int c)
     /* Expand the buffer? */
 
   kblock = 16;
-  if (file->text_used+2 > 128*2) kblock = 128;
-  if (file->text_used+2 > 512*2) kblock = 512;
+  if (file->text_used+2 > (size_t)(128*2)) kblock = 128;
+  if (file->text_used+2 > (size_t)(512*2)) kblock = 512;
   new_size = (((int)((file->text_used+2)/kblock)))*kblock+kblock;
-  if (new_size < file->text_used+3) new_size = file->text_used+3;
+  if (new_size < file->text_used+3) new_size = (int)file->text_used+3;
 
   if (new_size >= file->text_size)
 

@@ -1,9 +1,9 @@
 ###########################################################################
-#                              RasMol 2.7.0                               # 
+#                             RasMol 2.7.2.1                              #
 #                                                                         #
 #                                 RasMol                                  #
 #                 Molecular Graphics Visualisation Tool                   #
-#                             23 March 1999                               #
+#                              14 April 2001                              #
 #                                                                         #
 #                   Based on RasMol 2.6 by Roger Sayle                    #
 # Biomolecular Structures Group, Glaxo Wellcome Research & Development,   #
@@ -11,11 +11,34 @@
 #         Version 2.6, August 1995, Version 2.6.4, December 1998          #
 #                   Copyright (C) Roger Sayle 1992-1999                   #
 #                                                                         #
-#               Version 2.7.0 Mods by Herbert J. Bernstein                #
-#           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             #
-#                      yaya@bernstein-plus-sons.com                       #
-#                               March 1999                                #
-#              Copyright (C) Herbert J. Bernstein 1998-1999               #
+#                          and Based on Mods by                           #
+#Author             Version, Date             Copyright                   #
+#Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       #
+#Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  #
+#Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   #
+#                                                                         #
+#Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   #
+#                                                                         #
+#Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    # 
+#Bernstein          RasMol 2.7.1   Jun 99         1998-2001               #
+#                   RasMol 2.7.1.1 Jan 01                                 #
+#                   RasMol 2.7.2   Aug 00                                 #
+#                   RasMol 2.7.2.1 Apr 01                                 #
+#                                                                         #
+#                    and Incorporating Translations by                    #
+#  Author                               Item                     Language #
+#  Isabel Serván Martínez,                                                #
+#  José Miguel Fernández Fernández      2.6   Manual              Spanish #
+#  José Miguel Fernández Fernández      2.7.1 Manual              Spanish #
+#  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish #
+#  Jean-Pierre Demailly                 2.7.1 menus and messages  French  #
+#  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          #
+#  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian #
+#                                                                         #
+#                             This Release by                             #
+# Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA #
+#                       yaya@bernstein-plus-sons.com                      #
+#               Copyright(C) Herbert J. Bernstein 1998-2001               #
 #                                                                         #
 # Please read the file NOTICE for important notices which apply to this   #
 # package. If you are not going to make changes to RasMol, you are not    # 
@@ -25,8 +48,8 @@
 #     NOTICE, with what you distribute or provide a clear indication      #
 #     where people can get a copy of the documentation; and               #
 #   * 2. Please give credit where credit is due citing the version and    # 
-#     original authors properly; and                                      # 
-#   * 3. Please do not give anyone the impression that the original       # 
+#     original authors properly; and                                      #  
+#   * 3. Please do not give anyone the impression that the original       #   
 #     authors are providing a warranty of any kind.                       #
 #                                                                         #
 # If you would like to use major pieces of RasMol in some other program,  #
@@ -96,19 +119,24 @@ X11LIBS =  -lXext -lX11 $(LIBS)
 
 INCS = abstree.h cmndline.h command.h font.h graphics.h infile.h \
        molecule.h outfile.h pixutils.h rasmol.h render.h repres.h \
-       script.h tokens.h transfor.h cif.h cif_ctonum.h langsel.h
+       script.h tokens.h transfor.h cif.h cif_ctonum.h \
+       multiple.h vector.h wbrotate.h
 
 SRCS = abstree.c cmndline.c command.c infile.c molecule.c outfile.c \
        pixutils.c render.c repres.c script.c transfor.c tokens.c \
-       cif_fract.c cif.c cif_ctonum.c cif_stx.c langsel.c
+       cif_fract.c cif.c cif_ctonum.c cif_stx.c \
+       multiple.c vector.c wbrotate.c
 
 OBJS = abstree.o cmndline.o command.o infile.o molecule.o outfile.o \
        pixutils.o render.o repres.o script.o transfor.o tokens.o \
-       cif_fract.o cif.o cif_ctonum.o cif_stx.o langsel.o
+       cif_fract.o cif.o cif_ctonum.o cif_stx.o \
+       multiple.o vector.o wbrotate.o
 
 TOBJS = abstree.to cmndline.to command.to infile.to molecule.to outfile.to \
        pixutils.to render.to repres.to script.to transfor.to tokens.to \
-       cif_fract.to cif.to cif_ctonum.to cif_stx.to langsel.to
+       cif_fract.to cif.to cif_ctonum.to cif_stx.to \
+       multiple.to vector.o wbrotate.to
+
 
 X11INCS = $(INCS) bitmaps.h
 X11SRCS = rasmol.c x11win.c $(SRCS)
@@ -123,7 +151,8 @@ rasmol:		$(X11OBJS)
 		chmod 755 rasmol
 
 rasmol.o:	rasmol.c rasmol.h molecule.h transfor.h command.h infile.h \
-		abstree.h render.h graphics.h pixutils.h outfile.h repres.h
+		abstree.h render.h graphics.h pixutils.h outfile.h repres.h \
+		multiple.h langsel.h
 		$(CC) -c $(CFLAGS) rasmol.c
 
 rastxt:		$(TXTOBJS)
@@ -156,28 +185,24 @@ infile.to:	infile.c rasmol.h infile.h molecule.h abstree.h command.h \
 		transfor.h cif.h cif_fract.h
 		$(CC) -c $(CFLAGS) -I- -I./txt -I. infile.c -o infile.to
 
-langsel.o:	langsel.c langsel.h
-		$(CC) -c $(CFLAGS) langsel.c
-
-langsel.to:	langsel.c langsel.h
-		$(CC) -c $(CFLAGS)  -I- -I./txt -I. langsel.c -o langsel.to
-
 transfor.o:	transfor.c transfor.h rasmol.h molecule.h cmndline.h \
-		command.h abstree.h render.h graphics.h repres.h
+		command.h abstree.h render.h graphics.h repres.h \
+		multiple.h vector.h wbrotate.h
 		$(CC) -c $(CFLAGS) transfor.c
 
 transfor.to:	transfor.c transfor.h rasmol.h molecule.h cmndline.h \
-		command.h abstree.h render.h graphics.h repres.h
+		command.h abstree.h render.h graphics.h repres.h \
+		multiple.h vector.h wbrotate.h
 		$(CC) -c $(CFLAGS) -I- -I./txt -I. transfor.c -o transfor.to
 
 command.o:	command.c cmndline.h command.h rasmol.h tokens.h abstree.h \
 		molecule.h transfor.h render.h graphics.h pixutils.h \
-		outfile.h infile.h script.h langsel.h
+		outfile.h infile.h script.h multiple.h langsel.h
 		$(CC) -c $(CFLAGS) command.c
 
 command.to:	command.c cmndline.h command.h rasmol.h tokens.h abstree.h \
 		molecule.h transfor.h render.h graphics.h pixutils.h \
-		outfile.h infile.h script.h
+		outfile.h infile.h script.h multiple.h langsel.h
 		$(CC) -c $(CFLAGS) -I- -I./txt -I. command.c -o command.to
 
 abstree.o:	abstree.c abstree.h rasmol.h molecule.h
@@ -195,48 +220,54 @@ cmndline.to:	cmndline.c cmndline.h rasmol.h molecule.h command.h \
 		$(CC) -c $(CFLAGS) -I- -I./txt -I. cmndline.c -o cmndline.to
 
 render.o:	render.c render.h rasmol.h molecule.h transfor.h \
-		command.h abstree.h graphics.h pixutils.h
+		command.h abstree.h graphics.h pixutils.h \
+		outfile.h infile.h script.h multiple.h
 		$(CC) -c $(CFLAGS) render.c
 
 render.to:	render.c render.h rasmol.h molecule.h transfor.h \
-		command.h abstree.h graphics.h pixutils.h
+		command.h abstree.h graphics.h pixutils.h \
+		outfile.h infile.h script.h multiple.h
 		$(CC) -c $(CFLAGS) -I- -I./txt -I. render.c -o render.to
 
-repres.o:	repres.c repres.h rasmol.h
+repres.o:	repres.c repres.h molecule.h graphics.h render.h \
+		command.h cmndline.h abstree.h transfer.h pixutils.h \
+		infile.h rasmol.h
 		$(CC) -c $(CFLAGS) repres.c
 
-repres.to:	repres.c repres.h rasmol.h
+repres.to:	repres.c repres.h molecule.h graphics.h render.h \
+		command.h cmndline.h abstree.h transfer.h pixutils.h \
+		infile.h rasmol.h
 		$(CC) -c $(CFLAGS) -I- -I./txt -I. repres.c -o repres.to
 
 x11win.o:	x11win.c graphics.h rasmol.h bitmaps.h command.h render.h
 		$(CC) -c $(CFLAGS) x11win.c
 
 pixutils.o:	pixutils.c pixutils.h rasmol.h font.h molecule.h \
-		transfor.h render.h graphics.h abstree.h
+		transfor.h render.h graphics.h abstree.h repres.h
 		$(CC) -c $(CFLAGS) pixutils.c
 
 pixutils.to:	pixutils.c pixutils.h rasmol.h font.h molecule.h \
-		transfor.h render.h graphics.h abstree.h
+		transfor.h render.h graphics.h abstree.h repres.h
 		$(CC) -c $(CFLAGS) -I- -I./txt -I. pixutils.c -o pixutils.to
 
 outfile.o:	outfile.c outfile.h rasmol.h molecule.h command.h \
 		abstree.h transfor.h render.h graphics.h pixutils.h \
-		script.h repres.h
+		script.h repres.h cmndline.h
 		$(CC) -c $(CFLAGS) outfile.c
 
 outfile.to:	outfile.c outfile.h rasmol.h molecule.h command.h \
 		abstree.h transfor.h render.h graphics.h pixutils.h \
-		script.h repres.h
+		script.h repres.h cmndline.h
 		$(CC) -c $(CFLAGS) -I- -I./txt -I. outfile.c -o outfile.to
 
 script.o:	script.c script.h rasmol.h molecule.h command.h \
 		abstree.h transfor.h render.h graphics.h pixutils.h \
-		repres.h
+		repres.h cmndline.h
 		$(CC) -c $(CFLAGS) script.c
 
 script.to:	script.c script.h rasmol.h molecule.h command.h \
 		abstree.h transfor.h render.h graphics.h pixutils.h \
-		repres.h
+		repres.h cmndline.h
 		$(CC) -c $(CFLAGS) -I- -I./txt -I. script.c -o script.to
 
 tokens.o:	tokens.c tokens.h
@@ -268,6 +299,40 @@ cif_stx.o: 	cif_stx.c cif.h
 
 cif_stx.to: 	cif_stx.c cif.h
 		$(CC) -c $(CFLAGS) -I- -I./txt -I. cif_stx.c -o cif_stx.to
+
+vector.o:	vector.c rasmol.h command.h tokens.h molecule.h \
+		abstree.h transfor.h vector.h multiple.h
+		$(CC) -c $(CFLAGS) vector.c
+
+vector.to:	vector.c rasmol.h command.h tokens.h molecule.h \
+		abstree.h transfor.h vector.h multiple.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. vector.c -o script.to
+
+multiple.o:	multiple.c rasmol.h command.h tokens.h molecule.h \
+		abstree.h transfor.h render.h graphics.h pixutils.h \
+		multiple.h outfile.h script.h vector.h wbrotate.h
+		$(CC) -c $(CFLAGS) multiple.c
+
+multiple.to:	multiple.c rasmol.h command.h tokens.h molecule.h \
+		abstree.h transfor.h render.h graphics.h pixutils.h \
+		multiple.h outfile.h script.h vector.h wbrotate.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. vector.c -o script.to
+
+wbrotate.o:	wbrotate.c rasmol.h command.h tokens.h molecule.h \
+		abstree.h transfor.h vector.h multiple.h render.h \
+		repres.h graphics.h wbrotate.h
+		$(CC) -c $(CFLAGS) wbrotate.c
+
+wbrotate.to:	wbrotate.c rasmol.h command.h tokens.h molecule.h \
+		abstree.h transfor.h vector.h multiple.h render.h \
+		repres.h graphics.h wbrotate.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. wbrotate.c -o script.to
+
+langsel.o:	langsel.c rasmol.h graphics.h langsel.h
+		$(CC) -c $(CFLAGS) langsel.c
+
+langsel.to:	langsel.c rasmol.h graphics.h langsel.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. langsel.c -o langsel.to
 
 
 esv:		$(X11SRCS) $(X11INCS)

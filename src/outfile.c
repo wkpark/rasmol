@@ -1,9 +1,9 @@
 /***************************************************************************
- *                              RasMol 2.7.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
  *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                              22 June 1999                               *
+ *                              14 April 2001                              *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -11,15 +11,34 @@
  *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
  *                   Copyright (C) Roger Sayle 1992-1999                   *
  *                                                                         *
- *                  and Based on Mods by Arne Mueller                      *
- *                      Version 2.6x1, May 1998                            *
- *                   Copyright (C) Arne Mueller 1998                       *
+ *                          and Based on Mods by                           *
+ *Author             Version, Date             Copyright                   *
+ *Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       *
+ *Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  *
+ *Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   *
  *                                                                         *
- *           Version 2.7.0, 2.7.1 Mods by Herbert J. Bernstein             *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
- *                      yaya@bernstein-plus-sons.com                       *
- *                    2.7.0 March 1999, 2.7.1 June 1999                    *
- *              Copyright (C) Herbert J. Bernstein 1998-1999               *
+ *Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   *
+ *                                                                         *
+ *Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    * 
+ *Bernstein          RasMol 2.7.1   Jun 99         1998-2001               *
+ *                   RasMol 2.7.1.1 Jan 01                                 *
+ *                   RasMol 2.7.2   Aug 00                                 *
+ *                   RasMol 2.7.2.1 Apr 01                                 *
+ *                                                                         *
+ *                    and Incorporating Translations by                    *
+ *  Author                               Item                      Language*
+ *  Isabel Serván Martínez,                                                *
+ *  José Miguel Fernández Fernández      2.6   Manual              Spanish *
+ *  José Miguel Fernández Fernández      2.7.1 Manual              Spanish *
+ *  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish *
+ *  Jean-Pierre Demailly                 2.7.1 menus and messages  French  *
+ *  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          *
+ *  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian *
+ *                                                                         *
+ *                             This Release by                             *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
+ *                       yaya@bernstein-plus-sons.com                      *
+ *               Copyright(C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    *
@@ -49,6 +68,19 @@
  ***************************************************************************/
 
 /* outfile.c
+ $Log: outfile.c,v $
+ Revision 1.1  2001/01/31 02:13:45  yaya
+ Initial revision
+
+ Revision 1.4  2000/08/26 18:12:36  yaya
+ Updates to header comments in all files
+
+ Revision 1.3  2000/08/26 03:14:01  yaya
+ Mods for mac compilations
+
+ Revision 1.2  2000/08/09 01:18:08  yaya
+ Rough cut with ucb
+
  */
 
 #include "rasmol.h"
@@ -219,11 +251,11 @@ static int VectCol;
 
 static int FindDepth( PSItemPtr, int );
 static void DepthSort( PSItemPtr __far*, char __far*, int );
-static int ClipVectSphere( Atom __far* );
-static int ClipVectBond( Atom __far*, Atom __far* );
+static int ClipVectSphere( RAtom __far* );
+static int ClipVectBond( RAtom __far*, RAtom __far* );
 static void WriteVectSphere( PSItemPtr __far*, char __far*, int );
-static void WriteVectStick( Atom __far*, Atom __far*, int, int );
-static void WriteVectWire( Atom __far*, Atom __far*, int, int );
+static void WriteVectStick( RAtom __far*, RAtom __far*, int, int );
+static void WriteVectWire( RAtom __far*, RAtom __far*, int, int );
 static void FetchPSItems( PSItemPtr __far*, char __far* );
 static void WritePSItems( PSItemPtr __far*, char __far*, int );
 
@@ -1296,12 +1328,12 @@ static int FindDepth( PSItemPtr item,  int type )
 {
     register Monitor __far *monit;
     register HBond __far *hbond;
-    register Atom __far *atom;
+    register RAtom __far *atom;
     register Bond __far *bond;
     register int result;
 
     switch( type )
-    {   case(PSAtom):    atom = (Atom __far*)item;
+    {   case(PSAtom):    atom = (RAtom __far*)item;
                          return atom->z;
 
         case(PSBond):    bond = (Bond __far*)item;
@@ -1366,7 +1398,7 @@ static void DepthSort( PSItemPtr __far *data, char __far *type, int count )
 }
 
 
-static int ClipVectSphere( Atom __far *ptr )
+static int ClipVectSphere( RAtom __far *ptr )
 {
     register int rad;
 
@@ -1380,7 +1412,7 @@ static int ClipVectSphere( Atom __far *ptr )
 }
 
 
-static int ClipVectBond( Atom __far *src, Atom __far *dst )
+static int ClipVectBond( RAtom __far *src, RAtom __far *dst )
 {
     if( !src || !dst )  return True;
     if( (src->x<0) && (dst->x<0) )  return True;
@@ -1435,8 +1467,8 @@ static void WriteVectSphere( PSItemPtr __far *data, char __far *type,
                              int index )
 {
     register int ecount, count;
-    register Atom __far *atm;
-    register Atom __far *ptr;
+    register RAtom __far *atm;
+    register RAtom __far *ptr;
     register Long dist2,dist3;
     register int dx, dy, dz;
     register int i,j,k;
@@ -1450,8 +1482,8 @@ static void WriteVectSphere( PSItemPtr __far *data, char __far *type,
     register SphereSect *sptr;
     SphereSect sect[MAXSECT];
 
-    ptr = (Atom __far*)data[index];
-    radf = ptr->radius*Scale;
+    ptr = (RAtom __far*)data[index];
+    radf = ((Real)ptr->radius)*Scale;
 
     count = 0;
     ecount = 0;
@@ -1460,7 +1492,7 @@ static void WriteVectSphere( PSItemPtr __far *data, char __far *type,
     {   if( type[i] != PSAtom )
             continue;
 
-        atm = (Atom __far*)data[i];
+        atm = (RAtom __far*)data[i];
         /* Atom can't intersect visibly! */
         if( atm->z + atm->irad < ptr->z )
             continue;
@@ -1472,7 +1504,7 @@ static void WriteVectSphere( PSItemPtr __far *data, char __far *type,
         dist2 = (Long)dx*dx + (Long)dy*dy;
         dist3 = dist2 + dz*dz;
 
-        radb = atm->radius*Scale;  
+        radb = ((Real)atm->radius)*Scale;  
         temp = radf + radb;
 
         /* Atoms don't intersect! */
@@ -1613,10 +1645,10 @@ static void WriteVectSphere( PSItemPtr __far *data, char __far *type,
 }
 
 
-static void WriteVectWire( Atom __far *src, Atom __far *dst,
+static void WriteVectWire( RAtom __far *src, RAtom __far *dst,
                            int col, int dash )
 {
-    register Atom __far *tmp;
+    register RAtom __far *tmp;
     register Real radius;
     register Real temp;
     register Real dist;
@@ -1650,7 +1682,7 @@ static void WriteVectWire( Atom __far *src, Atom __far *dst,
     dist = sqrt( (double)dist2 );
 
     if( dst->flag & SphereFlag )
-    {   radius = dst->radius*Scale;
+    {   radius = ((Real)dst->radius)*Scale;
         if( dist <= radius ) return;
 
         /* Test for second half obscured! */
@@ -1659,7 +1691,7 @@ static void WriteVectWire( Atom __far *src, Atom __far *dst,
     }
 
     if( src->flag & SphereFlag )
-    {   radius = src->radius*Scale;
+    {   radius = ((Real)src->radius)*Scale;
         if( dist <= radius ) return;
 
         /* Test for first half obscured! */
@@ -1708,10 +1740,10 @@ static void WriteVectWire( Atom __far *src, Atom __far *dst,
 }
 
 
-static void WriteVectStick( Atom __far *src, Atom __far *dst, 
+static void WriteVectStick( RAtom __far *src, RAtom __far *dst, 
                             int col, int rad )
 {
-    register Atom __far *tmp;
+    register RAtom __far *tmp;
     register Real midx, midy;
     register Real relx, rely;
     register Real endx, endy;
@@ -1748,7 +1780,7 @@ static void WriteVectStick( Atom __far *src, Atom __far *dst,
     dist = sqrt( (double)dist2 );
 
     if( dst->flag & SphereFlag )
-    {   radius = dst->radius*Scale;
+    {   radius = ((Real)dst->radius)*Scale;
         if( dist <= radius ) return;
 
         /* Test for nearest half obscured! */
@@ -1757,7 +1789,7 @@ static void WriteVectStick( Atom __far *src, Atom __far *dst,
     }
 
     if( src->flag & SphereFlag )
-    {   radius = src->radius*Scale;
+    {   radius = ((Real)src->radius)*Scale;
         if( dist <= radius ) return;
 
         /* Test for furthest half obscured! */
@@ -1776,7 +1808,7 @@ static void WriteVectStick( Atom __far *src, Atom __far *dst,
         LineWidth = temp;
     }
 
-    radius = rad*Scale;
+    radius = ((Real)rad)*Scale;
     angle = Rad2Deg*atan2((double)dy,(double)dx);
     inten = (int)((dist/dist3)*ColourMask);
 
@@ -1792,7 +1824,7 @@ static void WriteVectStick( Atom __far *src, Atom __far *dst,
         ratio = dz/dist3;
 
         if( (src->flag&SphereFlag) && (src->radius>rad) )
-        {   temp = (Scale*src->radius)/dist3;
+        {   temp = (Scale*(Real)(src->radius))/dist3;
             endx = src->x + temp*dx;
             endy = src->y + temp*dy;
 
@@ -1839,7 +1871,7 @@ static void WriteVectStick( Atom __far *src, Atom __far *dst,
         fprintf(OutFile,"%g %g arc\n",angle-90,angle+90);
 
         if( (src->flag&SphereFlag) && (src->radius>rad) )
-        {   temp = (Scale*src->radius)/dist3;
+        {   temp = (Scale*(Real)(src->radius))/dist3;
             endx = src->x + temp*dx;
             endy = src->y + temp*dy;
             ratio = dz/dist3;
@@ -1867,7 +1899,7 @@ static void WriteVectDots( void )
     register Real x,y,z;
     register Real xi,yi;
     register int inten;
-    register int temp;
+    register int temp, tump;
     register int zi;
     register int i;
 
@@ -1877,6 +1909,7 @@ static void WriteVectDots( void )
     }
 
     temp = SlabValue - ZOffset;
+    tump = DepthValue - ZOffset;
     for( ptr=DotPtr; ptr; ptr=ptr->next )
         for( i=0; i<ptr->count; i++ )
         {   x = ptr->xpos[i];  
@@ -1891,6 +1924,7 @@ static void WriteVectDots( void )
 
             zi = (int)(x*MatZ[0]+y*MatZ[1]+z*MatZ[2]);
             if( UseSlabPlane && (zi>=temp) ) continue;
+            if( UseDepthPlane && (zi<=tump) ) continue;
 
             inten = (ColourDepth*(zi+ImageRadius))/ImageSize;
             WriteVectColour( ptr->col[i]+inten );
@@ -1903,9 +1937,9 @@ static void WriteVectLabels( void )
 {
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
     register Label *label;
-    auto char buffer[80];
+    auto unsigned char buffer[80];
 
     fputs("/Times-Roman",OutFile); /* Courier or Courier-Bold? */
     fprintf(OutFile," findfont %d scalefont setfont\n",FontSize<<1);
@@ -1931,8 +1965,8 @@ static void WriteVectLabels( void )
 
 static void WriteVectMonitors( void )
 {
-    register Atom __far *s;
-    register Atom __far *d;
+    register RAtom __far *s;
+    register RAtom __far *d;
     register Monitor *ptr;
     register int x,y,col;
 
@@ -1950,7 +1984,7 @@ static void WriteVectMonitors( void )
     {   s = ptr->src;
         d = ptr->dst;
 
-        if( ZValid( (s->z+d->z)/2 ) )
+        if( ZValid( (s->z+d->z)/2 ) && ZBack( (s->z+d->z)/2 ))
         {   x = (s->x+d->x)/2;
             y = (s->y+d->y)/2;
  
@@ -1987,7 +2021,7 @@ static Long CountPSItems( void )
     register Group __far *group;
     register HBond __far *hptr;
     register Bond __far *bptr;
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
     register Monitor *mptr;
     register Long result;
 
@@ -2041,7 +2075,7 @@ static void FetchPSItems( PSItemPtr __far *data, char __far *type )
     register Group __far *group;
     register HBond __far *hptr;
     register Bond __far *bptr;
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
     register Monitor *mptr;
     register int i,flag;
 
@@ -2106,8 +2140,8 @@ static void WritePSItems( PSItemPtr __far *data, char __far *type, int count )
     register Monitor __far *monit;
     register HBond __far *hbond;
     register Bond __far *bond;
-    register Atom __far *src;
-    register Atom __far *dst;
+    register RAtom __far *src;
+    register RAtom __far *dst;
     register int i;
 
     for( i=0; i<count; i++ )
@@ -2540,7 +2574,7 @@ int WritePICTFile( char *name )
     WriteMSBShort(0x0000);  /* baseAddr      */
     WriteMSBShort(0x00ff);
 #endif
-    i = (XRange*sizeof(Pixel)) | 0x8000;
+    i = (int)((XRange*sizeof(Pixel)) | 0x8000);
     WriteMSBShort( i );     /* rowBytes      */
     WriteMSBShort(0);       /* bounds.top    */
     WriteMSBShort(0);       /* bounds.left   */
@@ -2668,7 +2702,7 @@ static void DetermineIRISSizes(  Long __far *rowstart,
 
     *max = 0;
     *min = 255;
-    RLEFileSize = 512 + 6*YRange*sizeof(Long);
+    RLEFileSize = (int)( 512 + 6*YRange*sizeof(Long));
 
     RLEOutput = False;
     PacketLen = 0;

@@ -32,5 +32,4 @@ rasmol.vms:	prepdoc rasmol.doc
 		rm -f rasmol.vms
 		prepdoc -vms rasmol.doc > rasmol.vms
 
-all:		rasmol.txt rasmol.hlp rasmol.html raswin.rtf rasmol.vms \
-		rasmol.tex rasmol.man
+all:		rasmol.txt rasmol.hlp rasmol.html raswin.rtf rasmol.vms

@@ -1,9 +1,9 @@
 /***************************************************************************
- *                            RasMol 2.7.1.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
- *                                RasMol                                   *
+ *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                            21 January 2001                              *
+ *                              14 April 2001                              *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -11,15 +11,34 @@
  *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
  *                   Copyright (C) Roger Sayle 1992-1999                   *
  *                                                                         *
- *                  and Based on Mods by Arne Mueller                      *
- *                      Version 2.6x1, May 1998                            *
- *                   Copyright (C) Arne Mueller 1998                       *
+ *                          and Based on Mods by                           *
+ *Author             Version, Date             Copyright                   *
+ *Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       *
+ *Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  *
+ *Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   *
  *                                                                         *
- *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
- *                      yaya@bernstein-plus-sons.com                       *
- *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
- *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   *
+ *                                                                         *
+ *Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    * 
+ *Bernstein          RasMol 2.7.1   Jun 99         1998-2001               *
+ *                   RasMol 2.7.1.1 Jan 01                                 *
+ *                   RasMol 2.7.2   Aug 00                                 *
+ *                   RasMol 2.7.2.1 Apr 01                                 *
+ *                                                                         *
+ *                    and Incorporating Translations by                    *
+ *  Author                               Item                      Language*
+ *  Isabel Serván Martínez,                                                *
+ *  José Miguel Fernández Fernández      2.6   Manual              Spanish *
+ *  José Miguel Fernández Fernández      2.7.1 Manual              Spanish *
+ *  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish *
+ *  Jean-Pierre Demailly                 2.7.1 menus and messages  French  *
+ *  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          *
+ *  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian *
+ *                                                                         *
+ *                             This Release by                             *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
+ *                       yaya@bernstein-plus-sons.com                      *
+ *               Copyright(C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    *
@@ -49,6 +68,22 @@
  ***************************************************************************/
 
 /* mswin31.c
+ $Log: mswin31.c,v $
+ Revision 1.1  2002/05/28 02:15:26  yaya
+ Initial revision
+
+ Revision 1.2  2001/02/08 01:14:46  yaya
+ *** empty log message ***
+
+ Revision 1.1  2001/01/31 02:13:45  yaya
+ Initial revision
+
+ Revision 1.3  2000/08/26 18:12:35  yaya
+ Updates to header comments in all files
+
+ Revision 1.2  2000/02/23 00:00:00  yaya
+ Prelininary 2.7.2 build
+
  */
 
 #include <windows.h>
@@ -341,7 +376,7 @@ void UpdateScrollBars( void )
 void ReDrawWindow( void )
 {
  
-  HMENU mentop[7];
+  HMENU mentop[8];
   int ii;
 
   ModifyMenu(hMenu,IDM_OPEN,     MF_STRING, IDM_OPEN,    MsgStrs[StrMOpen]);
@@ -385,6 +420,20 @@ void ReDrawWindow( void )
   ModifyMenu(hMenu,IDM_STEREO,   MF_STRING,IDM_STEREO,   MsgStrs[StrMStereo]);
   ModifyMenu(hMenu,IDM_LABELS,   MF_STRING,IDM_LABELS,   MsgStrs[StrMLabel]);
 
+  ModifyMenu(hMenu,IDM_PKNONE,   MF_STRING,IDM_PKNONE,   MsgStrs[StrMPOff]);
+  ModifyMenu(hMenu,IDM_PKIDENT,  MF_STRING,IDM_PKIDENT,  MsgStrs[StrMPIdent]);
+  ModifyMenu(hMenu,IDM_PKDIST,   MF_STRING,IDM_PKDIST,   MsgStrs[StrMPDist]);
+  ModifyMenu(hMenu,IDM_PKMONIT,  MF_STRING,IDM_PKMONIT,  MsgStrs[StrMPMon]);
+  ModifyMenu(hMenu,IDM_PKANGLE,  MF_STRING,IDM_PKANGLE,  MsgStrs[StrMPAng]);
+  ModifyMenu(hMenu,IDM_PKTORSN,  MF_STRING,IDM_PKTORSN,  MsgStrs[StrMPTrsn]);
+  ModifyMenu(hMenu,IDM_PKLABEL,  MF_STRING,IDM_PKLABEL,  MsgStrs[StrMPLabl]);
+  ModifyMenu(hMenu,IDM_PKORIGN,  MF_STRING,IDM_PKORIGN,  MsgStrs[StrMPCent]);
+  ModifyMenu(hMenu,IDM_PKCOORD,  MF_STRING,IDM_PKCOORD,  MsgStrs[StrMPCoord]);
+  ModifyMenu(hMenu,IDM_PKBOND,   MF_STRING,IDM_PKBOND,   MsgStrs[StrMPBond]);
+  ModifyMenu(hMenu,IDM_RTBOND,   MF_STRING,IDM_RTBOND,   MsgStrs[StrMRBond]);
+  ModifyMenu(hMenu,IDM_RTMOL,    MF_STRING,IDM_RTMOL,    MsgStrs[StrMRMol]);
+  ModifyMenu(hMenu,IDM_RTALL,    MF_STRING,IDM_RTALL,    MsgStrs[StrMRAll]);
+ 
   ModifyMenu(hMenu,IDM_BMP,      MF_STRING,IDM_BMP,      MsgStrs[StrMBMP]);
   ModifyMenu(hMenu,IDM_GIF,      MF_STRING,IDM_GIF,      MsgStrs[StrMGIF]);
   ModifyMenu(hMenu,IDM_EPSF,     MF_STRING,IDM_EPSF,     MsgStrs[StrMPostscr]);
@@ -394,18 +443,18 @@ void ReDrawWindow( void )
   ModifyMenu(hMenu,IDM_ABOUT,    MF_STRING,IDM_ABOUT,    MsgStrs[StrMAbout]);
   ModifyMenu(hMenu,IDM_HELP,     MF_STRING,IDM_HELP,     MsgStrs[StrMUserM]);
   
-  for (ii = 7; ii > 0; ii--) {
+  for (ii = 8; ii > 0; ii--) {
     mentop[ii-1] = GetSubMenu(hMenu,ii-1);
     RemoveMenu(hMenu,ii-1,MF_BYPOSITION);
   }
-  for (ii = 0; ii < 7; ii++) {
+  for (ii = 0; ii < 8; ii++) {
     AppendMenu(hMenu, MF_POPUP | MF_STRING , (UINT) mentop[ii], MsgStrs[StrMFile+ii]);
   }
   
   DrawMenuBar(CanvWin);
 
 }
-
+  
 void SetMouseUpdateStatus( int bool )
 {
     MouseUpdateStatus = bool;
@@ -461,7 +510,7 @@ int OpenDisplay( HANDLE instance, int mode )
     UseHourGlass = True;
     DisableMenu = False;
 
-    for( i=0; i<8; i++ )
+    for( i=0; i<10; i++ )
          DialValue[i] = 0.0;
 
     ULut[0] = True;
@@ -469,6 +518,7 @@ int OpenDisplay( HANDLE instance, int mode )
     XRange = DefaultWide;   WRange = XRange>>1;
     YRange = DefaultHigh;   HRange = YRange>>1;
     Range = MinFun(XRange,YRange);
+    ZRange = 20000;
     
     rect.top  = 0;   rect.bottom = YRange;
     rect.left = 0;   rect.right  = XRange;

@@ -1,9 +1,9 @@
 /***************************************************************************
- *                              RasMol 2.7.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
  *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                              22 June 1999                               *
+ *                              14 April 2001                              *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -11,15 +11,34 @@
  *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
  *                   Copyright (C) Roger Sayle 1992-1999                   *
  *                                                                         *
- *                  and Based on Mods by Arne Mueller                      *
- *                      Version 2.6x1, May 1998                            *
- *                   Copyright (C) Arne Mueller 1998                       *
+ *                          and Based on Mods by                           *
+ *Author             Version, Date             Copyright                   *
+ *Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       *
+ *Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  *
+ *Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   *
  *                                                                         *
- *           Version 2.7.0, 2.7.1 Mods by Herbert J. Bernstein             *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
- *                      yaya@bernstein-plus-sons.com                       *
- *                    2.7.0 March 1999, 2.7.1 June 1999                    *
- *              Copyright (C) Herbert J. Bernstein 1998-1999               *
+ *Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   *
+ *                                                                         *
+ *Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    * 
+ *Bernstein          RasMol 2.7.1   Jun 99         1998-2001               *
+ *                   RasMol 2.7.1.1 Jan 01                                 *
+ *                   RasMol 2.7.2   Aug 00                                 *
+ *                   RasMol 2.7.2.1 Apr 01                                 *
+ *                                                                         *
+ *                    and Incorporating Translations by                    *
+ *  Author                               Item                      Language*
+ *  Isabel Serván Martínez,                                                *
+ *  José Miguel Fernández Fernández      2.6   Manual              Spanish *
+ *  José Miguel Fernández Fernández      2.7.1 Manual              Spanish *
+ *  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish *
+ *  Jean-Pierre Demailly                 2.7.1 menus and messages  French  *
+ *  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          *
+ *  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian *
+ *                                                                         *
+ *                             This Release by                             *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
+ *                       yaya@bernstein-plus-sons.com                      *
+ *               Copyright(C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    *
@@ -49,6 +68,22 @@
  ***************************************************************************/
 
 /* pixutils.c
+ $Log: pixutils.c,v $
+ Revision 1.1  2001/01/31 02:13:45  yaya
+ Initial revision
+
+ Revision 1.5  2000/08/26 18:12:37  yaya
+ Updates to header comments in all files
+
+ Revision 1.4  2000/08/13 20:56:21  yaya
+ Conversion from toolbar to menus
+
+ Revision 1.3  2000/08/03 18:32:41  yaya
+ Parametrization for alt conformer bond radius
+
+ Revision 1.2  2000/02/23 00:00:00  yaya
+ Prelininary 2.7.2 build
+
  */
 
 #include "rasmol.h"
@@ -95,6 +130,7 @@
 #define BitRight    0x04
 #define BitLeft     0x08
 #define BitFront    0x10
+#define BitBack     0x20
 
 #define Reject(x,y)   ((x)&(y))
 #define Accept(x,y)   (!((x)|(y)))
@@ -134,7 +170,7 @@ static ArcEntry ArcDn[ARCSIZE];
 #endif
 
 static char FontDimen[23];
-static int FontWid[95];
+static int FontWid[97];
 static int ClipStatus;
 
 
@@ -163,6 +199,9 @@ static int ClipStatus;
                                       \
         if( !ZValid((z)) )            \
             (res) |= BitFront;        \
+                                      \
+        if( !ZBack((z))  )            \
+            (res) |= BitBack;         \
     }
 
 
@@ -201,6 +240,9 @@ static int OutCode( int x, int y, int z )
 
     if( !ZValid(z) )
         result |= BitFront;
+    
+    if( !ZBack(z) )
+        result |= Bitback;
     return result;
 }
 #endif
@@ -230,7 +272,7 @@ void ClipPoint( int x, int y, int z, int col )
     register short __huge *dptr;
     register Long offset;
 
-    if( XValid(x) && YValid(y) && ZValid(z) )
+    if( XValid(x) && YValid(y) && ZValid(z) && ZBack(z) )
     {   /* PlotPoint(x,y,z,col); */
         offset = (Long)y*View.yskip+x;
         dptr = View.dbuf+offset;
@@ -271,7 +313,7 @@ void ClipDeepPoint( int x, int y, int z, int col )
     register short __huge *dptr;
     register int inten;
 
-    if( XValid(x) && YValid(y) && ZValid(z) )
+    if( XValid(x) && YValid(y) && ZValid(z) && ZBack(z) )
     {   /* PlotDeepPoint(x,y,z,col); */
         offset = (Long)y*View.yskip+x;
         dptr = View.dbuf+offset;
@@ -437,12 +479,18 @@ void ClipLine( int x1, int y1, int z1,
             x1 += (int)(((Long)rest*(x2-x1))/delta);
             z1 += (int)(((Long)rest*(z2-z1))/delta);
             y1 = temp;
-        } else /* SLAB */
+        } else if( code1 & BitFront ) /* SLAB */
         {   delta = z2-z1;
             rest = (SlabValue-1)-z1;
             x1 += (int)(((Long)rest*(x2-x1))/delta);
             y1 += (int)(((Long)rest*(y2-y1))/delta);
             z1 = SlabValue-1;
+        } else /* DEPTH */
+        {   delta = z2-z1;
+            rest = (DepthValue+1)-z1;
+            x1 += (int)(((Long)rest*(x2-x1))/delta);
+            y1 += (int)(((Long)rest*(y2-y1))/delta);       
+            z1 = DepthValue+1;
         }
 
         OutCode(code1,x1,y1,z1);
@@ -476,6 +524,146 @@ void ClipTwinLine( int x1, int y1, int z1,
                DrawTwinLine(x1,y1,z1,x2,y2,z2,col1,col2,altl);
         }
     } else ClipLine(x1,y1,z1,x2,y2,z2,col1,altl);
+}
+
+
+void ClipDashLine( int x1, int y1, int z1,
+                     int x2, int y2, int z2,
+                     int col1, int col2, char altl )
+{
+    register Long offset;
+    register Pixel __huge *fptr;
+    register short __huge *dptr;
+    register int ix,iy,iz;
+    register int dx,dy,dz;
+    register int zrate, zerr;
+    register int ystep,err;
+	register int co;
+    register Pixel c, ca, mid;
+    register int count;
+    register int altc;
+
+    if( (x1==x2) && (y1==y2) )
+         return;
+
+    /* Reject(OutCode(x1,y1,z1),OutCode(x2,y2,z2)) */
+    if( (x1<0) && (x2<0) ) return;
+    if( (y1<0) && (y2<0) ) return;
+    if( (x1>=View.xmax) && (x2>=View.xmax) ) return;
+    if( (y1>=View.ymax) && (y2>=View.ymax) ) return;
+
+    c = Lut[col1];
+    altc = 0;
+    ca = c;
+    if ( altl != '\0' && altl != ' ') {
+      altc = AltlColours[((int)altl)&(AltlDepth-1)];
+      ca = Lut[altc];
+    }
+
+    dx = x2 - x1;  
+	dy = y2 - y1;
+    dz = z2 - z1;  
+
+    offset = (Long)y1*View.yskip + x1;
+    fptr = View.fbuf+offset;
+    dptr = View.dbuf+offset;
+    count = 0;
+
+    ystep = View.yskip;
+    ix = iy = iz = 1;
+    if( dy<0 ) { dy = -dy; iy = -1; ystep = -ystep; }
+    if( dx<0 ) { dx = -dx; ix = -1; }
+    if( dz<0 ) { dz = -dz; iz = -1; }
+
+    if( dx>dy )
+    {   if( x2<x1 )
+        {   mid = col1;
+            col1 = col2;
+            col2 = mid;
+        }
+        if( dz >= dx )
+        {   zrate = dz/dx;
+            dz -= dx*zrate;
+            if( iz < 0 )
+                zrate = -zrate;
+        } else zrate = 0;
+
+        err = zerr = -(dx>>1);
+        mid = (x1+x2)/2;
+
+        while( x1!=x2 )
+        {   if( XValid(x1) && YValid(y1) && ZValid(z1) && ZBack(z1) )
+            {   if( count<2 )
+                {   co = (x1<mid)? col1 : col2;
+					c = Lut[co];
+                    SETPIXEL(dptr,fptr,z1,c);
+                    count++;
+                } else if( count==3 )
+                {   count = 0;
+                } else count++;
+            }
+
+            if( (err+=dy)>0 )
+            {   err -= dx;
+                fptr+=ystep;
+                dptr+=ystep;
+                y1+=iy;
+            }
+
+            if( (zerr+=dz)>0 )
+            {   zerr -= dx;
+                z1 += iz;
+            }
+
+            fptr+=ix; dptr+=ix; x1+=ix;
+            z1 += zrate;
+        }
+    } else
+    {   if( y1>y2 )
+        {   mid = col1;
+            col1 = col2;
+            col2 = mid;
+        }
+
+        if( dz >= dy )
+        {   zrate = dz/dy;
+            dz -= dy*zrate;
+            if( iz < 0 )
+                zrate = -zrate;
+        } else zrate = 0;
+
+        err = zerr = -(dy>>1);
+        mid = (y1+y2)/2;
+
+        
+        while( y1!=y2 )
+        {   if( XValid(x1) && YValid(y1) && ZValid(z1) && ZBack(z1) )
+            {   if( count<2 )
+                {   co = (y1<mid)? col1 : col2;
+					c = Lut[co];
+                    SETPIXEL(dptr,fptr,z1,c);
+                    count++;
+                } else if( count==3 )
+                {   count = 0;
+                } else count++;
+            }
+
+            if( (err+=dx)>0 )
+            {   err-=dy;
+                fptr+=ix;
+                dptr+=ix;
+                x1+=ix;
+            }
+
+            if( (zerr+=dz)>0 )
+            {   zerr -= dy;
+                z1 += iz;
+            }
+
+            fptr+=ystep; dptr+=ystep; y1+=iy;
+            z1 += zrate; 
+        }
+    }
 }
 
 
@@ -655,12 +843,18 @@ static void ClipVector( int x1, int y1, int z1,
             x1 += (int)(((Long)rest*(x2-x1))/delta);
             z1 += (int)(((Long)rest*(z2-z1))/delta);
             y1 = temp;
-        } else /* SLAB */
+        } else if( code1 & BitFront )/* SLAB */
         {   delta = z2-z1;
             rest = (SlabValue-1)-z1;
             x1 += (int)(((Long)rest*(x2-x1))/delta);
             y1 += (int)(((Long)rest*(y2-y1))/delta);
             z1 = SlabValue-1;
+        } else 
+        {   delta = z2-z1;
+            rest = (DepthValue+1)-z1;
+            x1 += (int)(((Long)rest*(x2-x1))/delta);
+            y1 += (int)(((Long)rest*(y2-y1))/delta);
+            z1 = DepthValue+1;
         }
         OutCode(code1,x1,y1,z1);
         if( Reject(code1,code2) )
@@ -760,6 +954,8 @@ void ClipDashVector( int x1, int y1, int z1,
     if( (y1>=View.ymax) && (y2>=View.ymax) ) return;
     if( UseSlabPlane && (z1>=SlabValue) && (z2>=SlabValue) )
         return;
+    if( UseDepthPlane && (z1<=DepthValue) && (z2<=DepthValue) )
+        return;
 
     c1 = (ColourDepth*(z1+ImageRadius-ZOffset))/ImageSize;
     c2 = (ColourDepth*(z2+ImageRadius-ZOffset))/ImageSize;
@@ -805,7 +1001,7 @@ void ClipDashVector( int x1, int y1, int z1,
         mid = (x1+x2)/2;
 
         while( x1!=x2 )
-        {   if( XValid(x1) && YValid(y1) && ZValid(z1) )
+        {   if( XValid(x1) && YValid(y1) && ZValid(z1) && ZBack(z1) )
             {   if( count<2 )
                 {   col = (x1<mid)? col1 : col2;
 	   	    cola = (x1<mid)? col2 : col1;
@@ -861,7 +1057,7 @@ void ClipDashVector( int x1, int y1, int z1,
 
         
         while( y1!=y2 )
-        {   if( XValid(x1) && YValid(y1) && ZValid(z1) )
+        {   if( XValid(x1) && YValid(y1) && ZValid(z1) && ZBack(z1) )
             {   if( count<2 )
                 {   col = (y1<mid)? col1 : col2;
                     p =  altc&&(abs(y1-mid)<abs(dy)/4);
@@ -1267,6 +1463,10 @@ void ClipPolygon( Poly *p )
         for( i=0; i<p->count; i++ )
             if( p->v[i].z >= SlabValue )
                 return;
+    if( UseDepthPlane )
+        for( i=0; i<p->count; i++ )
+            if( p->v[i].z <= DepthValue )
+                return;
 
     /* Find top vertex */
     top = 0;  
@@ -1438,7 +1638,11 @@ static void ClipFlatPolygon( Poly *p )
             if( p->v[i].z >= SlabValue )
                 return;
 
-    /* Find top vertex */
+     if( UseDepthPlane )
+        for( i=0; i<p->count; i++ )
+            if( p->v[i].z <= DepthValue )
+                return;
+   /* Find top vertex */
     top = 0;  
     ymin = p->v[0].y;
     for( i=1; i<p->count; i++ )
@@ -1755,6 +1959,18 @@ static int TestSphere( int x, int y, int z, int rad )
         if( z+rad>=SlabValue )
         {   if( SlabMode )
             {   ClipStatus |= BitFront;
+            } else return( False );
+        } else if( SlabMode==SlabSection )
+            return( False );
+    }
+
+    if( UseDepthPlane )
+    {   if( z+rad<=DepthValue )
+            return( False );
+
+        if( z-rad<=DepthValue )
+        {   if( SlabMode )
+            {   ClipStatus |= BitBack;
             } else return( False );
         } else if( SlabMode==SlabSection )
             return( False );
@@ -2083,7 +2299,7 @@ static void DrawCylinderCaps( int x1, int y1, int z1,
             if( XValid(x1+dx) && YValid(y1+dy) )
             {   dptr = dold+offset; depth = z1+dz;
                 p = altc&&
-                  (4*dx*dx*rad*rad + 4*dy*dy*wide*wide < rad*rad*wide*wide );
+                  (5*dx*dx*rad*rad + 5*dy*dy*wide*wide < rad*rad*wide*wide );
                 SETPIXELP(dptr,fold+offset,depth,Lut[c1+inten], \
                    Lut[altc+inten],p);
             }
@@ -2091,7 +2307,7 @@ static void DrawCylinderCaps( int x1, int y1, int z1,
             if( XValid(x2+dx) && YValid(y2+dy) )
             {   dptr = dold+(offset+end); depth = z2+dz;
                 p = altc&&
-                  (4*dx*dx*rad*rad + 4*dy*dy*wide*wide < rad*rad*wide*wide );
+                  (5*dx*dx*rad*rad + 5*dy*dy*wide*wide < rad*rad*wide*wide );
                 SETPIXELP(dptr,fold+(offset+end),depth,Lut[c2+inten], \
                   Lut[altc+inten],p);
             }
@@ -2126,9 +2342,9 @@ static void DrawCylinderCaps( int x1, int y1, int z1,
 }
 
 
-void DrawCylinder( int x1, int y1, int z1,
+static void DrawCappedCyl( int x1, int y1, int z1,
                    int x2, int y2, int z2,
-                   int c1, int c2, int rad,  char altl )
+                   int c1, int c2, int rad )
 {
     register short __huge *dbase;
     register Pixel __huge *fbase;
@@ -2138,7 +2354,6 @@ void DrawCylinder( int x1, int y1, int z1,
     register int lx,ly,lz;
     register int mid,tmp,mud;
     register Long temp;
-    register int alts, altc;
 
     /* Trivial Case */
     if( (x1==x2) && (y1==y2) )
@@ -2155,7 +2370,7 @@ void DrawCylinder( int x1, int y1, int z1,
         tmp=c1; c1=c2; c2=tmp;
     }
 
-    DrawCylinderCaps(x1,y1,z1,x2,y2,z2,c1,c2,rad,altl);
+    DrawCylinderCaps(x1,y1,z1,x2,y2,z2,c1,c2,rad,' ');
 
     lx = x2-x1;
     ly = y2-y1;
@@ -2170,94 +2385,117 @@ void DrawCylinder( int x1, int y1, int z1,
     temp = (Long)y1*View.yskip+x1;
     fbase = View.fbuf+temp;
     dbase = View.dbuf+temp;
-    altc = 0;
-    if ( altl != '\0' && altl != ' ')
-      altc = AltlColours[((int)altl)&(AltlDepth-1)];
-    alts = 0;
-
     if( ax>ay )
     {   lz -= ax*zrate;
         zerr = err = -(ax>>1);
         mid = (x1+x2)/2;
-        mud = x2-x1;
-        if (mud < 0 ) mud *= -1;
-        mud = mud>>3;
 
         while( x1!=mid )
         {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ax; z1--; }
             fbase+=ix; dbase+=ix; x1+=ix;
-            alts = altc && (x1-mid<mud) && (mid-x1<mud);
-            if (!alts) {
             if( (err+=ay)>0)
             {   fbase+=ystep; dbase+=ystep; err-=ax;
                    DrawArcDn(dbase,fbase,z1,c1);
             } else DrawArcAc(dbase,fbase,z1,c1);
-            } else {
-            if( (err+=ay)>0)
-            {   fbase+=ystep; dbase+=ystep; err-=ax;
-                   DrawArcDn(dbase,fbase,z1,altc);
-            } else DrawArcAc(dbase,fbase,z1,altc);
-            }
         }
         
 
         while( x1!=x2 )
         {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ax; z1--; }
             fbase+=ix; dbase+=ix; x1+=ix;
-            alts = altc && (x1-mid<mud) && (mid-x1<mud);
-            if (!alts) {
             if( (err+=ay)>0)
             {   fbase+=ystep; dbase+=ystep; err-=ax;
                    DrawArcDn(dbase,fbase,z1,c2);
             } else DrawArcAc(dbase,fbase,z1,c2);
-            } else {
-            if( (err+=ay)>0)
-            {   fbase+=ystep; dbase+=ystep; err-=ax;
-                   DrawArcDn(dbase,fbase,z1,altc);
-            } else DrawArcAc(dbase,fbase,z1,altc);
-            }
         }
     } else /*ay>=ax*/
     {   lz -= ay*zrate;
         zerr = err = -(ay>>1);
         mid = (y1+y2)/2;
-        mud = y2-y1;
-        if (mud < 0 ) mud *= -1;
-        mud = mud>>3;
         while( y1!=mid )
         {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ay; z1--; }
             fbase+=ystep; dbase+=ystep; y1+=iy;
-            alts = altc && (y1-mid<mud) && (mid-y1<mud);
-            if (!alts) {
             if( (err+=ax)>0 )
             {   fbase+=ix; dbase+=ix; err-=ay; 
                    DrawArcAc(dbase,fbase,z1,c1);
             } else DrawArcDn(dbase,fbase,z1,c1);
-            } else {
-            if( (err+=ax)>0 )
-            {   fbase+=ix; dbase+=ix; err-=ay; 
-                   DrawArcAc(dbase,fbase,z1,altc);
-            } else DrawArcDn(dbase,fbase,z1,altc);
-            }
 	}
- 
+   
         while( y1!=y2 )
         {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ay; z1--; }
             fbase+=ystep; dbase+=ystep; y1+=iy;
-             alts = altc && (y1-mid<mud) && (mid-y1<mud);
-            if (!alts) {
             if( (err+=ax)>0 )
             {   fbase+=ix; dbase+=ix; err-=ay; 
                    DrawArcAc(dbase,fbase,z1,c2);
             } else DrawArcDn(dbase,fbase,z1,c2);
-            } else {
-            if( (err+=ax)>0 )
-            {   fbase+=ix; dbase+=ix; err-=ay; 
-                   DrawArcAc(dbase,fbase,z1,altc);
-            } else DrawArcDn(dbase,fbase,z1,altc);
-            }
         }
     }
+
+}
+
+void DrawCylinder( int x1, int y1, int z1,
+                   int x2, int y2, int z2,
+                   int c1, int c2, int rad,
+                   char altl, int arad )
+
+{   int altc;
+    int x1a, y1a, z1a, x2a, y2a, z2a, rada;
+    double flen, xd, yd, zd;
+
+    altc = 0;
+    if ( altl != '\0' && altl != ' ')
+      altc = AltlColours[((int)altl)&(AltlDepth-1)];
+
+    if (!altc) {
+      DrawCappedCyl(x1, y1, z1, x2, y2, z2, c1, c2, rad);
+    } else {
+
+
+      xd = x1-x2;
+      yd = y1-y2;
+      zd = z1-z2;
+
+      flen = .001+sqrt(xd*xd+yd*yd+zd*zd);
+
+      rada = arad;
+      if ( rada > rad ) {
+        rada = rad;
+      }
+
+      x1a = (int)((double)x1+(rad-rada+2.)*xd/flen);
+      y1a = (int)((double)y1+(rad-rada+2.)*yd/flen);
+      z1a = (int)((double)z1+(rad-rada+2.)*zd/flen);
+
+      x2a = (int)((double)x2-(rad-rada+2.)*xd/flen);
+      y2a = (int)((double)y2-(rad-rada+2.)*yd/flen);
+      z2a = (int)((double)z2-(rad-rada+2.)*zd/flen);
+
+
+      DrawCappedCyl(x1a, y1a, z1a, x2a, y2a, z2a, altc, altc, rada);
+
+      if (9*((int)flen) >  20*rad) {
+        x1a = x1-(int)((.45-((double)rad)/flen)*xd);
+        y1a = y1-(int)((.45-((double)rad)/flen)*yd);
+        z1a = z1-(int)((.45-((double)rad)/flen)*zd);
+
+        x2a = x2+(int)((.45-((double)rad)/flen)*xd);
+        y2a = y2+(int)((.45-((double)rad)/flen)*yd);
+        z2a = z2+(int)((.45-((double)rad)/flen)*zd);
+
+        DrawCappedCyl(x1, y1, z1, x1a, y1a, z1a, c1, c1, rad);
+        DrawCappedCyl(x2a, y2a, z2a, x2, y2, z2, c2, c2, rad);
+        
+      } else {
+
+        DrawSphere(x1,y1,z1,rad,c1);
+        DrawSphere(x2,y2,z2,rad,c2);
+
+      }
+
+      
+
+    }
+
 }
 
 
@@ -2352,9 +2590,9 @@ static void ClipArcDn( short __huge *dbase,
 }
 
 
-void ClipCylinder( int x1, int y1, int z1,
+static void ClipCappedCyl( int x1, int y1, int z1,
                    int x2, int y2, int z2,
-                   int c1, int c2, int rad, char altl)
+                   int c1, int c2, int rad )
 {
     register short __huge *dbase;
     register Pixel __huge *fbase;
@@ -2362,16 +2600,15 @@ void ClipCylinder( int x1, int y1, int z1,
     register int zrate,zerr,ystep,err;
     register int ix,iy,ax,ay;
     register int lx,ly,lz;
-    register int mid,tmp,mud;
+    register int mid,tmp;
     register Long temp;
-    register int alts, altc;
 
     /* Visibility Tests */
     if( !TestCylinder(x1,y1,z1,x2,y2,z2,rad) )
         return;
 
     if( !ClipStatus )
-    {   DrawCylinder(x1,y1,z1,x2,y2,z2,c1,c2,rad, altl);
+    {   DrawCappedCyl(x1,y1,z1,x2,y2,z2,c1,c2,rad);
         return;
     }
 
@@ -2379,7 +2616,9 @@ void ClipCylinder( int x1, int y1, int z1,
     if( (x1==x2) && (y1==y2) )
     {   if( z1>z2 )
         {      ClipSphere(x1,y1,z1,rad,c1);
-        } else ClipSphere(x2,y2,z2,rad,c2);
+        } else {
+          ClipSphere(x2,y2,z2,rad,c2);
+        }
         return;
     }
 
@@ -2390,7 +2629,7 @@ void ClipCylinder( int x1, int y1, int z1,
         tmp=c1; c1=c2; c2=tmp;
     }
 
-    DrawCylinderCaps(x1,y1,z1,x2,y2,z2,c1,c2,rad, altl);
+    DrawCylinderCaps(x1,y1,z1,x2,y2,z2,c1,c2,rad,' ');
 
     lx = x2-x1;
     ly = y2-y1;
@@ -2405,10 +2644,6 @@ void ClipCylinder( int x1, int y1, int z1,
     temp = (Long)y1*View.yskip+x1;
     fbase = View.fbuf+temp;
     dbase = View.dbuf+temp;
-    altc = 0;
-    if ( altl != '\0' && altl != ' ')
-      altc = AltlColours[((int)altl)&(AltlDepth-1)];
-    alts = 0;
 
     if( ax>ay )
     {   if( x2<x1 )
@@ -2419,26 +2654,16 @@ void ClipCylinder( int x1, int y1, int z1,
         lz -= ax*zrate;
         zerr = err = -(ax>>1);
         mid = (x1+x2)/2;
-        mud = x2-x1;
-        if (mud < 0 ) mud *= -1;
-        mud = mud>>3;
 
         while( x1!=x2 )
         {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ax; z1--; }
             fbase+=ix; dbase+=ix; x1+=ix;
-            alts = altc && (x1-mid<mud) && (mid-x1<mud);
-            if (!alts) {
             if( (err+=ay)>0 )
             {   fbase += ystep;  err -= ax;
                 dbase += ystep;  y1 += iy;
                    ClipArcDn(dbase,fbase,x1,y1,z1,(x1<mid?c1:c2));
-            } else ClipArcAc(dbase,fbase,x1,y1,z1,(x1<mid?c1:c2));
             } else {
-            if( (err+=ay)>0 )
-            {   fbase += ystep;  err -= ax;
-                dbase += ystep;  y1 += iy;
-                   ClipArcDn(dbase,fbase,x1,y1,z1,altc);
-            } else ClipArcAc(dbase,fbase,x1,y1,z1,altc);
+              ClipArcAc(dbase,fbase,x1,y1,z1,(x1<mid?c1:c2));
             }
         }
     } else /*ay>=ax*/
@@ -2450,31 +2675,77 @@ void ClipCylinder( int x1, int y1, int z1,
         lz -= ay*zrate;
         zerr = err = -(ay>>1);
         mid = (y1+y2)/2;
-        mud = y2-y1;
-        if (mud < 0 ) mud *= -1;
-        mud = mud>>3;
-
         while( y1!=y2 )
         {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ay; z1--; }
             fbase+=ystep; dbase+=ystep; y1+=iy;
-            alts = altc && (y1-mid<mud) && (mid-y1<mud);
-            if (!alts) {
             if( (err+=ax)>0 )
             {   fbase += ix;  err -= ay;
                 dbase += ix;  x1 += ix; 
                    ClipArcAc(dbase,fbase,x1,y1,z1,(y1<mid?c1:c2));
             } else ClipArcDn(dbase,fbase,x1,y1,z1,(y1<mid?c1:c2));
-            } else {
-            if( (err+=ax)>0 )
-            {   fbase += ix;  err -= ay;
-                dbase += ix;  x1 += ix; 
-                   ClipArcAc(dbase,fbase,x1,y1,z1,altc);
-            } else ClipArcDn(dbase,fbase,x1,y1,z1,altc);
-            }
         }
     }
 }
 
+
+void ClipCylinder( int x1, int y1, int z1,
+                   int x2, int y2, int z2,
+                   int c1, int c2, int rad,
+                   char altl, int arad)
+{   int  altc;
+    int x1a, y1a, z1a, x2a, y2a, z2a, rada;
+    double flen, xd, yd, zd;
+
+    altc = 0;
+    if ( altl != '\0' && altl != ' ')
+      altc = AltlColours[((int)altl)&(AltlDepth-1)];
+
+    if (!altc) {
+      ClipCappedCyl(x1, y1, z1, x2, y2, z2, c1, c2, rad);
+    } else {
+
+      xd = x1-x2;
+      yd = y1-y2;
+      zd = z1-z2;
+
+      flen = .001+sqrt(xd*xd+yd*yd+zd*zd);
+
+      rada = arad;
+      if ( rada > rad ) {
+        rada = rad;
+      }
+
+      x1a = (int)((double)x1+(rad-rada+2.)*xd/flen);
+      y1a = (int)((double)y1+(rad-rada+2.)*yd/flen);
+      z1a = (int)((double)z1+(rad-rada+2.)*zd/flen);
+  
+      x2a = (int)((double)x2-(rad-rada+2.)*xd/flen);
+      y2a = (int)((double)y2-(rad-rada+2.)*yd/flen);
+      z2a = (int)((double)z2-(rad-rada+2.)*zd/flen);
+
+      ClipCappedCyl(x1a, y1a, z1a, x2a, y2a, z2a, altc, altc, rada);
+
+      if (9*((int)flen) >  20*rad) {
+        x1a = x1-(int)((.45-((double)rad)/flen)*xd);
+        y1a = y1-(int)((.45-((double)rad)/flen)*yd);
+        z1a = z1-(int)((.45-((double)rad)/flen)*zd);
+
+        x2a = x2+(int)((.45-((double)rad)/flen)*xd);
+        y2a = y2+(int)((.45-((double)rad)/flen)*yd);
+        z2a = z2+(int)((.45-((double)rad)/flen)*zd);
+
+        ClipCappedCyl(x1, y1, z1, x1a, y1a, z1a, c1, c1, rad);
+        ClipCappedCyl(x2a, y2a, z2a, x2, y2, z2, c2, c2, rad);
+
+      } else {
+
+        ClipSphere(x1,y1,z1,rad,c1);
+        ClipSphere(x2,y2,z2,rad,c2);
+
+      }
+    }
+
+}
 
 
 /*================================*/
@@ -2499,7 +2770,7 @@ void SetFontSize( int size )
         count += FontSize;
     }
 
-    for ( i=0; i<95; i++ )
+    for ( i=0; i<97; i++ )
     { if ( FontPS )
       { ptr = VectFont[i];
         FontWid[i] = 0;
@@ -2551,7 +2822,7 @@ static void ClipCharacter( int x, int y,int z, int glyph, int col )
           } else ClipPoint(ex,ey,z,col);
         } else {
           if( (ex!=sx) || (ey!=sy) )
-          {   ClipCylinder(sx,sy,z,ex,ey,z,col,col,FontStroke,' ');
+          {   ClipCylinder(sx,sy,z,ex,ey,z,col,col,FontStroke,' ',FontStroke);
           } /* else ClipSphere(ex,ey,z,FontStroke,col); */
         }
         ptr += 2;
@@ -2559,7 +2830,7 @@ static void ClipCharacter( int x, int y,int z, int glyph, int col )
 }
 
 
-void DisplayRasString( int x, int y, int z, char *label,  int col )
+void DisplayRasString( int x, int y, int z, unsigned char *label,  int col )
 {
     register int clip,high,max;
     register char *ptr;
@@ -2611,7 +2882,8 @@ void DisplayRasString( int x, int y, int z, char *label,  int col )
                  } else PlotPoint(ex,ey,z,col);
                } else {
                  if( (ex!=sx) || (ey!=sy) )
-                 {   DrawCylinder(sx,sy,z,ex,ey,z,col,col,FontStroke,' ');
+                 {   DrawCylinder(sx,sy,z,ex,ey,z,col,col,
+                                  FontStroke,' ',FontStroke);
                  } /* else DrawSphere(ex,ey,z,FontStroke,col); */
                }
                ptr += 2;

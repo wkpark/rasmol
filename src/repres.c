@@ -1,9 +1,9 @@
 /***************************************************************************
- *                              RasMol 2.7.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
  *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                              22 June 1999                               *
+ *                              14 April 2001                              *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -11,15 +11,34 @@
  *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
  *                   Copyright (C) Roger Sayle 1992-1999                   *
  *                                                                         *
- *                  and Based on Mods by Arne Mueller                      *
- *                      Version 2.6x1, May 1998                            *
- *                   Copyright (C) Arne Mueller 1998                       *
+ *                          and Based on Mods by                           *
+ *Author             Version, Date             Copyright                   *
+ *Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       *
+ *Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  *
+ *Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   *
  *                                                                         *
- *           Version 2.7.0, 2.7.1 Mods by Herbert J. Bernstein             *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
- *                      yaya@bernstein-plus-sons.com                       *
- *                    2.7.0 March 1999, 2.7.1 June 1999                    *
- *              Copyright (C) Herbert J. Bernstein 1998-1999               *
+ *Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   *
+ *                                                                         *
+ *Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    * 
+ *Bernstein          RasMol 2.7.1   Jun 99         1998-2001               *
+ *                   RasMol 2.7.1.1 Jan 01                                 *
+ *                   RasMol 2.7.2   Aug 00                                 *
+ *                   RasMol 2.7.2.1 Apr 01                                 *
+ *                                                                         *
+ *                    and Incorporating Translations by                    *
+ *  Author                               Item                      Language*
+ *  Isabel Serván Martínez,                                                *
+ *  José Miguel Fernández Fernández      2.6   Manual              Spanish *
+ *  José Miguel Fernández Fernández      2.7.1 Manual              Spanish *
+ *  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish *
+ *  Jean-Pierre Demailly                 2.7.1 menus and messages  French  *
+ *  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          *
+ *  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian *
+ *                                                                         *
+ *                             This Release by                             *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
+ *                       yaya@bernstein-plus-sons.com                      *
+ *               Copyright(C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    * 
@@ -49,6 +68,28 @@
  ***************************************************************************/
 
 /* repres.c
+ $Log: repres.c,v $
+ Revision 1.1  2001/01/31 02:13:45  yaya
+ Initial revision
+
+ Revision 1.7  2000/08/27 16:09:27  yaya
+ monitor dynamics extensions
+
+ Revision 1.6  2000/08/26 18:12:43  yaya
+ Updates to header comments in all files
+
+ Revision 1.5  2000/08/18 16:40:42  yaya
+ *** empty log message ***
+
+ Revision 1.4  2000/08/13 20:56:28  yaya
+ Conversion from toolbar to menus
+
+ Revision 1.3  2000/08/09 01:18:15  yaya
+ Rough cut with ucb
+
+ Revision 1.2  2000/08/03 18:32:42  yaya
+ Parametrization for alt conformer bond radius
+
  */
 #include "rasmol.h"
 
@@ -85,6 +126,8 @@
 #include "transfor.h"
 #include "pixutils.h"
 #include "infile.h"
+#include "vector.h"
+#include "wbrotate.h"
 
 
 #define RootSix          2.44948974278
@@ -117,7 +160,7 @@ typedef struct {
  
 
 static ElemDotStruct __far *ElemDots;
-static Atom __far *Exclude;
+static RAtom __far *Exclude;
 static Monitor *FreeMonit;
 static Label *FreeLabel;
 
@@ -127,7 +170,7 @@ static Label *FreeLabel;
 /*=======================*/
   
 #ifdef FUNCPROTO
-void AddMonitors( Atom __far*, Atom __far* );
+void AddMonitors( RAtom __far*, RAtom __far* );
 static void AddDot( Long, Long, Long, int );
 static void CheckVDWDot( Long, Long, Long, int );
 static int TestSolventDot( Long, Long, Long );
@@ -188,7 +231,7 @@ int DeleteLabels( void )
 {
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
     register int result;
  
     if( !Database )
@@ -237,7 +280,7 @@ void DefineLabels( char *label )
 {
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
     register Label *ptr;
     register char *cptr;
     register int len;
@@ -274,7 +317,7 @@ void DefaultLabels( int enable )
 {
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
     register Label *label1;
     register Label *label2;
  
@@ -342,7 +385,7 @@ void LabelTerminii( int enable )
 {
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
     register Label *label;
  
     if( !Database )
@@ -423,11 +466,11 @@ void DisplayLabels( void )
 {
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
     register Label *label;
     register int col,z;
  
-    auto char buffer[256];
+    auto unsigned char buffer[256];
  
  
     if( !Database )
@@ -440,7 +483,7 @@ void DisplayLabels( void )
     ForEachAtom
         if( aptr->label )
         {   /* Peform Label Slabbing! */
-            if( !ZValid(aptr->z) )
+            if( !ZValid(aptr->z) || !ZBack(aptr->z) )
                 continue;
  
             label = (Label*)aptr->label;
@@ -480,18 +523,22 @@ void DeleteMonitors( void )
 }
  
 
-void AddMonitors( Atom __far *src, Atom __far *dst )
+/* [GSG 11/21/95] AddMonitors2 can add a monitor w/a given number */
+void AddMonitors2( RAtom __far *src, RAtom __far *dst,
+      RAtom __far *mid1, RAtom __far *mid2,
+     unsigned short dist, unsigned char units, int monmode )
 {
     register Monitor **prev;
     register Monitor *ptr;
     register Long dx,dy,dz;
-    register Long dist;
  
     /* Delete an already existing monitor! */
     for( prev = &MonitList;  *prev; prev = &ptr->next )
     {   ptr = *prev;
-        if( ((ptr->src==src) && (ptr->dst==dst)) ||
-            ((ptr->src==dst) && (ptr->dst==src)) )
+        if( ((ptr->src==src) && (ptr->dst==dst)
+             &&(ptr->mid1==mid1) && (ptr->mid2==mid2)) ||
+            ((ptr->src==dst) && (ptr->dst==src)
+             &&(ptr->mid1==mid2) && (ptr->mid2==mid1)) )
         {   if( ptr->col )
                 Shade[Colour2Shade(ptr->col)].refcount--;
  
@@ -508,20 +555,37 @@ void AddMonitors( Atom __far *src, Atom __far *dst )
     } else if( !(ptr=(Monitor*)malloc(sizeof(Monitor))) )
         FatalRepresError("monitor");
  
-    dx = src->xorg - dst->xorg;
-    dy = src->yorg - dst->yorg;
-    dz = src->zorg - dst->zorg;
- 
-    /* ptr->dist = 100.0*CalcDistance(src,dst) */
-    dist = isqrt( dx*dx + dy*dy + dz*dz );
-    ptr->dist = (unsigned short)((dist<<1)/5);
+    ptr->dist = dist;
  
     ptr->src = src;
     ptr->dst = dst;
+    ptr->mid1 = mid1;
+    ptr->mid2 = mid2;
+    ptr->monmode = monmode;
     ptr->col = 0;
+    ptr->units = units;
  
     ptr->next = MonitList;
     MonitList = ptr;
+}
+
+void AddMonitors( RAtom __far *src, RAtom __far *dst )
+{
+    register Long dx, dy, dz;
+    register Long dist;
+    unsigned short temp;
+ 
+    dx = src->xorg - dst->xorg + src->fxorg - dst->fxorg;
+    dy = src->yorg - dst->yorg + src->fyorg - dst->fyorg;
+    dz = src->zorg - dst->zorg + src->fzorg - dst->fzorg;
+
+    /* ptr->dist = 100.0*CalcDistance(src,dst) */
+    dist = isqrt( dx*dx + dy*dy + dz*dz );
+    temp = (unsigned short)((dist<<1)/5);
+
+    AddMonitors2(src, dst, 
+      (RAtom __far *)NULL, (RAtom __far *)NULL, temp, 127, PickDist);
+
 }
 
 
@@ -529,9 +593,9 @@ void CreateMonitor( Long src, Long dst )
 {
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *aptr;
-    register Atom __far *sptr;
-    register Atom __far *dptr;
+    register RAtom __far *aptr;
+    register RAtom __far *sptr;
+    register RAtom __far *dptr;
     register int done;
     char buffer[20];
  
@@ -542,8 +606,8 @@ void CreateMonitor( Long src, Long dst )
     }
  
     done = False;
-    sptr = (Atom __far*)0;
-    dptr = (Atom __far*)0;
+    sptr = (RAtom __far*)0;
+    dptr = (RAtom __far*)0;
  
     for( chain=Database->clist; chain && !done; chain=chain->cnext )
         for( group=chain->glist; group && !done; group=group->gnext )
@@ -579,16 +643,20 @@ void CreateMonitor( Long src, Long dst )
  
 void DisplayMonitors( void )
 {
-    register Atom __far *s;
-    register Atom __far *d;
+    register RAtom __far *s;
+    register RAtom __far *d;
+    register RAtom __far *m1;
+    register RAtom __far *m2;
     register Monitor *ptr;
     register int x,y,z;
     register int sc,dc;
     register int col;
+    register Long dx, dy, dz;
+    register Long ldist;
  
-    register char *cptr;
+    register unsigned char *cptr;
     register int dist;
-    char buffer[10];
+    unsigned char buffer[11];
  
     if( !Database )
         return;
@@ -596,12 +664,16 @@ void DisplayMonitors( void )
     if( !UseSlabPlane )
     {   z = ImageRadius + ZOffset;
     } else z = SlabValue-1;
-    buffer[9] = '\0';
+    buffer[10] = '\0';
     buffer[6] = '.';
  
     for( ptr=MonitList; ptr; ptr=ptr->next )
     {   s = ptr->src;
         d = ptr->dst;
+        m1 = ptr->mid1;
+        m2 = ptr->mid2;
+
+        buffer[9] = ptr->units;
  
         if( !ptr->col )
         {   sc = s->col;
@@ -611,7 +683,7 @@ void DisplayMonitors( void )
         ClipDashVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc,' ');
  
         if( DrawMonitDistance )
-            if( ZValid( (s->z+d->z)/2 ) )
+            if( ZValid( (s->z+d->z)/2 ) && ZBack( (s->z+d->z)/2 ))
             {   x = (s->x+d->x)/2;
                 y = (s->y+d->y)/2;
  
@@ -620,11 +692,37 @@ void DisplayMonitors( void )
                     col = sc + (FontStroke?0:(ColourMask>>1));
                 } else col = LabelCol;
  
+                if ( BondSelected ) {
+                  if ((ptr->monmode == PickDist)
+                    && ( s->visited ^ d->visited ) ) {
+                    dx = s->xorg - d->xorg + s->fxorg - d->fxorg;
+                    dy = s->yorg - d->yorg + s->fyorg - d->fyorg;
+                    dz = s->zorg - d->zorg + s->fzorg - d->fzorg;
+                    ldist = (int)isqrt( dx*dx + dy*dy + dz*dz );
+                    ptr->dist = (int)((ldist<<1)/5);
+                  }
+                  if ((ptr->monmode == PickAngle)
+                    && (( s->visited ^ d->visited ) ||
+                        ( s->visited ^ m1->visited ) ||
+                        ( m1->visited ^ d->visited )) ){
+                    ptr->dist = 
+                      (int)(100*CalcAngle(s,m1,d));
+                  }
+                  if ((ptr->monmode == PickTorsn)
+                    && (( s->visited ^ d->visited ) ||
+                        ( s->visited ^ m1->visited ) ||
+                        ( m1->visited ^ m2->visited ) ||
+                        ( m2->visited ^ d->visited )) ) {
+                    ptr->dist = 
+                      (int)(100*CalcTorsion(s,m1,m2,d));
+                  }
+                }
                 dist = ptr->dist;
+                if ( dist < 0 ) dist = -dist;
                 buffer[8] = (dist%10)+'0';  dist /= 10;
                 buffer[7] = (dist%10)+'0';
                 cptr = &buffer[5];
- 
+
                 if( dist > 9 )
                 {   do {
                        dist /= 10;
@@ -632,6 +730,7 @@ void DisplayMonitors( void )
                     } while( dist > 9 );
                     cptr++;
                 } else *cptr = '0';
+                if ( ptr->dist < 0 ) *(--cptr)='-';
  
                 DisplayRasString(x+4,y,z,cptr,col);
             }
@@ -690,7 +789,7 @@ static void AddDot( Long x, Long y, Long z, int col )
 static void CheckVDWDot(  Long x,  Long y,  Long z, int col )
 {
     register Item __far *item;
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
     register int ix,iy,iz;
     register int dx,dy,dz;
     register Long dist;
@@ -711,11 +810,11 @@ static void CheckVDWDot(  Long x,  Long y,  Long z, int col )
             rad = rad*rad;
  
             /* Optimized Test! */
-            dx = (int)(aptr->xorg - x);
+            dx = (int)(aptr->xorg + aptr->fxorg  - x);
             if( (dist=(Long)dx*dx) < rad )
-            {   dy = (int)(aptr->yorg - y);
+            {   dy = (int)(aptr->yorg + aptr->fyorg - y);
                 if( (dist+=(Long)dy*dy) < rad )
-                {   dz = (int)(aptr->zorg - z);
+                {   dz = (int)(aptr->zorg + aptr->fzorg - z);
                     if( (dist+=(Long)dz*dz) < rad )
                         return;
                 }
@@ -728,7 +827,7 @@ static void CheckVDWDot(  Long x,  Long y,  Long z, int col )
 static int TestSolventDot( Long x, Long y, Long z )
 {
     register Item __far *item;
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
     register int lx,ly,lz;
     register int ux,uy,uz;
     register int dx,dy,dz;
@@ -768,11 +867,11 @@ static int TestSolventDot( Long x, Long y, Long z )
                       rad = (rad+ProbeRadius)*(rad+ProbeRadius);
  
                       /* Optimized Test! */
-                      dx = (int)(aptr->xorg - x);
+                      dx = (int)(aptr->xorg + aptr->fxorg - x);
                       if( (dist=(Long)dx*dx) < rad )
-                      {   dy = (int)(aptr->yorg - y);
+                      {   dy = (int)(aptr->yorg + aptr->fyorg - y);
                           if( (dist+=(Long)dy*dy) < rad )
-                          {   dz = (int)(aptr->zorg - z);
+                          {   dz = (int)(aptr->zorg + aptr->fzorg - z);
                               if( (dist+=(Long)dz*dz) < rad )
                                   return False;
                           }
@@ -871,7 +970,7 @@ void CalculateSurface( int density )
     register DotVector __far *ptr;
     register Chain __far *chain;
     register Group __far *group;
-    register Atom __far *aptr;
+    register RAtom __far *aptr;
     register int i,count;
     register int elem;
  
@@ -897,19 +996,19 @@ void CalculateSurface( int density )
             count = ElemDots[elem].count;
             if( SolventDots )
             {   for( i=0; i<count; i++ )
-                    if( TestSolventDot( aptr->xorg + probe[i].dx,
-                                        aptr->yorg + probe[i].dy,
-                                        aptr->zorg + probe[i].dz ) )
-                        AddDot( aptr->xorg + ptr[i].dx,
-                                aptr->yorg + ptr[i].dy,
-                                aptr->zorg + ptr[i].dz,
-                                aptr->col );
+                    if( TestSolventDot( aptr->xorg + aptr->fxorg + probe[i].dx,
+                                      aptr->yorg + aptr->fyorg + probe[i].dy,
+                                      aptr->zorg + aptr->fzorg + probe[i].dz ) )
+                        AddDot( aptr->xorg + aptr->fxorg + ptr[i].dx,
+                              aptr->yorg + aptr->fyorg + ptr[i].dy,
+                              aptr->zorg + aptr->fzorg + ptr[i].dz,
+                              aptr->col );
             } else
                 for( i=0; i<count; i++ )
-                    CheckVDWDot( aptr->xorg + ptr[i].dx,
-                                 aptr->yorg + ptr[i].dy,
-                                 aptr->zorg + ptr[i].dz,
-                                 aptr->col);
+                    CheckVDWDot( aptr->xorg +  aptr->fxorg + ptr[i].dx,
+                               aptr->yorg + aptr->fyorg + ptr[i].dy,
+                               aptr->zorg + aptr->fzorg + ptr[i].dz,
+                               aptr->col);
         }
  
     FreeElemDots();
@@ -983,6 +1082,12 @@ void DisplaySurface( void )
     register int xi,yi,zi;
     register Real x,y,z;
     register int i;
+    register int Cenx,Ceny,Cenz;
+    
+    Cenx=(int)(CenX*MatX[0]+CenY*MatX[1]+CenZ*MatX[2]);
+	Ceny=(int)(CenX*MatY[0]+CenY*MatY[1]+CenZ*MatY[2]);
+	Cenz=(int)(CenX*MatZ[0]+CenY*MatZ[1]+CenZ*MatZ[2]);
+
  
     for( ptr=DotPtr; ptr; ptr=ptr->next )
         for( i=0; i<ptr->count; i++ )
@@ -990,12 +1095,12 @@ void DisplaySurface( void )
             y = ptr->ypos[i];
             z = ptr->zpos[i];
  
-            xi = (int)(x*MatX[0]+y*MatX[1]+z*MatX[2])+XOffset;
+            xi = (int)(x*MatX[0]+y*MatX[1]+z*MatX[2])+XOffset-Cenx;
             if( XValid(xi) )
-            {   yi = (int)(x*MatY[0]+y*MatY[1]+z*MatY[2])+YOffset;
+            {   yi = (int)(x*MatY[0]+y*MatY[1]+z*MatY[2])+YOffset-Ceny;
                 if( YValid(yi) )
-                {   zi = (int)(x*MatZ[0]+y*MatZ[1]+z*MatZ[2])+ZOffset;
-                    if( ZValid(zi) )
+                {   zi = (int)(x*MatZ[0]+y*MatZ[1]+z*MatZ[2])+ZOffset-Cenz;
+                    if( ZValid(zi) && ZBack(zi) )
                         PlotDeepPoint(xi,yi,zi,ptr->col[i]);
                 }
             }
@@ -1064,10 +1169,10 @@ static void CalculateHInten( Knot *ptr )
 void DisplayRibbon( Chain  __far *chain )
 {
     register Group __far *group;
-    register Atom __far *captr;
-    register Atom __far *o1ptr;
-    register Atom __far *o2ptr;
-    register Atom __far *next;
+    register RAtom __far *captr;
+    register RAtom __far *o1ptr;
+    register RAtom __far *o2ptr;
+    register RAtom __far *next;
  
     register int prev,wide;
     register int col1,col2;
@@ -1267,16 +1372,16 @@ void DisplayRibbon( Chain  __far *chain )
             {   wide = (int)(group->width*Scale);
                 ClipCylinder( knot1.px, knot1.py, knot1.pz,
                               mid1.px, mid1.py, mid1.pz,
-                              col1, col1, wide, ' ' );
+                              col1, col1, wide, ' ', wide );
                 ClipCylinder( mid1.px, mid1.py, mid1.pz,
                               mid2.px, mid2.py, mid2.pz,
-                              col1, col1, wide, ' ' );
+                              col1, col1, wide, ' ', wide );
                 ClipCylinder( mid2.px, mid2.py, mid2.pz,
                               mid3.px, mid3.py, mid3.pz,
-                              col1, col1, wide, ' ' );
+                              col1, col1, wide, ' ', wide );
                 ClipCylinder( mid3.px, mid3.py, mid3.pz,
                               knot2.px, knot2.py, knot2.pz,
-                              col1, col1, wide, ' ' );
+                              col1, col1, wide, ' ', wide );
             } else if( group->flag & DotsFlag )
             {   wide = (int)(group->width*Scale);
                 ClipSphere(knot1.px,knot1.py,knot1.pz,wide,col1);
@@ -1424,7 +1529,8 @@ void DisplayRibbon( Chain  __far *chain )
             } else if( group->flag & TraceFlag )
             {   ClipCylinder( knot1.px, knot1.py, knot1.pz,
                               knot2.px, knot2.py, knot2.pz,
-                              col1, col1, (int)(group->width*Scale), ' ' );
+                              col1, col1, (int)(group->width*Scale),
+                              ' ',  (int)(group->width*Scale) );
             } else if( group->flag & DotsFlag )
             {   wide = (int)(group->width*Scale);
                 ClipSphere(knot1.px,knot1.py,knot1.pz,wide,col1);
@@ -1499,7 +1605,8 @@ void DisplayRibbon( Chain  __far *chain )
             } else if( group->flag & TraceFlag )
             {   ClipCylinder( knot1.px, knot1.py, knot1.pz,
                               knot2.px, knot2.py, knot2.pz,
-                              col1, col1, (int)(group->width*Scale), ' ' );
+                              col1, col1, (int)(group->width*Scale),
+                              ' ',  (int)(group->width*Scale) );
             } else if( group->flag & DotsFlag )
             {   wide = (int)(group->width*Scale);
                 ClipSphere(knot1.px,knot1.py,knot1.pz,wide,col1);

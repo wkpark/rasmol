@@ -1,9 +1,9 @@
 /***************************************************************************
- *                            RasMol 2.7.1.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
- *                                RasMol                                   *
+ *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                            17 January 2001                              *
+ *                              14 April 2001                              *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -11,15 +11,34 @@
  *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
  *                   Copyright (C) Roger Sayle 1992-1999                   *
  *                                                                         *
- *                  and Based on Mods by Arne Mueller                      *
- *                      Version 2.6x1, May 1998                            *
- *                   Copyright (C) Arne Mueller 1998                       *
+ *                          and Based on Mods by                           *
+ *Author             Version, Date             Copyright                   *
+ *Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       *
+ *Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  *
+ *Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   *
  *                                                                         *
- *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
- *                      yaya@bernstein-plus-sons.com                       *
- *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
- *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   *
+ *                                                                         *
+ *Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    * 
+ *Bernstein          RasMol 2.7.1   Jun 99         1998-2001               *
+ *                   RasMol 2.7.1.1 Jan 01                                 *
+ *                   RasMol 2.7.2   Aug 00                                 *
+ *                   RasMol 2.7.2.1 Apr 01                                 *
+ *                                                                         *
+ *                    and Incorporating Translations by                    *
+ *  Author                               Item                      Language*
+ *  Isabel Serván Martínez,                                                *
+ *  José Miguel Fernández Fernández      2.6   Manual              Spanish *
+ *  José Miguel Fernández Fernández      2.7.1 Manual              Spanish *
+ *  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish *
+ *  Jean-Pierre Demailly                 2.7.1 menus and messages  French  *
+ *  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          *
+ *  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian *
+ *                                                                         *
+ *                             This Release by                             *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
+ *                       yaya@bernstein-plus-sons.com                      *
+ *               Copyright(C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    *
@@ -49,6 +68,34 @@
  ***************************************************************************/
 
 /* x11win.c
+ $Log: x11win.c,v $
+ Revision 1.3  2001/02/07 20:30:31  yaya
+ *** empty log message ***
+
+ Revision 1.2  2001/02/06 21:58:18  yaya
+ *** empty log message ***
+
+ Revision 1.1  2001/01/31 02:13:45  yaya
+ Initial revision
+
+ Revision 1.8  2000/08/27 00:54:54  yaya
+ create rotation bond database
+
+ Revision 1.7  2000/08/26 18:12:50  yaya
+ Updates to header comments in all files
+
+ Revision 1.6  2000/08/21 21:07:56  yaya
+ semi-final ucb mods
+
+ Revision 1.5  2000/08/18 16:40:56  yaya
+ *** empty log message ***
+
+ Revision 1.4  2000/08/13 20:56:35  yaya
+ Conversion from toolbar to menus
+
+ Revision 1.3  2000/08/12 21:10:41  yaya
+ Minimal X windows mods
+
  */
 
 #ifndef sun386
@@ -75,13 +122,19 @@
 #include "bitmaps.h"
 #include "command.h"
 #include "cmndline.h"
+#include "molecule.h"
+#include "abstree.h"
+#include "render.h"
+#include "multiple.h"
+#include "transfor.h"
+#include "vector.h"
+#include "wbrotate.h"
 #include "langsel.h"
 
 
 /* Menu Definitions */
 #define mbEnable    0x01
 #define mbOption    0x02
-#define mbCheck     0x04
 #define mbSepBar    0x08
 #define mbAccel     0x10
 
@@ -91,58 +144,141 @@ typedef struct _MenuItem {
             int flags;
             int *pos;
             int *len;
+            int *enable;
+            int value;
         } MenuItem;
 
-static MenuItem FilMenu[5] = {
-    { &MsgStrs[StrMOpen],   0x11,&MsgAuxl[StrMOpen],   &MsgLens[StrMOpen]    },
-    { &MsgStrs[StrMSaveAs], 0x11,&MsgAuxl[StrMSaveAs], &MsgLens[StrMSaveAs]  },
-    { &MsgStrs[StrMClose],  0x11,&MsgAuxl[StrMClose],  &MsgLens[StrMClose]   },
-    { &MsgStrs[StrMEmpty],  0x08,&MsgAuxl[StrMEmpty],  &MsgLens[StrMEmpty]   },
-    { &MsgStrs[StrMExit],   0x11,&MsgAuxl[StrMExit],   &MsgLens[StrMExit]    }};
+
+static MenuItem FilMenu[11] = {
+    { &MsgStrs[StrMOpen]   /* "Open..."   */,   0x11,  &MsgAuxl[StrMOpen],
+        &MsgLens[StrMOpen],     NULL, 0     },
+    { &MsgStrs[StrMSaveAs] /*" Save As..."*/,   0x11,  &MsgAuxl[StrMSaveAs],
+        &MsgLens[StrMSaveAs],   NULL, 0     },
+    { &MsgStrs[StrMClose]  /* "Close"     */,   0x11,  &MsgAuxl[StrMClose],
+        &MsgLens[StrMClose],    NULL, 0     },
+    { &MsgStrs[StrMEmpty]  /*  ""         */,   0x08,  &MsgAuxl[StrMEmpty],
+        &MsgLens[StrMEmpty],    NULL, 0    },
+    { &MsgStrs[StrMExit]   /*  "Exit"     */,   0x11,  &MsgAuxl[StrMExit],
+        &MsgLens[StrMExit],     NULL, 0    },
+    { &MsgStrs[StrMEmpty]  /*  ""         */,   0x08,  &MsgAuxl[StrMEmpty],
+        &MsgLens[StrMEmpty],    NULL, 0    },
+    { &(MolNStr[0]),                            0x01,  0, 
+        &MolNLen[0],            &MoleculeIndex, 0 },  
+    { &(MolNStr[1]),                            0x01,  0, 
+        &MolNLen[1],            &MoleculeIndex, 1 },  
+    { &(MolNStr[2]),                            0x01,  0, 
+        &MolNLen[2],            &MoleculeIndex, 2 },  
+    { &(MolNStr[3]),                            0x01,  0, 
+        &MolNLen[3],            &MoleculeIndex, 3 },  
+    { &(MolNStr[4]),                            0x01,  0, 
+        &MolNLen[4],            &MoleculeIndex, 4 } };
 
 static MenuItem DisMenu[8] = {
-    { &MsgStrs[StrMWirefr], 0x11,&MsgAuxl[StrMWirefr], &MsgLens[StrMWirefr]  },
-    { &MsgStrs[StrMBackbn], 0x11,&MsgAuxl[StrMBackbn], &MsgLens[StrMBackbn]  },
-    { &MsgStrs[StrMSticks], 0x11,&MsgAuxl[StrMSticks], &MsgLens[StrMSticks]  },
-    { &MsgStrs[StrMSpacefl],0x11,&MsgAuxl[StrMSpacefl],&MsgLens[StrMSpacefl] },
-    { &MsgStrs[StrMBallStk],0x11,&MsgAuxl[StrMBallStk],&MsgLens[StrMBallStk] },
-    { &MsgStrs[StrMRibbons],0x11,&MsgAuxl[StrMRibbons],&MsgLens[StrMRibbons] },
-    { &MsgStrs[StrMStrands],0x11,&MsgAuxl[StrMStrands],&MsgLens[StrMStrands] },
-    { &MsgStrs[StrMCartoon],0x11,&MsgAuxl[StrMCartoon],&MsgLens[StrMCartoon] }};
+    { &MsgStrs[StrMWirefr] /* "Wireframe"    */,     0x11,  &MsgAuxl[StrMWirefr],
+        &MsgLens[StrMWirefr],    NULL, 0     },
+    { &MsgStrs[StrMBackbn] /* "Backbone"     */,     0x11,  &MsgAuxl[StrMBackbn],
+        &MsgLens[StrMBackbn],    NULL, 0     },
+    { &MsgStrs[StrMSticks] /* "Sticks"       */,     0x11,  &MsgAuxl[StrMSticks],
+        &MsgLens[StrMSticks],    NULL, 0     },
+    { &MsgStrs[StrMSpacefl]/* "Spacefill"    */,     0x11,  &MsgAuxl[StrMSpacefl],
+        &MsgLens[StrMSpacefl],   NULL, 0     },
+    { &MsgStrs[StrMBallStk]/* "Ball & Stick" */,     0x11,  &MsgAuxl[StrMBallStk],
+        &MsgLens[StrMBallStk],   NULL, 0     },
+    { &MsgStrs[StrMRibbons]/* "Ribbons"      */,     0x11,  &MsgAuxl[StrMRibbons],
+        &MsgLens[StrMRibbons],   NULL, 0     },
+    { &MsgStrs[StrMStrands]/* "Strands"      */,     0x11,  &MsgAuxl[StrMStrands],
+        &MsgLens[StrMStrands],   NULL, 0     },
+    { &MsgStrs[StrMCartoon]/* "Cartoons"     */,     0x11,  &MsgAuxl[StrMCartoon],
+        &MsgLens[StrMCartoon],   NULL, 0     }};
+
 
 static MenuItem ColMenu[10] = {
-    { &MsgStrs[StrMMonochr],0x11,&MsgAuxl[StrMMonochr],&MsgLens[StrMMonochr] },
-    { &MsgStrs[StrMCPK],    0x11,&MsgAuxl[StrMCPK],    &MsgLens[StrMCPK]     },
-    { &MsgStrs[StrMShapely],0x11,&MsgAuxl[StrMShapely],&MsgLens[StrMShapely] },
-    { &MsgStrs[StrMGroup],  0x11,&MsgAuxl[StrMGroup],  &MsgLens[StrMGroup]   },
-    { &MsgStrs[StrMChain],  0x11,&MsgAuxl[StrMChain],  &MsgLens[StrMChain]   },
-    { &MsgStrs[StrMTemp],   0x11,&MsgAuxl[StrMTemp],   &MsgLens[StrMTemp]    },
-    { &MsgStrs[StrMStruct], 0x11,&MsgAuxl[StrMStruct], &MsgLens[StrMStruct]  },
-    { &MsgStrs[StrMUser],   0x11,&MsgAuxl[StrMUser],   &MsgLens[StrMUser]    }, 
-    { &MsgStrs[StrMModel],  0x11,&MsgAuxl[StrMModel],  &MsgLens[StrMModel]   },
-    { &MsgStrs[StrMAlt],    0x11,&MsgAuxl[StrMAlt],    &MsgLens[StrMAlt]     }};
+    { &MsgStrs[StrMMonochr]/* "Monochrome"   */,     0x11,  &MsgAuxl[StrMMonochr],
+        &MsgLens[StrMMonochr],   NULL, 0 },
+    { &MsgStrs[StrMCPK]    /* "CPK"          */,     0x11,  &MsgAuxl[StrMCPK],
+        &MsgLens[StrMCPK],       NULL, 0 },
+    { &MsgStrs[StrMShapely]/*" Shapely"      */,     0x11,  &MsgAuxl[StrMShapely],
+        &MsgLens[StrMShapely],   NULL, 0 },
+    { &MsgStrs[StrMGroup]  /* "Group"        */,     0x11,  &MsgAuxl[StrMGroup],
+        &MsgLens[StrMGroup],     NULL, 0 },
+    { &MsgStrs[StrMChain]  /* "Chain"        */,     0x11,  &MsgAuxl[StrMChain],
+        &MsgLens[StrMChain],     NULL, 0 },
+    { &MsgStrs[StrMTemp]   /* "Temperature"  */,     0x11,  &MsgAuxl[StrMTemp],
+        &MsgLens[StrMTemp],      NULL, 0 },
+    { &MsgStrs[StrMStruct] /* "Structure"    */,     0x11,  &MsgAuxl[StrMStruct],
+        &MsgLens[StrMStruct],    NULL, 0 },
+    { &MsgStrs[StrMUser]   /* "User"         */,     0x11,  &MsgAuxl[StrMUser],
+        &MsgLens[StrMUser],      NULL, 0 }, 
+    { &MsgStrs[StrMModel]  /* "Model"        */,     0x11,  &MsgAuxl[StrMModel],
+        &MsgLens[StrMModel],     NULL, 0 },
+    { &MsgStrs[StrMAlt]    /* "Alt"          */,     0x11,  &MsgAuxl[StrMAlt],
+        &MsgLens[StrMAlt],       NULL, 0 }};
 
 static MenuItem OptMenu[7] = {
-    { &MsgStrs[StrMSlab],   0x13,&MsgAuxl[StrMSlab],   &MsgLens[StrMSlab]    },
-    { &MsgStrs[StrMHydr],   0x17,&MsgAuxl[StrMHydr],   &MsgLens[StrMHydr]    },
-    { &MsgStrs[StrMHet],    0x17,&MsgAuxl[StrMHet],    &MsgLens[StrMHet]     },
-    { &MsgStrs[StrMSpec],   0x13,&MsgAuxl[StrMSpec],   &MsgLens[StrMSpec]    },
-    { &MsgStrs[StrMShad],   0x13,&MsgAuxl[StrMShad],   &MsgLens[StrMShad]    },
-    { &MsgStrs[StrMStereo], 0x13,&MsgAuxl[StrMStereo], &MsgLens[StrMStereo]  },
-    { &MsgStrs[StrMLabel],  0x13,&MsgAuxl[StrMLabel],  &MsgLens[StrMLabel]   }};
+    { &MsgStrs[StrMSlab]   /* "Slab Mode"    */,     0x13,  &MsgAuxl[StrMSlab],
+        &MsgLens[StrMSlab],   &UseSlabPlane, True },
+    { &MsgStrs[StrMHydr]   /* "Hydrogens"    */,     0x13,  &MsgAuxl[StrMHydr],
+        &MsgLens[StrMHydr],   &Hydrogens,    True },
+    { &MsgStrs[StrMHet]    /* "Hetero Atoms" */,     0x13,  &MsgAuxl[StrMHet],
+        &MsgLens[StrMHet],    &HetaGroups,   True },
+    { &MsgStrs[StrMSpec]   /* "Specular"     */,     0x13,  &MsgAuxl[StrMSpec],
+        &MsgLens[StrMSpec],   &FakeSpecular, True },
+    { &MsgStrs[StrMShad]   /* "Shadows"      */,     0x13,  &MsgAuxl[StrMShad],
+        &MsgLens[StrMShad],   &UseShadow,    True },
+    { &MsgStrs[StrMStereo] /* "Stereo"       */,     0x13,  &MsgAuxl[StrMStereo],
+        &MsgLens[StrMStereo], &UseStereo,    True },
+    { &MsgStrs[StrMLabel]  /* "Labels"       */,     0x13,  &MsgAuxl[StrMLabel],
+        &MsgLens[StrMLabel],  &LabelOptFlag, True } };
+
+static MenuItem SetMenu[13] = {
+    { &MsgStrs[StrMPOff]   /* "Pick Off"     */,     0x13,  &MsgAuxl[StrMPOff],
+        &MsgLens[StrMPOff],   &PickMode,     PickNone   },
+    { &MsgStrs[StrMPIdent] /* "Pick Ident"   */,     0x13,  &MsgAuxl[StrMPIdent],
+        &MsgLens[StrMPIdent], &PickMode,     PickIdent  },
+    { &MsgStrs[StrMPDist]  /* "Pick Distance"*/,     0x13,  &MsgAuxl[StrMPDist],
+        &MsgLens[StrMPDist],  &PickMode,     PickDist   },
+    { &MsgStrs[StrMPMon]   /* "Pick Monitor" */,     0x13,  &MsgAuxl[StrMPMon],
+        &MsgLens[StrMPMon],   &PickMode,     PickMonit  },
+    { &MsgStrs[StrMPAng]   /* "Pick Angle"   */,     0x13,  &MsgAuxl[StrMPAng],
+        &MsgLens[StrMPAng],   &PickMode,     PickAngle  },
+    { &MsgStrs[StrMPTrsn]  /* "Pick Torsion" */,     0x13,  &MsgAuxl[StrMPTrsn],
+        &MsgLens[StrMPTrsn],  &PickMode,     PickTorsn  },
+    { &MsgStrs[StrMPLabl]  /* "Pick Label"   */,     0x13,  &MsgAuxl[StrMPLabl],
+        &MsgLens[StrMPLabl],  &PickMode,     PickLabel  },
+    { &MsgStrs[StrMPCent]  /* "Pick Centre"  */,     0x13,  &MsgAuxl[StrMPCent],
+        &MsgLens[StrMPCent],  &PickMode,     PickOrign  },
+    { &MsgStrs[StrMPCoord] /* "Pick Coord"   */,     0x13,  &MsgAuxl[StrMPCoord],
+        &MsgLens[StrMPCoord], &PickMode,     PickCoord  },
+    { &MsgStrs[StrMPBond]  /* "Pick Bond"    */,     0x13,  &MsgAuxl[StrMPBond],
+        &MsgLens[StrMPBond],  &PickMode,     PickBond   },
+    { &MsgStrs[StrMRBond]  /* "Rotate Bond"  */,     0x13,  &MsgAuxl[StrMRBond],
+        &MsgLens[StrMRBond],  &RotMode,      RotBond    },
+    { &MsgStrs[StrMRMol]   /* "Rotate Mol"   */,     0x13,  &MsgAuxl[StrMRMol],
+        &MsgLens[StrMRMol],   &RotMode,      RotMol     },
+    { &MsgStrs[StrMRAll]   /* "Rotate All"   */,     0x13,  &MsgAuxl[StrMRAll],
+        &MsgLens[StrMRAll],   &RotMode,      RotAll     } };
 
 static MenuItem ExpMenu[7] = {
-    { &MsgStrs[StrMGIF],    0x11,&MsgAuxl[StrMGIF],    &MsgLens[StrMGIF]     },
-    { &MsgStrs[StrMPostscr],0x11,&MsgAuxl[StrMPostscr],&MsgLens[StrMPostscr] },
-    { &MsgStrs[StrMPPM],    0x11,&MsgAuxl[StrMPPM],    &MsgLens[StrMPPM]     },
-    { &MsgStrs[StrMIRGB],   0x11,&MsgAuxl[StrMIRGB],   &MsgLens[StrMIRGB]    },
-    { &MsgStrs[StrMSRast],  0x11,&MsgAuxl[StrMSRast],  &MsgLens[StrMSRast]   },
-    { &MsgStrs[StrMBMP],    0x11,&MsgAuxl[StrMBMP],    &MsgLens[StrMBMP]     },
-    { &MsgStrs[StrMPICT],   0x11,&MsgAuxl[StrMPICT],   &MsgLens[StrMPICT]    }};
+    { &MsgStrs[StrMGIF]     /* "GIF..."       */,    0x11,  &MsgAuxl[StrMGIF],
+        &MsgLens[StrMGIF],  NULL, 0 },
+    { &MsgStrs[StrMPostscr] /* "PostScript..."*/,    0x11,  &MsgAuxl[StrMPostscr],
+        &MsgLens[StrMPostscr], NULL, 0 },
+    { &MsgStrs[StrMPPM]     /* "PPM..."       */,    0x11,  &MsgAuxl[StrMPPM],
+        &MsgLens[StrMPPM],   NULL, 0 },
+    { &MsgStrs[StrMIRGB]    /* "IRIS RGB..."  */,    0x11,  &MsgAuxl[StrMIRGB],
+        &MsgLens[StrMIRGB],  NULL, 0 },
+    { &MsgStrs[StrMSRast]   /* "Sun Raster..."*/,    0x11,  &MsgAuxl[StrMSRast],
+        &MsgLens[StrMSRast], NULL, 0 },
+    { &MsgStrs[StrMBMP]     /* "BMP..."       */,    0x11,  &MsgAuxl[StrMBMP],
+        &MsgLens[StrMBMP],   NULL, 0 },
+    { &MsgStrs[StrMPICT]    /* "PICT..."      */,    0x11,  &MsgAuxl[StrMPICT],
+        &MsgLens[StrMPICT],  NULL, 0 } };
 
 static MenuItem HelMenu[2] = {
-    { &MsgStrs[StrMAbout],  0x10,&MsgAuxl[StrMAbout],  &MsgLens[StrMAbout]   },
-    { &MsgStrs[StrMUserM],  0x10,&MsgAuxl[StrMUserM],  &MsgLens[StrMUserM]   }};
+    { &MsgStrs[StrMAbout]   /* "About RasMol..."*/,  0x10,  &MsgAuxl[StrMAbout],
+        &MsgLens[StrMAbout], NULL, 0 },
+    { &MsgStrs[StrMUserM]   /* "User Manual..." */,  0x10,  &MsgAuxl[StrMUserM],
+        &MsgLens[StrMUserM], NULL, 0 } };
 
 
 typedef struct _BarItem {
@@ -152,22 +288,25 @@ typedef struct _BarItem {
             int flags;
             int *pos;
             int *len;
+            int *increment; 
         } BarItem;
 
-#define MenuBarMax 6
+#define MenuBarMax 7
 static BarItem MenuBar[MenuBarMax] = { 
-    { FilMenu,  &MsgStrs[StrMFile],     5, 0x01, &MsgAuxl[StrMFile],
-                                                 &MsgLens[StrMFile] },
-    { DisMenu,  &MsgStrs[StrMDisplay],  8, 0x01, &MsgAuxl[StrMDisplay],
-                                                 &MsgLens[StrMDisplay] },
-    { ColMenu,  &MsgStrs[StrMColour],  10, 0x01, &MsgAuxl[StrMColour],
-                                                 &MsgLens[StrMColour] },
-    { OptMenu,  &MsgStrs[StrMOpt],      7, 0x01, &MsgAuxl[StrMOpt],
-                                                 &MsgLens[StrMOpt] },
-    { ExpMenu,  &MsgStrs[StrMExport],   7, 0x01, &MsgAuxl[StrMExport],
-                                                 &MsgLens[StrMExport] },
-    { HelMenu,  &MsgStrs[StrMHelp],     2, 0x01, &MsgAuxl[StrMHelp],
-                                                 &MsgLens[StrMHelp] } };
+    { FilMenu,  &MsgStrs[StrMFile]    /* "File"     */,  5, 0x01,&MsgAuxl[StrMFile],
+        &MsgLens[StrMFile], &NumMolecules},
+    { DisMenu,  &MsgStrs[StrMDisplay] /* "Display"  */,  8, 0x01,&MsgAuxl[StrMDisplay],
+        &MsgLens[StrMDisplay], NULL },
+    { ColMenu,  &MsgStrs[StrMColour]  /* "Colours"  */, 10, 0x01,&MsgAuxl[StrMColour],
+        &MsgLens[StrMColour], NULL },
+    { OptMenu,  &MsgStrs[StrMOpt]     /* "Options"  */,  7, 0x01,&MsgAuxl[StrMOpt],
+        &MsgLens[StrMOpt], NULL },
+    { SetMenu, &MsgStrs[StrMSettings] /* "Settings" */, 13, 0x01,&MsgAuxl[StrMSettings],
+        &MsgLens[StrMSettings], NULL },
+    { ExpMenu,  &MsgStrs[StrMExport]  /* "Export"   */,  7, 0x01,&MsgAuxl[StrMExport],
+        &MsgLens[StrMExport], NULL },
+    { HelMenu,  &MsgStrs[StrMHelp]    /* "Help"     */,  2, 0x01,&MsgAuxl[StrMHelp],
+        &MsgLens[StrMHelp], NULL } };
 
 static int MenuFocus;
 static int ItemFocus;
@@ -235,17 +374,9 @@ static Pixmap lfpix, rgpix;
 static XFontStruct *MenuFont;
 static XSetWindowAttributes attr;
 static Window XScrlWin, YScrlWin;
-static Window PopUpWin;
-static Window MainWin;
-static Window CanvWin;
-static Window MenuWin;
-static Window RootWin;
 static XWMHints hints;
-static Colormap cmap;
 static Colormap lmap;
 static XImage *image;
-static Display *dpy;
-static Visual *vis;
 static GC gcon;
 
 #ifdef EIGHTBIT
@@ -253,13 +384,11 @@ static unsigned long Ident[256];
 static int IdentCount;
 #endif
 
-static int HeldButton;
 static int HeldStep;
 
 static Byte Intensity[LutSize];
 static Pixel WhiteCol;
 static Pixel BlackCol;
-static int Monochrome;
 
 #ifdef THIRTYTWOBIT
 static int SwapBytes;
@@ -270,8 +399,6 @@ static int MinWidth, MinHeight;
 static int MainWide, MainHigh;
 static int ScrlX,NewScrlX;
 static int ScrlY,NewScrlY;
-static int PixDepth;
-static int LocalMap;
 
 
 /* WM_PROTOCOLS */
@@ -292,7 +419,7 @@ static int HandleMenuLoop( void );
 
 
 
-static void FatalGraphicsError( char *ptr )
+void FatalGraphicsError( char *ptr )
 {
     char buffer[80];
 
@@ -528,7 +655,7 @@ static int RegisterInterpName( char *name )
         sprintf(buffer,"%x %s",(int)MainWin,name);
         XChangeProperty( dpy, RootWindow(dpy,0), InterpAtom, XA_STRING, 
                          8, PropModeReplace, (unsigned char*)buffer, 
-                         strlen(buffer)+1 );
+                         (int)strlen(buffer)+1 );
         return( True );
     }
 
@@ -551,7 +678,7 @@ static int RegisterInterpName( char *name )
     sprintf(buffer,"%x %s",(int)MainWin,name);
     XChangeProperty( dpy, RootWindow(dpy,0), InterpAtom, XA_STRING, 
                      8, PropModeAppend, (unsigned char*)buffer, 
-                     strlen(buffer)+1 );
+                     (int)strlen(buffer)+1 );
     return( True );
 }
 
@@ -602,7 +729,7 @@ static void DeRegisterInterpName( char *name )
         *dst = 0;
 
         XChangeProperty( dpy, RootWindow(dpy,0), InterpAtom, XA_STRING,
-                         8, PropModeReplace, registry, dst-(char*)registry );
+                         8, PropModeReplace, registry, (int)(dst-(char*)registry) );
     }
     XFree( (char*)registry );
 }
@@ -800,7 +927,12 @@ void UpdateScrollBars( void )
 {
     register int temp;
 
-    temp = (DialValue[YScrlDial]+1.0)*(YRange-48);  
+
+    if ( RotMode == RotAll ) {
+      temp = (WRotValue[YScrlDial]+1.0)*(YRange-48); 
+    } else {
+      temp = (DialValue[YScrlDial]+1.0)*(YRange-48); 
+    } 
     NewScrlY = (temp>>1)+16;
 
     if( NewScrlY != ScrlY )
@@ -810,7 +942,15 @@ void UpdateScrollBars( void )
         ScrlY = NewScrlY; 
     }
 
-    temp = (DialValue[XScrlDial]+1.0)*(XRange-48);  
+    if ( (RotMode == RotBond) && BondSelected ) {
+      temp = ((BondSelected->BRotValue)+1.0)*(XRange-48);
+    } else {
+      if ( RotMode == RotAll ) {
+        temp = (WRotValue[XScrlDial]+1.0)*(XRange-48);
+      } else {
+        temp = (DialValue[XScrlDial]+1.0)*(XRange-48);
+      }
+    } 
     NewScrlX = (temp>>1)+16;
 
     if( NewScrlX != ScrlX )
@@ -966,8 +1106,23 @@ static void HandleDialEvent( XDeviceMotionEvent *ptr )
         if( value )
         {   temp = (Real)value/DialRes[num];
             num = DialMap[num];
-            temp += DialValue[num];
-            ReDrawFlag |= (1<<num);
+            if (num == YScrlDial || num == XScrlDial) {
+              if( (RotMode == RotBond) && BondSelected && num == XScrlDial) {
+                temp += BondSelected->BRotValue;
+                ReDrawFlag |= RFRotBond;
+              } else {
+                if ( RotMode == RotAll ) {
+                  temp += WRotValue[num];
+                  ReDrawFlag |= (1<<num);
+                } else {
+                  temp += DialValue[num];
+                  ReDrawFlag |= (1<<num);
+                }
+              }
+            } else {
+              temp += DialValue[num];
+              ReDrawFlag |= (1<<num);
+            }
 
             if( num<3 )
             {   while( temp<-1.0 ) temp += 2.0;
@@ -976,7 +1131,20 @@ static void HandleDialEvent( XDeviceMotionEvent *ptr )
             {   if( temp<-1.0 ) temp = -1.0;
                 if( temp>1.0 )  temp = 1.0;
             }
-            DialValue[num] = temp;
+            if (num == YScrlDial || num == XScrlDial) {
+              if( (RotMode == RotBond) && BondSelected && num == XScrlDial) {
+                BondSelected->BRotValue = temp;
+                ReDrawFlag |= RFRotBond;
+              } else {
+                if ( RotMode == RotAll ) {
+                  WRotValue[num] = temp;
+                } else {
+                  DialValue[num] = temp;
+                }
+              }
+            } else {
+              DialValue[num] = temp;
+            }
 
             if( num==YScrlDial )
             {   value = (temp+1.0)*(YRange-48);
@@ -1081,11 +1249,23 @@ static void DisplayPopUpText( MenuItem *ptr, int x, int y )
     register int pos, wide;
     register int i,under;
     register int index;
+    int slen;
 
     col = (ptr->flags&mbEnable)? Lut[0] : Lut[1];
     XSetForeground( dpy, gcon, col );
 
-    XDrawString( dpy, PopUpWin, gcon, x, y, *(ptr->text), *(ptr->len) );
+    if (ptr->enable && (*(ptr->enable) == ptr->value)) {
+        XDrawLine( dpy, PopUpWin, gcon, x-9, y+MenuFont->descent-FontHigh/2, 
+              x-7, y+MenuFont->descent-2);
+        XDrawLine( dpy, PopUpWin, gcon, x-7, y+MenuFont->descent-2, 
+              x-3, y+MenuFont->descent-FontHigh+2);
+    }
+    if (ptr->len) {
+      slen = *(ptr->len);
+    } else {
+      slen = strlen(*(ptr->text));
+    }
+    XDrawString( dpy, PopUpWin, gcon, x, y, *(ptr->text), slen );
 
     if( ptr->flags & mbAccel )
     {   under = y + MenuFont->descent;
@@ -1116,11 +1296,16 @@ static void DrawPopUpMenu( void )
 
     ptr = MenuBar[MenuBarSelect].menu;
     count = MenuBar[MenuBarSelect].count;
+    if ( MenuBar[MenuBarSelect].increment && 
+      *(MenuBar[MenuBarSelect].increment)) {
+      count += 1+*(MenuBar[MenuBarSelect].increment);
+    }
 
     y = 2;  x = 2;
     for( i=0; i<count; i++ )
     {   if( !(ptr->flags&mbSepBar) )
-        {   DisplayPopUpText( ptr, x+8, y+MenuFont->ascent+2 );
+        {  
+            DisplayPopUpText( ptr, x+12, y+MenuFont->ascent+2 );
 
             if( ItemFlag && (i==MenuItemSelect) )
             {      DrawUpBox(PopUpWin,2,y,PopUpWide-2,y+FontHigh+3);
@@ -1153,9 +1338,12 @@ static void DisplayPopUpMenu( int i, int x )
 
     ptr = MenuBar[i].menu;
     count = MenuBar[i].count;
+    if ( MenuBar[i].increment && *(MenuBar[i].increment)) {
+      count += 1+*(MenuBar[i].increment);
+    }
 
     PopUpHigh = 4;
-    PopUpWide = 4;
+    PopUpWide = 8;
     for( i=0; i<count; i++ )
     {   if( !(ptr->flags&mbSepBar) )
         {   wide = XTextWidth(MenuFont,*(ptr->text),*(ptr->len));
@@ -1207,6 +1395,10 @@ static void HandleItemClick( int x, int y )
 
     ptr = MenuBar[MenuBarSelect].menu;
     count = MenuBar[MenuBarSelect].count;
+    if ( MenuBar[MenuBarSelect].increment && 
+      *(MenuBar[MenuBarSelect].increment)) {
+      count += 1+*(MenuBar[MenuBarSelect].increment);
+    }
 
     y = 2;
     for( i=0; i<count; i++ )
@@ -1248,6 +1440,10 @@ static void HandleItemMove( int x, int y )
     if( (xpos>=0) && (xpos<=PopUpWide) )
     {   ptr = MenuBar[MenuBarSelect].menu;
         count = MenuBar[MenuBarSelect].count;
+        if ( MenuBar[MenuBarSelect].increment && 
+          *(MenuBar[MenuBarSelect].increment)) {
+          count += 1+*(MenuBar[MenuBarSelect].increment);
+        }
 
         y = 2;
         for( i=0; i<count; i++ )
@@ -1288,6 +1484,10 @@ static int HandleItemKey( int key )
     item = MenuItemSelect;
     ptr = &MenuBar[MenuBarSelect].menu[item];
     count = MenuBar[MenuBarSelect].count;
+    if ( MenuBar[MenuBarSelect].increment && 
+      *(MenuBar[MenuBarSelect].increment)) {
+      count += 1+*(MenuBar[MenuBarSelect].increment);
+    }
     for( i=0; i<count; i++ )
     {   if( (ptr->flags&(mbEnable|mbAccel)) && 
            !(ptr->flags&mbSepBar) )
@@ -1316,6 +1516,10 @@ static void SelectFirstItem( int menu )
     register int i;
 
     count = MenuBar[menu].count;
+    if ( MenuBar[menu].increment && 
+      *(MenuBar[menu].increment)) {
+      count += 1+*(MenuBar[menu].increment);
+    }
     ptr = MenuBar[menu].menu;
 
     ItemFlag = False;
@@ -1487,6 +1691,7 @@ static void ReSizeWindow( int wide, int high )
 
     YRange = high-(MenuHigh+53);
     XRange = wide-53;
+    ZRange = 20000;
 
     if( (dx = XRange%4) )
         XRange += 4-dx;
@@ -1519,8 +1724,7 @@ void ReDrawWindow( void )
 {
     if( Interactive )
         ReSizeWindow( MainWide, MainHigh );
-}
-
+} 
 
 
 int FatalXError( Display *ptr )
@@ -1546,7 +1750,6 @@ int OpenDisplay( int x, int y )
     static XVisualInfo visinfo;
     static XClassHint xclass;
     static XSizeHints size;
-    static Pixmap icon;
     static int temp;
     static char VersionStr[50];
 
@@ -1721,15 +1924,15 @@ int OpenDisplay( int x, int y )
 
 int CreateImage( void )
 {
-    register Long size, temp;
+    register long size, temp;
     register int format;
     register Pixel *ptr;
 
     if( !Interactive )
     {   if( FBuffer ) free(FBuffer);
-        size = (Long)XRange*YRange*sizeof(Pixel);
+        size = (long)XRange*YRange*sizeof(Pixel);
         FBuffer = (Pixel*)malloc( size+32 );
-        return( (int)FBuffer );
+	return((FBuffer!=(Pixel*)NULL)?True : False);
     }
 
     format = Monochrome? XYPixmap : ZPixmap;
@@ -1751,15 +1954,15 @@ int CreateImage( void )
 
     if( Monochrome )
     {   /* Monochrome Mode Frame Buffer! */
-        size = (Long)XRange*YRange*sizeof(Pixel);
+        size = (long)XRange*YRange*sizeof(Pixel);
         FBuffer = (Pixel*)malloc( size+32 );
-        if( !FBuffer ) return False;
+	if( FBuffer == (Pixel*)NULL) return False;
 
         /* Bit per Pixel ScanLines! */
         temp = ((XRange+31)>>5)<<2;
-        size = (Long)temp*YRange + 32;
+        size = (long)temp*YRange + 32;
     } else 
-        size = (Long)XRange*YRange*sizeof(Pixel) + 32;
+        size = (long)XRange*YRange*sizeof(Pixel) + 32;
 
 #ifdef MITSHM
     if( SharedMemOption )
@@ -1803,12 +2006,12 @@ int CreateImage( void )
 
     /* Allocate Frame Buffer! */
     ptr = (Pixel*)malloc( size );
-    if( !ptr ) return False;
+    if( ptr == (Pixel*)NULL) return False;
 
     if( !Monochrome ) FBuffer = ptr;
     image = XCreateImage( dpy, vis, PixDepth, format, 0, (char*)ptr, 
                           XRange, YRange, sizeof(Pixel)<<3, 0 );
-    return (int)image;
+    return ((image==(XImage *)NULL)? False : True);
 }
 
 
@@ -1975,7 +2178,7 @@ static void HandleIPCCommand( void )
     static Atom type;
     char buffer[32];
 
-    register int rlen;
+    register size_t rlen;
     register int result;
     register int (*handler)();
     register char *cmnd;
@@ -2050,7 +2253,7 @@ static void HandleIPCCommand( void )
             handler = XSetErrorHandler( HandleIPCError );
             XChangeProperty( dpy, source, CommAtom, XA_STRING, 8,
                              PropModeAppend, (unsigned char*)buffer, 
-                             strlen(buffer)+1 );
+                             (int)strlen(buffer)+1 );
             XSync(dpy,False);
             XSetErrorHandler(handler);
         } 
@@ -2135,7 +2338,11 @@ static void DoneEvents( void )
         XCopyArea(dpy,Scrl,YScrlWin,gcon,0,0,16,16,0,NewScrlY);
 
         temp = ((Real)(NewScrlY-16))/(YRange-48);
-        DialValue[YScrlDial] = 2.0*temp - 1.0;
+        if( RotMode == RotAll ) {
+          WRotValue[YScrlDial] = 2.0*temp - 1.0;
+        } else {
+          DialValue[YScrlDial] = 2.0*temp - 1.0;
+        }
         ReDrawFlag |= (1<<YScrlDial);
         ScrlY = NewScrlY;
     }
@@ -2164,8 +2371,18 @@ static void DoneEvents( void )
         XCopyArea(dpy,Scrl,XScrlWin,gcon,0,0,16,16,NewScrlX,0);
 
         temp = ((Real)(NewScrlX-16))/(XRange-48);
-        DialValue[XScrlDial] = 2.0*temp - 1.0;
-        ReDrawFlag |= (1<<XScrlDial);
+        if( (RotMode == RotBond) && BondSelected ) {
+          BondSelected->BRotValue =  2.0*temp - 1.0;
+          ReDrawFlag |= RFRotBond;
+        } else {
+          if( RotMode == RotAll ) {
+            WRotValue[XScrlDial] = 2.0*temp - 1.0;
+            ReDrawFlag |= (1<<XScrlDial);
+          } else {
+            DialValue[XScrlDial] = 2.0*temp - 1.0;
+            ReDrawFlag |= (1<<XScrlDial);
+          }
+        }
         ScrlX = NewScrlX;
     }
     /* XSync(dpy,False); */

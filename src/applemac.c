@@ -1,9 +1,9 @@
 /***************************************************************************
- *                            RasMol 2.7.1.1                               *
+ *                             RasMol 2.7.2.1                              *
  *                                                                         *
- *                                RasMol                                   *
+ *                                 RasMol                                  *
  *                 Molecular Graphics Visualisation Tool                   *
- *                            21 January 2001                              *
+ *                              14 April 2001                              *
  *                                                                         *
  *                   Based on RasMol 2.6 by Roger Sayle                    *
  * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
@@ -11,15 +11,34 @@
  *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
  *                   Copyright (C) Roger Sayle 1992-1999                   *
  *                                                                         *
- *                  and Based on Mods by Arne Mueller                      *
- *                      Version 2.6x1, May 1998                            *
- *                   Copyright (C) Arne Mueller 1998                       *
+ *                          and Based on Mods by                           *
+ *Author             Version, Date             Copyright                   *
+ *Arne Mueller       RasMol 2.6x1   May 98     (C) Arne Mueller 1998       *
+ *Gary Grossman and  RasMol 2.5-ucb Nov 95     (C) UC Regents/ModularCHEM  *
+ *Marco Molinaro     RasMol 2.6-ucb Nov 96         Consortium 1995, 1996   *
  *                                                                         *
- *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
- *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
- *                      yaya@bernstein-plus-sons.com                       *
- *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
- *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *Philippe Valadon   RasTop 1.3     Aug 00     (C) Philippe Valadon 2000   *
+ *                                                                         *
+ *Herbert J.         RasMol 2.7.0   Mar 99     (C) Herbert J. Bernstein    * 
+ *Bernstein          RasMol 2.7.1   Jun 99         1998-2001               *
+ *                   RasMol 2.7.1.1 Jan 01                                 *
+ *                   RasMol 2.7.2   Aug 00                                 *
+ *                   RasMol 2.7.2.1 Apr 01                                 *
+ *                                                                         *
+ *                    and Incorporating Translations by                    *
+ *  Author                               Item                      Language*
+ *  Isabel Serván Martínez,                                                *
+ *  José Miguel Fernández Fernández      2.6   Manual              Spanish *
+ *  José Miguel Fernández Fernández      2.7.1 Manual              Spanish *
+ *  Fernando Gabriel Ranea               2.7.1 menus and messages  Spanish *
+ *  Jean-Pierre Demailly                 2.7.1 menus and messages  French  *
+ *  Giuseppe Martini, Giovanni Paolella, 2.7.1 menus and messages          *
+ *  A. Davassi, M. Masullo, C. Liotto    2.7.1 help file           Italian *
+ *                                                                         *
+ *                             This Release by                             *
+ * Herbert J. Bernstein, Bernstein + Sons, P.O. Box 177, Bellport, NY, USA *
+ *                       yaya@bernstein-plus-sons.com                      *
+ *               Copyright(C) Herbert J. Bernstein 1998-2001               *
  *                                                                         *
  * Please read the file NOTICE for important notices which apply to this   *
  * package. If you are not going to make changes to RasMol, you are not    *
@@ -49,6 +68,28 @@
  ***************************************************************************/
 
 /* applemac.c
+ $Log: applemac.c,v $
+ Revision 1.2  2001/02/08 01:14:46  yaya
+ *** empty log message ***
+
+ Revision 1.1  2001/01/31 02:13:45  yaya
+ Initial revision
+
+ Revision 1.7  2000/08/27 00:54:27  yaya
+ create rotation bond database
+
+ Revision 1.6  2000/08/26 18:12:24  yaya
+ Updates to header comments in all files
+
+ Revision 1.5  2000/08/26 03:13:51  yaya
+ Mods for mac compilations
+
+ Revision 1.3  2000/08/13 20:56:09  yaya
+ Conversion from toolbar to menus
+
+ Revision 1.2  2000/08/09 01:17:54  yaya
+ Rough cut with ucb
+
  */
 
 #include <QuickDraw.h>
@@ -79,6 +120,10 @@
 #include "abstree.h"
 #include "transfor.h"
 #include "render.h"
+#include "command.h"
+#include "multiple.h" /* [GSG 11/16/95] */
+#include "vector.h"   /* [GSG 11/16/95] */
+#include "wbrotate.h" /* [GSG 11/16/95] */
 #include "langsel.h"
 
 
@@ -220,6 +265,18 @@ int PrintImage( void )
     Rect *page;
     Rect rect;
 
+    /* [GSG 11/29/95] */
+    int SaveBackR, SaveBackG, SaveBackB;
+
+    if (DefaultBackground) {
+	ReDrawFlag |= RFColour;
+	SaveBackR = BackR;
+	SaveBackG = BackG;
+	SaveBackB = BackB;
+	BackR = BackG = BackB = 255;
+	RefreshScreen();
+    }
+
     PrOpen();
     if( !PrintHand )
     {   PrintHand = (THPrint)NewHandle(sizeof(TPrint));
@@ -269,6 +326,15 @@ int PrintImage( void )
     } else prErr = False;  /* Cancel Print */
 
     PrClose();
+
+    if (DefaultBackground) {
+	ReDrawFlag |= RFColour;
+	BackR = SaveBackR;
+	BackG = SaveBackG;
+	BackB = SaveBackB;
+	RefreshScreen();
+    }
+
     return !prErr;
 }
 
@@ -331,21 +397,36 @@ void AllocateColourMap( void )
 void UpdateScrollBars( void )
 {
     register int pos;
+    /* [GSG 11/16/95] */
+    float x, y;
+
+    if (( RotMode == RotBond ) && BondSelected)
+      x = BondSelected->BRotValue;
+    else if ( RotMode == RotAll )
+      x = WRotValue[DialRY];
+    else
+      x = DialValue[DialRY];
     
-    pos = 50+(int)(50.0*DialValue[1]);
+    pos = 50+(int)(50.0*x);
 #ifdef USEOLDROUTINENAMES
     SetCtlValue(HScroll,pos);
 #else
     SetControlValue(HScroll,pos);
 #endif
     
-    pos = 50+(int)(50.0*DialValue[0]);
+    if ( RotMode == RotAll )
+	y = WRotValue[DialRX];
+    else
+	y = DialValue[DialRX];
+    
+    pos = 50+(int)(50.0*y);
 #ifdef USEOLDROUTINENAMES
     SetCtlValue(VScroll,pos);
 #else
     SetControlValue(VScroll,pos);
 #endif
 }
+
 
 
 unsigned char * ReWriteStr255(unsigned char buffer[255], char* str)
@@ -382,7 +463,7 @@ void ReDrawWindow( void )
      unsigned char buffer[255];
      int menu;
      
-     for( menu=140; menu < 148; menu++) {
+     for( menu=140; menu < 149; menu++) {
 
 #ifdef USEOLDROUTINENAMES
        hand = GetMHandle(menu);
@@ -393,6 +474,7 @@ void ReDrawWindow( void )
         switch( menu )
         {   case(140):  /* Apple Menu */
               SetMenuItemText(hand,1,tostr255(buffer,MsgStrs[StrMAbout]));
+              SetMenuItemText(hand,2,tostr255(buffer,MsgStrs[StrMUserM]));
               break;
                       
             case(141):  /* File Menu */
@@ -405,6 +487,7 @@ void ReDrawWindow( void )
               ReWriteStr255((*hand)->menuData,MsgStrs[StrMFile]);
               break;
                       
+                      
             case(142):  /* Edit Menu */
               SetMenuItemText(hand,1,tostr255(buffer,MsgStrs[StrMUndo]));
               SetMenuItemText(hand,2,tostr255(buffer,MsgStrs[StrMCut]));
@@ -414,7 +497,7 @@ void ReDrawWindow( void )
               SetMenuItemText(hand,7,tostr255(buffer,MsgStrs[StrMSelAll]));
               ReWriteStr255((*hand)->menuData,MsgStrs[StrMEdit]);
               break;
-                        
+                         
             case(143):  /* Display Menu */
               SetMenuItemText(hand,1,tostr255(buffer,MsgStrs[StrMWirefr]));
               SetMenuItemText(hand,2,tostr255(buffer,MsgStrs[StrMBackbn]));
@@ -440,7 +523,7 @@ void ReDrawWindow( void )
               SetMenuItemText(hand,10,tostr255(buffer,MsgStrs[StrMAlt]));
               ReWriteStr255((*hand)->menuData,MsgStrs[StrMColour]);
               break;
-                                                    
+                                                     
             case(145):  /* Option Menu */
               SetMenuItemText(hand,1,tostr255(buffer,MsgStrs[StrMSlab]));
               SetMenuItemText(hand,2,tostr255(buffer,MsgStrs[StrMHydr]));
@@ -451,8 +534,26 @@ void ReDrawWindow( void )
               SetMenuItemText(hand,7,tostr255(buffer,MsgStrs[StrMLabel]));
               ReWriteStr255((*hand)->menuData,MsgStrs[StrMOpt]);
               break;
+
+            case(146):  /* Settings Menu */
+              SetMenuItemText(hand,1,tostr255(buffer,MsgStrs[StrMPOff]));
+              SetMenuItemText(hand,2,tostr255(buffer,MsgStrs[StrMPIdent]));
+              SetMenuItemText(hand,3,tostr255(buffer,MsgStrs[StrMPDist]));
+              SetMenuItemText(hand,4,tostr255(buffer,MsgStrs[StrMPMon]));
+              SetMenuItemText(hand,5,tostr255(buffer,MsgStrs[StrMPAng]));
+              SetMenuItemText(hand,6,tostr255(buffer,MsgStrs[StrMPTrsn]));
+              SetMenuItemText(hand,7,tostr255(buffer,MsgStrs[StrMPLabl]));
+              SetMenuItemText(hand,8,tostr255(buffer,MsgStrs[StrMPCent]));
+              SetMenuItemText(hand,9,tostr255(buffer,MsgStrs[StrMPCoord]));
+              SetMenuItemText(hand,10,tostr255(buffer,MsgStrs[StrMPBond]));
+              SetMenuItemText(hand,11,tostr255(buffer,MsgStrs[StrMRBond]));
+              SetMenuItemText(hand,12,tostr255(buffer,MsgStrs[StrMRMol]));
+              SetMenuItemText(hand,13,tostr255(buffer,MsgStrs[StrMRAll]));
+              ReWriteStr255((*hand)->menuData,MsgStrs[StrMSettings]);
+              break;
+
                         
-            case(146):  /* Export Menu */
+            case(147):  /* Export Menu */
               SetMenuItemText(hand,1,tostr255(buffer,MsgStrs[StrMGIF]));
               SetMenuItemText(hand,2,tostr255(buffer,MsgStrs[StrMPostscr]));
               SetMenuItemText(hand,3,tostr255(buffer,MsgStrs[StrMPPM]));
@@ -462,7 +563,7 @@ void ReDrawWindow( void )
               ReWriteStr255((*hand)->menuData,MsgStrs[StrMExport]);
               break;
                         
-            case(147):  /* Windows Menu */
+            case(148):  /* Windows Menu */
               SetMenuItemText(hand,1,tostr255(buffer,MsgStrs[StrMMainWin]));
               SetMenuItemText(hand,2,tostr255(buffer,MsgStrs[StrMCmndLin]));
               ReWriteStr255((*hand)->menuData,MsgStrs[StrMWindow]);
@@ -474,6 +575,7 @@ void ReDrawWindow( void )
     
 
 }
+
 
 void SetMouseUpdateStatus( int bool )
 {
@@ -509,7 +611,7 @@ void EnableMenus( int flag )
 #else
     hand = GetMenuHandle(141);
 #endif
-    if( flag && !Database )
+    if( flag && NumMolecules < MAX_MOLECULES ) /* [GSG 11/16/95] */
     {   EnableItem(hand,1);
     } else DisableItem(hand,1);
     
@@ -549,28 +651,32 @@ void EnableMenus( int flag )
     {   EnableItem(GetMHandle(143),0);
         EnableItem(GetMHandle(144),0);
         EnableItem(GetMHandle(145),0);
+        EnableItem(GetMHandle(146),0);
     } else
     {   DisableItem(GetMHandle(143),0);
         DisableItem(GetMHandle(144),0);
         DisableItem(GetMHandle(145),0);
+        DisableItem(GetMHandle(146),0);
     }
 #else 
     if( Database && flag )
     {   EnableItem(GetMenuHandle(143),0);
         EnableItem(GetMenuHandle(144),0);
         EnableItem(GetMenuHandle(145),0);
+        EnableItem(GetMenuHandle(146),0);
     } else
     {   DisableItem(GetMenuHandle(143),0);
         DisableItem(GetMenuHandle(144),0);
         DisableItem(GetMenuHandle(145),0);
+        DisableItem(GetMenuHandle(146),0);
     }
 #endif
     
     /* Export Menu */
 #ifdef USEOLDROUTINENAMES
-    hand = GetMHandle(146);
+    hand = GetMHandle(147);
 #else 
-    hand = GetMenuHandle(146);
+    hand = GetMenuHandle(147);
 #endif
     if( Database )
     {   EnableItem(hand,0);
@@ -594,7 +700,7 @@ static void DefineMenus( void )
 #endif
     InsertMenu(hand,0);
     
-    for( i=141; i<148; i++ )
+    for( i=141; i<149; i++ )
         InsertMenu( GetMenu(i), 0 );
         
     /* if( GetEnvirons(smRegionCode) == verUS ) */
@@ -616,7 +722,7 @@ int OpenDisplay( int x, int y )
     UseHourGlass = True;
     DisableMenu = False;
 
-    for( i=0; i<8; i++ )
+    for( i=0; i<10; i++ )
         DialValue[i] = 0.0;
     
     ULut[0] = ULut[255] = True;
@@ -626,6 +732,7 @@ int OpenDisplay( int x, int y )
     XRange = x;   WRange = XRange>>1;
     YRange = y;   HRange = YRange>>1;
     Range = MinFun(XRange,YRange);
+    ZRange = 20000;
     
     CanvWin = GetNewCWindow(150,0,(WindowPtr)-1);
     SetPort(CanvWin);
@@ -761,18 +868,18 @@ void EndWait( void )
 
 void SetCanvasTitle( char *ptr )
 {
-    register char *dst;
-    char buffer[255];
+    register unsigned char *dst;
+    unsigned char buffer[255];
 
     if( ptr )
     {   dst = buffer+1;
         while( *ptr && (dst<buffer+254) )
-            *dst++ = *ptr++;
-        buffer[0] = (char)((dst-buffer)-1);
-        *dst = '\0';
+            *dst++ = *((unsigned char *)ptr++);
+        buffer[0] = (unsigned char)((dst-buffer)-1);
+        *dst = (unsigned char)'\0';
     } else  /* No Title! */
-    {   buffer[0] = '\0';
-        buffer[1] = '\0';
+    {   buffer[0] = (unsigned char)'\0';
+        buffer[1] = (unsigned char)'\0';
     }
     SetWTitle(CanvWin,(Byte*)buffer);
 }
