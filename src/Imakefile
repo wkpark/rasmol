@@ -1,32 +1,48 @@
-DEFS =
+# Imakefile
+# RasMol2 Molecular Graphics
+# Roger Sayle, June 1994
+# Version 2.4
+
+# DEPTHDEF = -DTHIRTYTWOBIT
+DEPTHDEF = -DEIGHTBIT
+
+# RasMol's on-line help direcory
+#   e.g. /usr/local/lib/rasmol/rasmol.hlp
+RASMOLDIR = $(USRLIBDIR)/rasmol/
+
+
+
+DEFINES = -DRASMOLDIR=\"$(RASMOLDIR)\" $(DEPTHDEF)
 
 SRCS = rasmol.c rasmol.h molecule.c molecule.h abstree.c abstree.h \
        command.c command.h tokens.h transfor.c transfor.h render.c render.h \
-       x11win.c graphics.h pixutils.c pixutils.h outfile.c outfile.h
+       x11win.c graphics.h pixutils.c pixutils.h font.h outfile.c outfile.h \
+       script.c script.h
 
 OBJS = rasmol.o molecule.o abstree.o command.o transfor.o render.o x11win.o \
-       pixutils.o outfile.o
+       pixutils.o outfile.o script.o
 
-#ifdef DIALBOX
-#ifdef SGI
-LIBS = -lm -lXi $(XLIB)
-#else
-LIBS = -lm -lXinput $(XLIB)
+# Previous Risc/Os definition
+# LOCAL_LIBRARIES = -lm -lXinput $(XLIB)
+LOCAL_LIBRARIES = -lm -lXi $(XLIB)
+
+
+
+#
+# Architecture Specific Rules
+#
+
+#ifdef HPArchitecture
+CCOPTIONS = -Ae
+CDEBUGFLAGS = +O2 +Onolimit
 #endif
-#else
-LIBS = -lm -lXi $(XLIB)
-#endif
 
-AllTarget(rasmol)
 
-NormalProgramTarget(rasmol,$(OBJS), , ,$(LIBS))
+ComplexProgramTarget(rasmol)
+MakeDirectories(install,$(RASMOLDIR))
+InstallNonExec(rasmol.hlp,$(RASMOLDIR))
+InstallNonExec(data/1crn.pdb,$(RASMOLDIR))
+InstallNonExec(data/3cro.pdb,$(RASMOLDIR))
 
-InstallProgram(rasmol,$(BINDIR))
-InstallManPage(rasmol,$(MANDIR))
-
-DependTarget()
-LintTarget()
-
-clean::
-	rm *.o
-
+rasmol.man::	doc/rasmol.1
+		ln -s doc/rasmol.1 rasmol.man

@@ -1,16 +1,24 @@
 /* graphics.h
  * RasMol2 Molecular Graphics
- * Roger Sayle, February 1994
- * Version 2.3
+ * Roger Sayle, October 1994
+ * Version 2.5
  */
 
-#ifdef IBMPC
-#define CanvWidth  480
-#define CanvHeight 480
-#else
-#define CanvWidth  576
-#define CanvHeight 576
+#ifdef APPLEMAC      
+#define InitialWide  400
+#define InitialHigh  400
 #endif
+
+#ifdef IBMPC
+#define InitialWide  480
+#define InitialHigh  480
+#endif
+
+#ifndef InitialWide
+#define InitialWide  576
+#define InitialHigh  576
+#endif
+
 
 #ifdef EIGHTBIT
 #define LutSize  256
@@ -50,14 +58,22 @@
 
 #ifdef GRAPHICS
 double DialValue[8];
-Pixel Lut[LutSize];
+int WinHigh, WinWide;
 int PointX, PointY;
 int XRange, WRange;
 int YRange, HRange;
 int UseHourGlass;
-int MenuDisable;
+int DisableMenu;
 int ReDrawFlag;
+int MouseMode;
 int Range;
+
+Pixel Lut[LutSize];
+Byte RLut[LutSize];
+Byte GLut[LutSize];
+Byte BLut[LutSize];
+Byte ULut[LutSize];
+
 
 #ifdef IBMPC
 HWND CanvWin;
@@ -66,21 +82,35 @@ HPALETTE ColourMap;
 LOGPALETTE __far *Palette;
 #endif /* IBMPC */
 
-Byte RLut[256];
-Byte GLut[256];
-Byte BLut[256];
-Byte ULut[256];
+#ifdef APPLEMAC
+ControlHandle HScroll;
+ControlHandle VScroll;
+CursHandle CanvCursor;
+CursHandle CmndCursor;
+CursHandle WaitCursor;
+WindowPtr CanvWin;
+WindowPtr CmndWin;
+THPrint PrintHand;
+#endif /* APPLEMAC */
 
 #else /* GRAPHICS */
 extern double DialValue[8];
-extern Pixel Lut[LutSize];
+extern int WinHigh, WinWide;
 extern int PointX, PointY;
 extern int XRange, WRange;
 extern int YRange, HRange;
 extern int UseHourGlass;
-extern int MenuDisable;
+extern int DisableMenu;
 extern int ReDrawFlag;
+extern int MouseMode;
 extern int Range;
+
+extern Pixel Lut[LutSize];
+extern Byte RLut[LutSize];
+extern Byte GLut[LutSize];
+extern Byte BLut[LutSize];
+extern Byte ULut[LutSize];
+
 
 #ifdef IBMPC
 extern HWND CanvWin;
@@ -89,51 +119,64 @@ extern HPALETTE ColourMap;
 extern LOGPALETTE __far *Palette;
 #endif /* IBMPC */
 
-extern Byte RLut[256];
-extern Byte GLut[256];
-extern Byte BLut[256];
-extern Byte ULut[256];
+#ifdef APPLEMAC
+extern ControlHandle HScroll;
+extern ControlHandle VScroll;
+extern CursHandle CanvCursor;
+extern CursHandle CmndCursor;
+extern CursHandle WaitCursor;
+extern WindowPtr CanvWin;
+extern WindowPtr CmndWin;
+extern THPrint PrintHand;
+#endif /* APPLEMAC */
 
-#ifdef __STDC__
-void AllocateColourMap();
-void ClearImage();
+
+#ifdef FUNCPROTO
+int CreateImage();
 void TransferImage();
+int ClipboardImage();
+void ClearImage();
+int PrintImage();
+
+void AllocateColourMap();
 void UpdateScrollBars();
-void SetMouseMode( int );
 int LookUpColour( char*, int*, int*, int* );
+void SetMouseMode( int );
+void EnableMenus( int );
 void CloseDisplay();
 void BeginWait();
 void EndWait();
 
 #ifdef IBMPC
 int OpenDisplay( HANDLE, int );
-int PrintImage();
 #else
 int OpenDisplay( int, int );
-void NewMenu( int, char** );
+#endif
+
+#if !defined(IBMPC) && !defined(APPLEMAC)
 int FetchEvent( int );
-Pixel *CreateImage();
-#endif /* IBMPC */
+#endif
 
 #else /* non-ANSI C compiler */
+int CreateImage();
+void TransferImage();
+int ClipboardImage();
+void ClearImage();
+int PrintImage();
+
 int OpenDisplay();
 void AllocateColourMap();
-void ClearImage();
-void TransferImage();
 void UpdateScrollBars();
-void SetMouseMode();
 int LookUpColour();
+void SetMouseMode();
+void EnableMenus();
 void CloseDisplay();
 void BeginWait();
 void EndWait();
 
-#ifdef IBMPC
-int PrintImage();
-#else
-void NewMenu();
+#if !defined(IBMPC) && !defined(APPLEMAC)
 int FetchEvent();
-Pixel *CreateImage();
-#endif /* IBMPC */
+#endif
 
 #endif
 #endif /* GRAPHICS */

@@ -1,6 +1,6 @@
 $! BUILD.COM
 $! VMS Compilation Script
-$! RasMol v2.3
+$! RasMol v2.5
 $!
 $ If F$Trnlnm ("X11") .eqs. "" Then Define X11 DECW$Include
 $ If F$Trnlnm ("SYS") .eqs. "" Then Define Sys Sys$Share
@@ -14,7 +14,11 @@ $ cc/optimize render.c
 $ cc/optimize x11win.c
 $ cc/optimize pixutils.c
 $ cc/optimize outfile.c
+$ cc/optimize script.c
 $!
-$ link /exec=rasmol rasmol.obj, molecule.obj, transfor.obj, command.obj, -
-    abstree.obj, render.obj, x11win.obj, pixutils.obj, outfile.obj, rasmol/opt
-
+$ link /exec=rasmol rasmol.obj, molecule.obj, transfor.obj, -
+    command.obj, abstree.obj, render.obj, x11win.obj, pixutils.obj, -
+    outfile.obj, script.obj, rasmol/opt
+$!
+$ set prot=w:re rasmol.exe
+$ set prot=w:r rasmol.hlp

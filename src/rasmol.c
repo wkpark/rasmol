@@ -1,7 +1,7 @@
 /* rasmol.c
  * RasMol2 Molecular Graphics
- * Roger Sayle, February 1994
- * Version 2.3
+ * Roger Sayle, October 1994
+ * Version 2.5
  */
 
 #ifndef sun386
@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <math.h>
 
+#define RASMOL
 #include "rasmol.h"
 #include "graphics.h"
 #include "molecule.h"
@@ -27,9 +28,20 @@
 
 #ifdef esv
 #include <sysv/sys/termio.h>
-#include <sysv/unistd.h>
+#else
+#ifdef __FreeBSD__
+#include <sys/ioctl.h>
+#include <sys/termios.h>
+#define TCSETAW TIOCSETAW
+#define TCGETA  TIOCGETA
 #else
 #include <sys/termio.h>
+#endif /* __FreeBSD__ */
+#endif /* esv */
+
+#ifdef esv
+#include <sysv/unistd.h>
+#else
 #include <unistd.h>
 #endif
 
@@ -87,24 +99,32 @@ static int StdInFlag;
 #endif
 
 #ifdef TERMIOS
-static struct fd_set WaitSet;
-static struct timeval TimeOut;
+#ifdef __FreeBSD__
+static struct termios OrigTerm;
+static struct termios IntrTerm;
+#else
 static struct termio OrigTerm;
 static struct termio IntrTerm;
+#endif
+
+static struct fd_set WaitSet;
+static struct timeval TimeOut;
 static int SocketNo,FileNo;
 #endif
 
-static char fnamebuf[128];
 static char *FileNamePtr;
+static char *ScriptNamePtr;
+static int FileFormat;
 static int ProfCount;
 static int LexState;
-static int State;
 
 
-#ifdef __STDC__
 /* Function Prototype */
-int HandleEvents( int );
+#ifdef FUNCPROTO
+static int HandleEvents( int );
 #endif
+int ProcessCommand();
+void RasMolExit();
 
 
 void WriteChar( ch )
@@ -115,6 +135,52 @@ void WriteChar( ch )
 void WriteString( ptr )
     char *ptr;
 {   fputs(ptr,stderr);
+}
+
+
+static void ResetTerminal()
+{
+#ifdef TERMIOS
+    if( isatty(FileNo) )
+        ioctl(FileNo, TCSETAW, &OrigTerm);
+#endif
+
+#ifdef VMS
+    StdInFlag = False;
+    if( StdInStatus & 0x01 )
+        sys$cancel(StdInChan);
+
+    sys$qiow( 0, StdInChan, IO$_SETMODE, 0, 0, 0,
+              StdInOrig, 12, 0, 0, 0, 0 );
+#endif
+}
+
+
+void RasMolExit()
+{
+    WriteChar('\n');
+    if( CommandActive )
+        WriteChar('\n');
+
+    if( Interactive )
+        CloseDisplay();
+    ResetTerminal();
+    exit(0);
+}
+
+
+void RasMolFatalExit( msg )
+    char *msg;
+{
+    WriteChar('\n');
+    WriteString(msg);
+    WriteChar('\n');
+    WriteChar(0x07);
+
+    if( Interactive )
+        CloseDisplay();
+    ResetTerminal();
+    exit(1);
 }
 
 
@@ -138,20 +204,25 @@ static int StdInASTEvent()
                 } else ch = StdInChar;
 
             } else if( LexState == 1 )
-            {   if( StdInChar == '[' )
+            {   if( StdInChar=='[' )
                 {   LexState = 2;  ch = 0;
+                } else if( StdInChar=='O' )
+                {   LexState = 3;  ch = 0;
                 } else if( StdInChar != 0x1b )
                 {   LexState = 0;  ch = StdInChar;
                 } else ch = 0;
 
-            } else /* LexState == 2 */
+            } else /* LexState == 2 or 3 */
             {   LexState = 0;
                 switch( StdInChar )
                 {   case('A'): ch = 0x10;  break;
                     case('B'): ch = 0x0e;  break;
                     case('C'): ch = 0x06;  break;
                     case('D'): ch = 0x02;  break;
-                    default:   ProcessCharacter('[');
+                    default:   if( LexState==2 )
+                               {      ProcessCharacter('[');
+                               } else ProcessCharacter('O');
+
                                if( StdInChar == 0x1b )
                                {   LexState = 1;  ch = 0;
                                } else ch = StdInChar;
@@ -177,7 +248,7 @@ static int StdInASTEvent()
 #endif
 
 
-void InitTerminal(socket)
+static void InitTerminal(socket)
     int socket;
 {
 #ifdef SIGTTIN
@@ -233,31 +304,16 @@ void InitTerminal(socket)
         sys$qiow( 0, StdInChan, IO$_SETMODE, 0, 0, 0,
                   StdInMode, 12, 0, 0, 0, 0 );
 
-        /* Queue an Asynchronous I/O Request */
-        StdInStatus = sys$qio( 0, StdInChan, IO$_READVBLK|IO$M_NOECHO, 
-                               StdInBlck, StdInASTEvent, 0, &StdInChar, 
-                               1, 0, StdInMask, 0, 0);
+        if( socket )
+        {   /* Queue an Asynchronous I/O Request */
+            StdInStatus = sys$qio( 0, StdInChan, IO$_READVBLK|IO$M_NOECHO, 
+                                   StdInBlck, StdInASTEvent, 0, &StdInChar, 
+                                   1, 0, StdInMask, 0, 0);
+        } else StdInStatus = False;
     } else StdInFlag = False;
-#endif
 
+#else /* !VMS */
     setbuf(stdin,(char*)NULL);
-}
-
-
-void ResetTerminal()
-{
-#ifdef TERMIOS
-    if( isatty(FileNo) )
-        ioctl(FileNo, TCSETAW, &OrigTerm);
-#endif
-
-#ifdef VMS
-    StdInFlag = False;
-    if( StdInStatus & 0x01 )
-        sys$cancel(StdInChan);
-
-    sys$qiow( 0, StdInChan, IO$_SETMODE, 0, 0, 0,
-              StdInOrig, 12, 0, 0, 0, 0 );
 #endif
 }
 
@@ -272,8 +328,7 @@ static int FetchCharacter()
         do {
             if( !CommandActive )
                 ResetCommandLine(0);
-            if( HandleEvents(False) )
-                RasMolExit();
+            HandleEvents(False);
 
             /* To avoid slow response time */
             if( !CommandActive )
@@ -285,18 +340,31 @@ static int FetchCharacter()
             TimeOut.tv_sec = 1;
 
             width = MaxFun(FileNo,SocketNo)+1;
-            status = select( width, &WaitSet,
-                     (struct fd_set*)NULL, (struct fd_set*)NULL, &TimeOut );
+#ifdef __hpux
+            status = select( width, (int*)&WaitSet, (int*)NULL, 
+                                    (int*)NULL, &TimeOut );
+#else
+            status = select( width, &WaitSet, (struct fd_set*)NULL, 
+                                    (struct fd_set*)NULL, &TimeOut );
+#endif
         } while( (status<1) || !FD_ISSET(FileNo,&WaitSet) );
 #endif /* TERMIOS */
 
     if( !CommandActive )
         ResetCommandLine(0);
+
+#ifdef VMS
+    sys$qiow( 0, StdInChan, IO$_READVBLK|IO$M_NOECHO, StdInBlck,
+              0, 0, &StdInChar, 1, 0, StdInMask, 0, 0);
+    return( StdInChar );
+#else
     return( getc(stdin) );
+#endif
 }
 
 static int ReadCharacter()
 {
+    register int tmp;
     register int ch;
 
     if( LexState )
@@ -307,49 +375,24 @@ static int ReadCharacter()
 
     ch = FetchCharacter();
     if( ch!=0x1b ) return( ch );
-    ch = FetchCharacter();
-    if( ch!='[' ) return( ch );
 
-    switch( ch=FetchCharacter() )
+    ch = FetchCharacter();
+    if( (ch!='[') && (ch!='O') ) 
+        return( ch );
+
+    switch( tmp=FetchCharacter() )
     {   case('A'): return( 0x10 );
         case('B'): return( 0x0e );
         case('C'): return( 0x06 );
         case('D'): return( 0x02 );
     }
-    LexState = ch;
-    return('[');
+    LexState = tmp;
+    return(ch);
 }
 
 
-void RasMolExit()
-{
-    WriteChar('\n');
-    if( CommandActive )
-        WriteChar('\n');
-
-    if( Interactive )
-        CloseDisplay();
-    ResetTerminal();
-    exit(0);
-}
-
-
-void RasMolFatalExit( msg )
-    char *msg;
-{
-    WriteChar('\n');
-    WriteString(msg);
-    WriteChar('\n');
-    WriteChar(0x07);
-
-    if( Interactive )
-        CloseDisplay();
-    ResetTerminal();
-    exit(1);
-}
-
-
-void RasMolSignalExit()
+void RasMolSignalExit( i )
+    int i;
 {
     RasMolFatalExit("*** Quit ***");
 }
@@ -360,14 +403,22 @@ static void LoadInitFile()
     register char *src,*dst;
     register FILE *initrc;
     register char *fname;
+    char fnamebuf[128];
 
+#ifdef VMS
+    fname = "RASMOL.INI";
+#else
     fname = ".rasmolrc";
+#endif
+
     initrc = fopen(fname,"r");
     if( !initrc && (src=(char*)getenv("HOME")) )
     {   dst = fnamebuf; 
         while( *src )
             *dst++ = *src++;
+#ifndef VMS
         *dst++ = '/';
+#endif
 
         src = fname; fname = fnamebuf;
         while( (*dst++ = *src++) );
@@ -378,7 +429,9 @@ static void LoadInitFile()
     {   dst = fnamebuf; 
         while( *src )
             *dst++ = *src++;
+#ifndef VMS
         *dst++ = '/';
+#endif
 
         src = "rasmolrc"; fname = fnamebuf;
         while( (*dst++ = *src++) );
@@ -390,129 +443,166 @@ static void LoadInitFile()
 }
 
 
-static void HandleMenu( option )
-     int option;
+static void HandleMenu( hand )
+     int hand;
 {
+    register int menu;
+    register int item;
     register int mask;
 
-    switch( State )
-    {   /* Main Menu */
-        case(1):  if( !option )
-                  {   if( !Database )
-                          ResetCommandLine(2);
-                      break;
-                  } else State = option+1;
+    menu = hand>>8;
+    item = hand&0xff;
+    switch( menu )
+    {   case(0):  /* File Menu */
+                  switch( item )
+                  {   case(1):  /* Open */
+                                if( !Database )
+                                    ResetCommandLine(2);
+                                break;
 
-                  switch(State)
-                  {   case(1): NewMenu(MainMenuSize,MainMenu); break;
-                      case(2): NewMenu(DispMenuSize,DispMenu); break;
-                      case(3): NewMenu(ColrMenuSize,ColrMenu); break;
-                      case(4): NewMenu(OptnMenuSize,OptnMenu); break;
-                      case(5): NewMenu(SaveMenuSize,SaveMenu); break;
-                      case(6): NewMenu(ConfMenuSize,ConfMenu); break;
+                      case(2):  /* Save As */
+                                break;
+                      case(3):  /* Close */
+                                ZapDatabase();
+                                break;
+
+                      case(5):  /* Exit */
+                                RasMolExit();
+                                break;
+                  } 
+                  break;
+
+        case(1):  /* Display Menu */
+                  switch( item )
+                  {   case(1):  /* Wireframe */
+                                DisableSpacefill();
+                                EnableWireFrame(True,0);
+                                SetRibbonStatus(False,0,0);
+                                DisableBackBone();
+                                ReDrawFlag |= RFRefresh;
+                                break;
+
+                      case(2):  /* Backbone */
+                                DisableSpacefill();
+                                DisableWireFrame();
+                                SetRibbonStatus(False,0,0);
+                                EnableBackBone(False,80);
+                                ReDrawFlag |= RFRefresh;
+                                break;
+
+                      case(3):  /* Sticks */
+                                DisableSpacefill();
+                                if( MainAtomCount<256 )
+                                {   EnableWireFrame(False,40);
+                                } else EnableWireFrame(False,80);
+                                SetRibbonStatus(False,0,0);
+                                ReDrawFlag |= RFRefresh;
+                                DisableBackBone();
+                                break;
+
+                      case(4):  /* Spheres */
+                                SetVanWaalRadius();
+                                DisableWireFrame();
+                                SetRibbonStatus(False,0,0);
+                                DisableBackBone();
+                                ReDrawFlag |= RFRefresh;
+                                break;
+
+                      case(5):  /* Ball & Stick */
+                                SetRadiusValue(120);
+                                EnableWireFrame(False,40);
+                                SetRibbonStatus(False,0,0);
+                                DisableBackBone();
+                                ReDrawFlag |= RFRefresh;
+                                break;
+
+                      case(6):  /* Ribbons */
+                                DisableSpacefill();
+                                DisableWireFrame();
+                                SetRibbonStatus(True,RibbonFlag,0);
+                                DisableBackBone();
+                                ReDrawFlag |= RFRefresh;
+                                break;
+
+                      case(7):  /* Strands */
+                                DisableSpacefill();
+                                DisableWireFrame();
+                                SetRibbonStatus(True,StrandFlag,0);
+                                DisableBackBone();
+                                ReDrawFlag |= RFRefresh;
                   }
                   break;
 
-        /* Display Menu */
-        case(2):  switch( option )
-                  {   case(0):  DisableSpacefill();
-                                EnableWireFrame(True,0);
-                                SetRibbonStatus(False,0);
-                                DisableBackBone();
-                                break;
-
-                      case(1):  DisableSpacefill();
-                                DisableWireFrame();
-                                SetRibbonStatus(False,0);
-                                EnableBackBone(False,80);
-                                break;
-
-                      case(2):  DisableSpacefill();
-                                EnableWireFrame(False,80);
-                                SetRibbonStatus(False,0);
-                                DisableBackBone();
-                                break;
-
-                      case(3):  SetVanWaalRadius();
-                                DisableWireFrame();
-                                SetRibbonStatus(False,0);
-                                DisableBackBone();
-                                break;
-
-                      case(4):  SetRadiusValue(120);
-                                EnableWireFrame(False,40);
-                                SetRibbonStatus(False,0);
-                                DisableBackBone();
-                                break;
-
-                      case(5):  DisableSpacefill();
-                                DisableWireFrame();
-                                SetRibbonStatus(True,0);
-                                DisableBackBone();
+        case(2):  /* Colours Menu */
+                  switch( item )
+                  {   case(1):  /* Monochrome */
+                                MonoColourAttrib(255,255,255);
+                                ReDrawFlag |= RFColour;  break;
+                      case(2):  /* CPK */
+                                CPKColourAttrib();
+                                ReDrawFlag |= RFColour;  break;
+                      case(3):  /* Shapely */
+                                ShapelyColourAttrib();
+                                ReDrawFlag |= RFColour;  break;
+                      case(4):  /* Group */
+                                ScaleColourAttrib( GroupAttr );
+                                ReDrawFlag |= RFColour;  break;
+                      case(5):  /* Chain */
+                                ScaleColourAttrib( ChainAttr );
+                                ReDrawFlag |= RFColour;  break;
+                      case(6):  /* Temperature */
+                                ScaleColourAttrib( TempAttr );
+                                ReDrawFlag |= RFColour;  break;
+                      case(7):  /* Structure */
+                                StructColourAttrib();
+                                ReDrawFlag |= RFColour;  break;
+                      case(8):  /* User */
+                                UserMaskAttrib(MaskColourFlag);
+                                ReDrawFlag |= RFColour;  break;
                   }
+                  break;
 
-                  if( option != 6 )
-                      ReDrawFlag |= RFRefresh;
-                  NewMenu(MainMenuSize,MainMenu);
-                  State = 1;  break;
-
-        /* Colour Menu */
-        case(3):  if( option != 7 )
-                  {   switch( option )
-                      {   case(0): MonoColourAttrib(255,255,255);  break;
-                          case(1): CPKColourAttrib();              break;
-                          case(2): ShapelyColourAttrib();          break;
-                          case(3): ScaleColourAttrib(GroupAttr);   break;
-                          case(4): ScaleColourAttrib(ChainAttr);   break;
-                          case(5): ScaleColourAttrib(TempAttr);    break;
-                          case(6): StructColourAttrib();           break;
-                      }
-                      ReDrawFlag |= RFColour;
-                  }
-
-                  NewMenu(MainMenuSize,MainMenu);
-                  State = 1;  break;
-
-        /* Option Menu */
-        case(4):  switch( option )
-                  {   case(0):  UseSlabPlane = !UseSlabPlane;
+        case(3):  /* Option Menu */
+                  switch( item )
+                  {   case(1):  /* Slabbing */
+                                ReDrawFlag |= RFRefresh;
+                                UseSlabPlane = !UseSlabPlane;
                                 if( UseSlabPlane )
                                     UseShadow = False;
                                 break;
 
-                      case(1):  mask = NormAtomFlag;
+                      case(2):  /* Hydrogens */
+                                mask = NormAtomFlag;
                                 if( HetaGroups )
                                     mask |= HeteroFlag;
-                                CommandActive = False;
                                 Hydrogens = !Hydrogens;
-
+                                ReDrawFlag |= RFRefresh;
+                                      
                                 if( Hydrogens )
-                                {   fputs("\nHydrogens included!\n",stderr);
-                                    SelectZone(mask|HydrogenFlag);
-                                } else 
-                                {   fputs("\nHydrogens removed!\n",stderr);
-                                    RestrictZone(mask);
-                                } break;
+                                {   SelectZone(mask|HydrogenFlag);
+                                } else RestrictZone(mask);
+                                break;
 
-                      case(2):  mask = NormAtomFlag;
+                      case(3):  /* Hetero Atoms */
+                                mask = NormAtomFlag;
                                 if( Hydrogens )
                                     mask |= HydrogenFlag;
-                                CommandActive = False;
                                 HetaGroups = !HetaGroups;
-
+                                ReDrawFlag |= RFRefresh;
+                                
                                 if( HetaGroups )
-                                {   fputs("\nHETA atoms selected!\n",stderr);
-                                    SelectZone(mask|HeteroFlag);
-                                } else 
-                                {   fputs("\nHETA atoms removed!\n",stderr);
-                                    RestrictZone(mask);
-                                } break;
+                                {   SelectZone(mask|HeteroFlag);
+                                } else RestrictZone(mask);
+                                break;
 
-                      case(3):  FakeSpecular = !FakeSpecular;
+                      case(4):  /* Specular */
+                                FakeSpecular = !FakeSpecular;
                                 ReDrawFlag |= RFColour;
                                 break;
 
-                      case(4):  UseShadow = !UseShadow;
+                      case(5):  /* Shadows */
+                                ReDrawFlag |= RFRefresh;
+                                UseShadow = !UseShadow;
                                 if( UseShadow )
                                 {   ReviseInvMatrix();
                                     VoxelsClean = False;
@@ -520,29 +610,16 @@ static void HandleMenu( option )
                                     ReAllocBuffers();
                                 }
                                 break;
-
-                  }
-
-                  if( option != 5 )
-                      ReDrawFlag |= RFRefresh;
-                  NewMenu(MainMenuSize,MainMenu);
-                  State = 1;  break;
-
-        /* Save Menu */
-        case(5):  if( option==4 )
-                  {   NewMenu(MainMenuSize,MainMenu);
-                      State = 1;
-                  } else
-                  {   ResetCommandLine(3);
-                      StateOption = option;
                   }
                   break;
 
-        /* Quit Menu */
-        case(6):  if( !option )
-                      RasMolExit();
-                  NewMenu(MainMenuSize,MainMenu);
-                  State = 1;  break;
+        case(4):  /* Export Menu */
+                  ResetCommandLine(3);
+                  StateOption = item;
+                  break;
+
+        case(5):  /* Help Menu */
+                  break;
     }
 }
 
@@ -588,7 +665,7 @@ void AdviseUpdate( item )
 }
 
 
-static int ProcessCommand()
+int ProcessCommand()
 {
     switch(CurState)
     {    case(1):  /* RasMol Prompt */
@@ -602,42 +679,33 @@ static int ProcessCommand()
                        } else EnableWireFrame(True,0);
                        CPKColourAttrib();
                    }
-                   NewMenu(MainMenuSize,MainMenu);
                    ResetCommandLine(1);
-                   State = 1;
                    break;
 
          case(3):  /* Output Filename */
                    if( *CurLine ) switch( StateOption )
-                   {   case(0):   WriteGIFFile(CurLine);            break;
-                       case(1):   WriteEPSFFile(CurLine,True,True); break;
-                       case(2):   WritePPMFile(CurLine,True);       break;
-                       case(3):   WriteRastFile(CurLine,True);      break;
+                   {   case(1):   WriteGIFFile(CurLine);            break;
+                       case(2):   WriteEPSFFile(CurLine,True,True); break;
+                       case(3):   WritePPMFile(CurLine,True);       break;
+                       case(4):   WriteRastFile(CurLine,True);      break;
+                       case(5):   WriteBMPFile(CurLine);            break;
+                       case(6):   WritePICTFile(CurLine);           break;
                    }
-                   NewMenu(MainMenuSize,MainMenu);
                    ResetCommandLine(1);
-                   State = 1;
                    break;
     }
     return( False );
 }
 
 
-int HandleEvents( wait )
+static int HandleEvents( wait )
     int wait;
 {
     register int result;
 
     result = FetchEvent( wait );
     while( ReDrawFlag || result )
-    {   if( result )
-        {   if( result>0 )
-            {   if( ProcessCharacter(result) )
-                    if( ProcessCommand() )
-                        return( True );
-            } else if ( CurState==1 )
-                HandleMenu( result+ButMax );
-        } else
+    {   if( !result )
         {   if( ReDrawFlag&RFPoint )
             {   if( Database )
                     IdentifyAtom(PointX,PointY);
@@ -645,14 +713,13 @@ int HandleEvents( wait )
             }
             if( ReDrawFlag )
                 RefreshScreen();
-        }
+        } else HandleMenu( result );
         result = FetchEvent( False );
     }
-    return( False );
+    return( True );
 }
 
 
-#ifdef PROFILE
 static void ProfileExecution()
 {
     register int start,stop;
@@ -677,11 +744,13 @@ static void ProfileExecution()
     fprintf(stderr,"Duration = %ld seconds\n",stop-start);
     RasMolExit();
 }
-#endif /* PROFILE */
+
 
 static void DisplayUsage()
 {
-    fputs("usage: rasmol [file]\n",stderr);
+    fputs("usage: rasmol [-nodisplay] [-script scriptfile] ",stderr);
+    fputs("[[-format] file]\n",stderr);
+    fputs("    formats: -pdb -mdl -mol2 -xyz -alchemy -charmm\n",stderr);
     putc('\n',stderr);
     exit(1);
 }
@@ -695,8 +764,36 @@ static void ProcessOptions(argc,argv)
 
     for( i=1; i<argc; i++ )
     {   ptr = argv[i];
+#ifdef VMS
+        if( (*ptr=='/') || (*ptr=='-') )
+#else
         if( *ptr == '-' )
-        {
+#endif
+        {   ptr++;
+            if( !strcmp(ptr,"pdb") )
+            {   FileFormat = FormatPDB;
+            } else if( !strcmp(ptr,"mdl") )
+            {   FileFormat = FormatMDL;
+            } else if( !strcmp(ptr,"charmm") )
+            {   FileFormat = FormatCharmm;
+            } else if( !strcmp(ptr,"alchemy") )
+            {   FileFormat = FormatAlchemy;
+            } else if( !strcmp(ptr,"mol2") || !strcmp(ptr,"sybyl") )
+            {   FileFormat = FormatMol2;
+            } else if( !strcmp(ptr,"xyz") )
+            {   FileFormat = FormatXYZ;
+
+            } else if( !strcmp(ptr,"nodisplay") )
+            {   Interactive = False;
+            } else if( !strcmp(ptr,"profile") )
+            {   ProfCount = 10;
+            } else if( !strcmp(ptr,"script") )
+            {   if( i != argc-1 )
+                {   ScriptNamePtr = argv[++i];
+                } else DisplayUsage();
+         
+
+            } else DisplayUsage();
         } else
             if( !FileNamePtr )
             {   FileNamePtr = ptr;
@@ -708,27 +805,28 @@ static void ProcessOptions(argc,argv)
 int main(argc,argv)
 int argc; char *argv[];
 {
+    register FILE *fp;
+    register int temp;
     register char ch;
 
-    FakeSpecular = False; SpecPower = 8;
-    FileNamePtr = NULL;   ProfCount = 0;
+    FileNamePtr = NULL;
+    ScriptNamePtr = NULL;
+    FileFormat = FormatPDB;
+    Interactive = True;
+    ProfCount = 0;
 
     ProcessOptions(argc,argv);
     ReDrawFlag = 0;
-#ifdef PROFILE
-    ProfCount = 10;
-#endif
     
+    temp = Interactive;
     setbuf(stderr,(char *)NULL);
-    if( (Interactive=OpenDisplay(CanvWidth,CanvHeight)) )
-        NewMenu(MainMenuSize,MainMenu);
+    Interactive = OpenDisplay(InitialWide,InitialHigh);
     InitTerminal(Interactive);
     signal(SIGINT,RasMolSignalExit);
 
-
     fputs("RasMol Molecular Renderer\n",stderr);
-    fputs("Roger Sayle, February 1994\n",stderr);
-    fputs("Version 2.3\n",              stderr);
+    fputs("Roger Sayle, October 1994\n",stderr);
+    fputs("Version 2.5.1\n",            stderr);
 
 #ifdef EIGHTBIT
     fputs("[8bit version]\n\n",  stderr);
@@ -737,7 +835,10 @@ int argc; char *argv[];
 #endif
 
     if( !Interactive )
-        fputs("No suitable display detected!\n",stderr);
+    {   if( !temp )
+        {   fputs("Display window disabled!\n",stderr);
+        } else fputs("No suitable display detected!\n",stderr);
+    }
 
     InitialiseCommand();
     InitialiseTransform();
@@ -747,12 +848,9 @@ int argc; char *argv[];
     InitialiseAbstree();
     InitialiseOutFile();
 
-    LoadInitFile();
-
-#ifdef PROFILE
     if( ProfCount )
     {   UseShadow = True;
-        if( !FileNamePtr && !FetchFile(FormatPDB,True,FileNamePtr) )
+        if( !FileNamePtr && !FetchFile(FileFormat,True,FileNamePtr) )
             RasMolFatalExit("Profile Error: Invalid PDB file name!");
 
         SetVanWaalRadius();
@@ -762,9 +860,8 @@ int argc; char *argv[];
             FetchEvent(False);
         ProfileExecution();
     }
-#endif
 
-    if( FileNamePtr && FetchFile(FormatPDB,True,FileNamePtr) )
+    if( FileNamePtr && FetchFile(FileFormat,True,FileNamePtr) )
     {   ReDrawFlag |= RFRefresh | RFColour;
         if( InfoBondCount < 1 )
         {   EnableBackBone(False,80);
@@ -773,13 +870,20 @@ int argc; char *argv[];
         RefreshScreen();
     }
 
-    State = 1;
     LexState = 0;
     ResetCommandLine(1);
 
+    LoadInitFile();
+    if( ScriptNamePtr )
+    {   if( (fp=fopen(ScriptNamePtr,"r")) )
+        {   LoadScriptFile(fp,ScriptNamePtr);
+            fclose(fp);
+        } else fprintf(stderr,"Error: File '%s' not found!\n",ScriptNamePtr);
+    }
+
 #ifndef TERMIOS
     if( Interactive )
-    {   while( !HandleEvents(True) )
+    {   while( HandleEvents(True) )
             if( !CommandActive )
                 ResetCommandLine(0);
     } else

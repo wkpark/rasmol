@@ -1,7 +1,89 @@
-To build RasMol version 2.3
+
+                            RasMol 2.5
+              Molecular Graphics Visualisation tool.
+
+                           Roger Sayle 
+                  BioMolecular Structures Group
+                   Glaxo Research & Development
+                     Greenford, Middlesex, UK.
+                           October 1994
+
+
+    This file explains how to transfer, compile and install RasMol v2.5 on
+your system. This version of the RasMol Molecular graphics package will 
+run on UNIX, VMS, Macintosh and Microsoft Windows (OS/2 and Windows NT). 
+
+[1] Obtaining RasMol v2.5
+=========================
+
+The current version of RasMol may be obtained by anonymous FTP from 
+either ftp.dcs.ed.ac.uk in the directory /pub/rasmol or from 
+src.doc.ic.ac.uk in the directory /packages/rasmol. These sites are
+also mirrored at several other locations around the world. RasMol may
+also be obtained by electronic mail by sending the message "help software"
+to "netserv@embl-heidelberg.de". Follow the instructions provided by
+EMBL for unpacking the software from the e-mail messages.
+
+To transfer by anonymous ftp, type "ftp ftp.dcs.ed.ac.uk" on the command
+line. Several seconds later you'll be prompted for a username. Use the
+username "anonymous" and when asked for a password enter your e-mail
+address. Once logged in, type the command "cd pub/rasmol" to change
+the directory to /pub/rasmol and then type "binary" to avoid corrupting
+the files during the transfer. For each file you wish to transfer, type
+"get <filename>" and when you've finished type "quit". If these files 
+are subsequently transfered to other machines, please remember to
+transfer them in BINARY mode. The file sizes should be identical before
+and after the transfer.
+
+Depending upon the type of machine, you'll need to transfer one or more 
+of the following files:
+
+	RasMol2.tar.Z	UNIX 'tar'ed 'compress'ed archive containing the
+                        complete source code and documentation of the
+                        RasMol molecular graphics package.
+
+	RasMol2.tar.gz  UNIX 'tar'ed 'gzip'ed archive containing the 
+                        complete source code and documentation of the
+                        RasMol molecular graphics package.
+
+        rasmac.sit.hqx  Apple Macintosh 'BinHex' and 'StuffIt' archive
+                        of the RasMol source code including a 'fat'
+                        binary for both Macintosh and PowerMac.
+
+        raswin.zip      MS-DOS PkZip archive of the MS Windows version
+                        of the RasMol source code including a binary
+                        for MS Windows v3.1.
+
+        rasmenu.zip     MS-DOS PkZip archive of the Visual Basic Graphical
+                        User Interface to RasMol including executable.
+
+
+To unpack the file RasMol2.tar.Z on a UNIX machine type the command
+"uncompress RasMol2.tar.Z" and then the command "tar -xvf RasMol2.tar"
+to extract the files in a subdirectory under the current directory.
+Once the files have been sucessfully extract, you can delete the
+file RasMol2.tar with the command "rm RasMol2.tar".
+
+To unpack the file RasMol2.tar.gz on a UNIX machine, type "gunzip
+RasMol2.tar.gz" to use GNU gunzip to uncompress the files. Then
+follow the instructions above.
+
+To unpack the file rasmac.sit.hqx, start up the application "StuffIt 
+Expander" and select the option "Exapnd" from the "File" menu. This
+should create the folder "RasMol2". You can then delete the files
+"rasmac.sit.hqx" and "rasmac.sit" by dragging their file icon and
+dropping them on the "trash".
+
+To unpack the files raswin.zip and rasmenu.zip, type the command
+"pkunzip -d raswin.zip" and "pkunzip -d rasmenu.zip". You must have
+version 2.04 or later of PKUNZIP.EXE
+
+
+[2] Compiling and Installing RasMol v2.5
+========================================
 
 UNIX X11:
-==========
+---------
 [1] Modify the contents of the Makefile to determine your local C compiler,
     compiler and linker options. The default set up is for an 8bit UNIX
     workstation with the X11 shared memory extension, compiled using the
@@ -9,7 +91,7 @@ UNIX X11:
     machines native compiler but will require changing "CFLAGS" for your
     platform.
 
-    RasMol may be build for E&S workstations using the command "make esv".
+    RasMol may be built for E&S workstations using the command "make esv".
 
     Alternatively (or if the first method fails), type "xmkmf" to generate 
     a Makefile for your particular system from the included Imakefile!
@@ -17,6 +99,8 @@ UNIX X11:
     A common problem is that SUN OpenWindows keeps its include files in the
     directory /usr/openwin/include/X11, hence the compiler directive 
     -I/usr/openwin/include must be added to CFLAGS.
+
+
 
 [2] Modify the #defines in the file rasmol.h (see below)
         Note: IBMPC should not be defined.
@@ -32,54 +116,82 @@ UNIX X11:
     in the directory pointed to by RASMOLPATH.
 [9] It is possible to set-up RASMOLPATH and RASMOLPDBPATH each time the 
     program is running by renaming rasmol to rasmol.exe, and using a script
-    similar to the following.
+    similar to the one in "rasmol.sh" of the standard distribution.
 [10] If appropriate place "rasmol.1" or "rasmol.0" in the appropriate place
      for UNIX man pages, and optionally place "rasmol.html" somewhere in 
      your WWW hierarchy (if available at your site).
 
-===========================================================================
-#!/bin/sh
-RASMOLPATH=/usr/common/lib/rasmol
-export RASMOLPATH
-
-RASMOLPDBPATH=/data/brookhaven 
-export RASMOLPDBPATH
-
-rasmol.exe $*
-===========================================================================
-
 
 MS Windows v3.1:
-================
+----------------
 [1] Use Makefile.pc instead of Makefile, by copying it to MAKEFILE.
 [2] Modify the contents of the Makefile to determine your local C compiler,
     compiler and linker options. 
 [3] Modify the #defines in the file rasmol.h (see below)
-        Note: EIGHTBIT, INVERT and IBMPC should all be defined
-              MITSHM, TERMIOS and DIALBOX should not be defined.
+        Note: EIGHTBIT and IBMPC should all be defined
+              APPLEMAC, DIALBOX, MITSHM and TERMIOS should not be defined.
 [4] Compile the program using the Microsoft Optimizing C Compiler Version
     7's (or Microsoft Visual C++'s) NMAKE program under MS-DOS.
 [5] Copy both the executable RASWIN.EXE, RASMOL.HLP and RASWIN.HLP to an
     appropriate directory.
 [6] Install the program in MS Windows using the New option of the Program
-    Manager's File Menu. Set the Description of the Program to "RasWin v2.3"
+    Manager's File Menu. Set the Description of the Program to "RasWin v2.5"
     and the Current Directory, to the directory containing the files.
 [7] Install the RasMol Help file using the New option of the Program
     Manager's File Menu. Set the Description to "RasWin Manual", the
     command to "C:\WINDOWS\WINHELP RASWIN.HLP" and the working directory
     to the appropriate directory.
 
+MS Windows NT:
+--------------
+[1] Use Makefile.nt instead of Makefile, by copying it to MAKEFILE.
+[2] Follow the instructions from [2] onwards as for MS Windows v3.1.
+
+
+Macintosh and PowerMac
+-----------------------
+[1] Create a project in either the Symmantec C/C++, Think C or Metrowerks 
+    C compiler environments and add all the C source files ("*.c") to 
+    the project. On 68k development systems all C files should be placed
+    in separate segments [however rasmac.c and applemac.c can share a
+    segment and abstree.c and command.c can share a segment].
+[2] Add the "rasmac.rsrc" resource file to the project.
+[3] For the Symantec/Think C environment add the "ANSI" library from 
+    "Standard Libraries" directory and the "MacTraps" library from the
+    "Mac Libraries Directory".
+[4] For the Metrowerks 68K Compiler add the libraries "MacOS.lib" and
+    "ANSI (2i) C.68K.Lib" to the project. [Note: If compiling for 4byte 
+    integer size and/or 68881 maths instructions select the approriate 
+    ANSI C Library].
+[5] For the Metrowerks PPC Compiler add the libraries "MWCRuntime.Lib",
+    "InterfaceLib", "MathLib" and "ANSI C.PPC.Lib".
+[6] In Metrowerk's "Edit" "Preferences" "Project" or Symmantec's "Project"
+    "Set Project Type", set the project type to Application (Type 'APPL'), 
+    Creator 'RSML', and the SIZE flags to include "is32bitCompatible", 
+    "isHighLevelEventAware", "localAndRemoteHLEvents".
+[7] Modify the #defines in the file "rasmol.h" (see below).
+        Note: APPLEMAC should all be defined
+              IBMPC, DIALBOX, MITSHM and TERMIOS should not be defined.
+[8] Compile RasMol using the "Build Application..." Menu Item.
+[9] To create a `fat' binary, use Apple's ResEdit to copy and paste the
+    CODE, DATA and XREF resources from the Metrowerks 68K executable 
+    into the resource fork of the Metrowerks PPC executable.
+[10] The Installed Application's name should be "RasMac v2.5"
 
 
 VAX/VMS
-=======
+-------
 [1] Modify the #defines in the file rasmol.h (see below)
         Note: IBMPC, MITSHM and TERMIOS should not be defined.
+[2] Copy all the files from the "vms" directory to the source directory.
 [2] If your VAX site has an MMS license type the command "MMS",
     otherwise use the DCL build script by typing "@build.com"
 [3] The program may be run by typing "RUN RASMOL.EXE", the X Windows
     server is specified by a VMS command of the form:
 	SET DISPLAY/CREATE/TRANSPORT=TCPIP/NODE=<hostname>
+[4] The symbol should be defined the the path of RASMOL.EXE using :==
+[5] The file rasmol.vms contains a ascii VMS help file that can
+    be compiled in to the VMS on-line help system.
 
 
 
@@ -91,6 +203,7 @@ The file rasmol.h contains a number of #define directives that control
 the runtime behaviour of the program. The following directives may be
 defined or undefined to suite the local site.
 
+THIRTYTWOBIT
 EIGHTBIT	This determines whether RasMol will display and produce
 		8bit or 32(24) bit output. By default this symbol is defined
 		producing images with up to 256 colours. This symbol must 
@@ -98,46 +211,70 @@ EIGHTBIT	This determines whether RasMol will display and produce
 
 DIALBOX		This enables the use of a dials box, that is connected 
 		using the X Window System XInput extension. This option
-		requires that the program be compiled with the Xinput and
-		Xext libraries. Note: libXinput is called libXi on SGI 
-		machines, so requires the compiler option -lXi!
+		requires that the program be compiled with the Xi and
+		Xext libraries. Note: libXi is called libXinput on some old
+		machines, so requires the compiler option -lXinput!
 
 MITSHM 		This option enables the use of the X Window System MIT shared
 		memory extension. This enables images to be displayed faster
 		when RasMol and the X11 server are running on the same host.
 		This option requires the program be compiled with the Xext
-		library. This is now enabled by default.
+		library. This is now enabled by default. This should be
+                disabled on IBM RS/6000 and E&S ESV workstations as MITSHM
+                support is not provided as standard.
 
 TERMIOS		This directive enables the command line processing on UNIXs
 		that support the termios terminal handling routines. By 
 		leaving this symbol undefined, RasMol omits the interactive
 		command line interface. Undefining is not recommended!
 
-INVERT          This determines whether the image should be rendered upside-
-		down or the right way up. Due to to wonders of MS Windows 
-		this must be defined in IBMPC is defined.
-
-ISQRT		This enables the use of the integer square root function in
-		the program. This is enabled by default. It was added to
-                avoid a compiler bug on SUN 386i machines. This should also
-		be commented out for DEC Alpha machines in native 64bit mode.
+APPLEMAC        This determines whether the program is to run on an Apple
+                Macintosh or PowerMac. By default, this option is disabled.
+                The Macintosh code may be compiled to be either EIGHTTBIT
+                or THIRTYTWOBIT and will generate images effectively.
 
 IBMPC           This determines whether the program is intended to run on an
-                IBM PC or compatible under MS Windows or a UNIX workstation.
-                By default, this option is disabled. If this option is defined
-		the options EIGHTBIT and INVERT must be defined, and TERMIOS
-		undefined.
+                IBM PC or compatible under MS Windows. By default, this 
+                option is disabled. If this option is defined the options 
+                EIGHTBIT and INVERT must be defined, and TERMIOS undefined.
 
+To summarise;
+    A typical UNIX build:
+        /* define IBMPC    */
+        /* define APPLEMAC */
+        /* define DIALBOX  */
+        #define TERMIOS
+        #define MITSHM
+        #define EIGHTBIT
 
-PROBLEMS, BUGS AND SOLUTIONS
-============================
+    A typical Windows build:
+        #define IBMPC
+        /* define APPLEMAC */
+        /* define DIALBOX  */
+        /* define TERMIOS  */
+        /* define MITSHM   */
+        #define EIGHTBIT
 
-If you have any comments on the installation and implementation of RasMol
-please send me e-mail "rasmol@dcs.ed.ac.uk" or to the contact address given
-in the README file. Any additional patches, fixes or code will gladly be
-included in the next release of RasMol. I'm particularly interested in the
-problems of sites with different hardware.
-
+    A typical Macintosh build:
+        /* define IBMPC    */
+        #define APPLEMAC
+        /* define APPLEMAC */
+        /* define DIALBOX  */
+        /* define TERMIOS  */
+        /* define MITSHM   */
+        #define EIGHTBIT
+        
+    A typical VMS build:
+        /* define IBMPC    */
+        /* define APPLEMAC */
+        /* define DIALBOX  */
+        /* define TERMIOS  */
+        /* define MITSHM   */
+        #define EIGHTBIT
 
 Roger
---
+-- 
+Roger Sayle,                       INTERNET:  ras32425@ggr.co.uk
+Glaxo Research & Development (GRD)            ros@dcs.ed.ac.uk
+Greenford Road, Greenford          Tel:   (+44) 081 966 3567 (direct line)
+Middlesex UB6 0HE, UK.             Fax:   (+44) 081 966 4476

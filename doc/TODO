@@ -1,5 +1,65 @@
-[1] Add XMOL XYZ format files, input and output.
+# File TODO
+# RasMol2, Roger Sayle
+# Glaxo Research and Development
+# Last Modified 24/10/94
+
+# Current Projects:
+
+[1] POVRay output file format.
+------------------------------
+    Implement a "write povray" command, potentially based upon
+    Eric Suchanek's "pdb2pov" program much like "Personal 
+    Computer-based Visualization of Molecular Models by
+    Available Ray-tracing Software", Arnold S. Dion, J. Mol. Graph.,
+    Vol.12, March 1994, p.41-44.
+
 [2] Improve method used to atomic determine bonding.
-[3] Improve MolScript format script files for image.
-[4] Improve RasMol Vector PostScript(tm) output.
-[5] Vector fonts and labelling commands.
+----------------------------------------------------
+    Create a table of bonding radii for each element type. Modify
+    DetermineBonds in molecule.c to accept a boolean parameter to
+    specify whether a fixed radii is used or the bonding table.
+    By default use fixed method for molecules with >255 atoms and
+    the accurate method for smaller molecules. Add a command 
+    "CONNECT" to force re-calculation of connectivity with a
+    boolean parameter
+
+[3] Stereo Left/Right [Hardware?] Images.
+-----------------------------------------
+    By using a data structure to describe the current frame buffer
+    containing information such as width, height, bytes per line 
+    and a pointer to the buffer, it should be possible to implement
+    different eye views to either side-by-side in a single image
+    of two separate images. The latter can then be used to support
+    the "SGIFullScreenStereo" X extension.
+
+[4] Add Gausian and MOPAC format files.
+---------------------------------------
+    This requires a "torsional driver" to handle atom co-ordinates
+    in "internal" z-matrix format. Clever parsing of these files
+    avoids the need for babel's internal/cartesian distinction.
+
+[5] Add support for thick ribbons.
+----------------------------------
+    Add the command "set ribbons <number>" to specify the depth
+    of the ribbon strand. Currently solid ribbons have zero depth.
+    This should also improve the gouraud shading of ribbons.
+
+[6] Write out solid ribbons and strands in vector PostScript.
+-------------------------------------------------------------
+    Create a structure to store the complete knot description at
+    every alpha carbon. Depth sort these knots as part of the
+    painter's algorithm. Write them out in the PostScript using
+    suitable macros. Need to handle oblique polygons specially,
+    and may need to subdivide to more accuracy than when rendering
+    on the screen.
+
+[7] Improve Cylinder Quality.
+-----------------------------
+    The current algorithm for rendering cylinders for stick
+    bonds and backbones is slower and less efficient than it
+    could be. This also results in strange aliasing effect 
+    for oblique cylinders. Correcting these problems should
+    permit cylinders of much large diameter, such as cylinder
+    representations of helices. Similarly add the ability to
+    have flat (and rounded) cylinder ends.
+

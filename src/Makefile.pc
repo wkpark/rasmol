@@ -17,10 +17,10 @@ LFLAGS =
 # 80x87 Detect:   /FPi    MLIBCEW
 # 80x87 Absent:   /FPa    MLIBCAW
  
-LIBS   = LIBW MLIBCEW COMMDLG
+LIBS   = LIBW MLIBCEW COMMDLG SHELL
 
 OBJS   = raswin.obj molecule.obj command.obj abstree.obj transfor.obj \
-         render.obj pixutils.obj mswin31.obj outfile.obj
+         render.obj pixutils.obj mswin31.obj outfile.obj script.obj
 
 
 goal:		raswin.exe
@@ -49,7 +49,7 @@ molecule.obj:	molecule.c molecule.h rasmol.h abstree.h command.h \
 		$(CC) /c $(CFLAGS) molecule.c
 
 transfor.obj:	transfor.c transfor.h rasmol.h molecule.h command.h \
-		render.h graphics.h
+		abstree.h render.h graphics.h
 		$(CC) /c $(CFLAGS) transfor.c
 
 command.obj:    command.c command.h rasmol.h tokens.h abstree.h \
@@ -67,12 +67,16 @@ render.obj:     render.c render.h rasmol.h molecule.h transfor.h \
 mswin31.obj:	mswin31.c graphics.h rasmol.h render.h
 		$(CC) /c $(CFLAGS) mswin31.c
 
-pixutils.obj:   pixutils.c pixutils.h rasmol.h render.h graphics.h
+pixutils.obj:   pixutils.c pixutils.h rasmol.h render.h graphics.h font.h
 		$(CC) /c $(CFLAGS) pixutils.c
 
-outfile.obj:	outfile.c outfile.h rasmol.h command.h transfor.h \
-		render.h graphics.h pixutils.h
+outfile.obj:	outfile.c outfile.h rasmol.h command.h abstree.h \
+		transfor.h render.h graphics.h pixutils.h script.h
 		$(CC) /c $(CFLAGS) outfile.c
+
+script.obj:	script.c script.h rasmol.h command.h abstree.h \
+		transfor.h render.h graphics.h pixutils.h
+		$(CC) /c $(CFLAGS) script.c
 
 raswin.res:	raswin.rc raswin.idm
 		$(RC) /r raswin.rc

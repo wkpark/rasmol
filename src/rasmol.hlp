@@ -1,11 +1,13 @@
-RasMol2 is an X11 windows system tool intended for the visualisation of 
-proteins and nucleic acids. RasMol requires either an 8bit pseudo colour or 
-a 24bit (32bit) true colour display. The program reads in a specified 
-Brookhaven protein databank (PDB) file and determines the connectivity from 
-the residue information provided. This may then rendered on the screen in a 
-variety of formats and colour schemes. Currently available molecule 
-representations include depth-cued wireframes, sticks, space filling `union 
-of spheres', ball and stick models and protein ribbon diagrams. 
+RasMol2 is a molecular graphics program intended for the visualisation of 
+proteins, nucleic acids and small molecules. The program is aimed at 
+teaching, display and generation of publication quality images. RasMol runs 
+under Microsoft Windows and also UNIX and VMS systems with an 8bit or 24bit 
+(32bit) colour X Windows display (X11R4 or later). The program reads in a 
+molecule co-ordinate file and interactively displays the molecule on the 
+screen in a variety of representations and colour schemes. Currently 
+available molecule representations include depth-cued wireframes, 'drieding' 
+sticks, spacefilling (CPK) spheres, ball and stick, biomolecular ribbon 
+(either solid or strands) and dots. 
 
 The RasMol help facility can be accessed by typing "help <topic>" or
 "help <topic> <subtopic>" from the command line. A complete list of RasMol
@@ -27,13 +29,14 @@ The commands/keywords currently recognised by RasMol are given below.
 Type "help <command>" for more information on each RasMol function.
 
 
-    backbone        colour          exit            hbond
-    help            load            quit            reset
-    restrict        ribbon          rotate          save
-    script          select          set             show
-    slab            spacefill       structure       ssbond
-    translate       wireframe       write           zap
-    zoom
+    backbone        background      centre          colour
+    dots            define          exit            hbonds
+    help            load            quit            renumber
+    reset           restrict        ribbons         rotate
+    save            script          select          set
+    show            slab            spacefill       strands
+    structure       ssbonds         translate       wireframe
+    write           zap             zoom
 
 
 ?backbone
@@ -94,15 +97,55 @@ Blue (RGB) components enclosed in square brackets. Typing the command `help
 colours' will give a list of all the predefined colour names recognised by 
 RasMol. 
 
-Allowed objects are `atoms,' `bonds,' `backbone,' `hbonds,' `ribbons' and 
-`ssbonds.' If no object is specified, the default keyword `atom' is assumed. 
-Some colour schemes are defined for certain object types. The colour scheme 
-`none' can be applied all objects accept atoms, stating that the selected 
-objects have no colour of their own, but use the colour of their associated 
-atoms (i.e. the atoms they connect). `Atom' objects can also be coloured by 
-`amino,' `cpk,' `chain,' `group,' `shapely,' `structure,' `temperature' and 
-`user' and hydrogen bond objects can also be coloured by `type.' For more 
-information type `help colour <colour>.' 
+Allowed objects are `atoms,' `bonds,' `backbone,' `dots,' `hbonds,' 
+`ribbons' and `ssbonds.' If no object is specified, the default keyword 
+`atom' is assumed. Some colour schemes are defined for certain object types. 
+The colour scheme `none' can be applied all objects accept atoms and dots, 
+stating that the selected objects have no colour of their own, but use the 
+colour of their associated atoms (i.e. the atoms they connect). `Atom' 
+objects can also be coloured by `amino,' `cpk,' `chain,' `group,' `shapely,' 
+`structure,' `temperature' and `user' and hydrogen bond objects can also be 
+coloured by `type.' For more information type `help colour <colour>.' 
+
+?define
+Define
+Syntax:  define <identifier> <expression>
+
+The RasMol `define' command allows the user to associate an arbitrary set of 
+atoms with a unique identifier. This allows the definition of user-defined 
+sets. These sets are declared statically, i.e. once defined the contents of 
+the set do not change, even if the expression defining them depends on the 
+current transformation and representation of the molecule. 
+
+?dots
+Dots
+Syntax:  dots {<boolean>}
+         dots <value>
+
+The RasMol `dots' command is used to generate a Van der Waal's dot surface 
+around the currently selected atoms. Dot surfaces display regularly spaced 
+points on a sphere of Van der Waals' radius about each selected atom. Dots 
+that would are `buried' within the Van der Waal's radius of any other atom 
+(selected or not) are not displayed. The command `dots on' deletes any 
+existing dot surface and generates a dots surface around the currently 
+selected atom set with a default dot density of 100. The command `dots off' 
+deletes any existing dot surface. The dot density may be specified by 
+providing a numeric parameter between 1 and 1000. This value approximately 
+corresponds to the number of dots on the surface of a medium sized atom. 
+
+By default, the colour of each point on a dot surface is the colour of it's 
+closest atom at the time the surface is generated. The colour of the whole 
+dot surface may be changed using the `colour dots' command. 
+
+?echo
+Echo
+Syntax:  echo {<string>}
+
+The RasMol `echo' command is used to display a message in the RasMol 
+command/terminal window. The string parameter may optionally be delimited in 
+double quote characters. If no parameter is specified, the `echo' command 
+displays a blank line. This command is particularly useful for displaying 
+text from within a RasMol `script' file. 
 
 ?hbond
 ?hbonds
@@ -135,13 +178,20 @@ The RasMol `help' command provides on-line help on the given topic.
 
 ?load
 Load
-Syntax:  load {pdb} <filename>
-         load alchemy <filename>
+Syntax:  load {<format>} <filename>
 
-Load either a Brookhaven Protein Databank (PDB) file or Alchemy(tm) format 
-file into RasMol2. Only a single PDB file may be loaded at a time. This 
-command selects all the atoms in the molecule, and sets the default 
-representation to be a cpk coloured wireframe model. 
+Load a molecule co-ordinate file into RasMol2. Valid molecule file formats 
+are `pdb' (Brookhaven Protein Databank), `mdl' (Molecular Design Limited's 
+MOL file format), `alchemy' (Tripos' Alchemy file format), `mol2' (Tripos' 
+Sybyl Mol2 file format), `charmm' (CHARMm file format) or `xyz' (MSC's XMol 
+XYZ file format). If no file format is specified, `pdb' is assumed by 
+default. Only a single molecule may be loaded at a time. To delete a 
+molecule prior to loading another use the RasMol `zap' command. 
+
+The `load' command selects all the atoms in the molecule, centres it on the 
+screen and renders it as a CPK coloured wireframe model. If the molecule 
+contains no bonds (i.e. contains only alpha carbons), it is drawn as an 
+alpha carbon backbone. 
 
 ?exit
 ?quit
@@ -201,20 +251,24 @@ Ribbons
 Syntax:  ribbons {<boolean>}
          ribbons <value>
 
-The RasMol `ribbons' command displays the currently loaded protein as a 
-smooth "ribbon" of depth-cued curves passing along the backbone of the 
-protein. The ribbon is composed of a number of strands that run parallel to 
-one another along the peptide plane of each residue. The ribbon is drawn 
-between each amino acid whose alpha carbon is currently selected. The colour 
-of the ribbon is changed by the RasMol `colour ribbon' command. If the 
-current ribbon colour is `none' (the default), the colour is taken from the 
-alpha carbon at each position along its length. 
+The RasMol `ribbons' command displays the currently loaded protein or 
+nucleic acid as a smooth solid "ribbon" surface passing along the backbone 
+of the protein. The ribbon is drawn between each amino acid whose alpha 
+carbon is currently selected. The colour of the ribbon is changed by the 
+RasMol `colour ribbon' command. If the current ribbon colour is `none' (the 
+default), the colour is taken from the alpha carbon at each position along 
+its length. 
 
 The width of the ribbon at each position is determined by the optional 
-parameter in the usual RasMol units. By default this value is 380, which 
-produces a ribbon 1.52 Angstroms wide. The number of strands in the ribbon 
-may be altered using the RasMol `set strands' command. The rendering of the 
-ribbon may also be changed using the `set ribbons' command. 
+parameter in the usual RasMol units. By default the width of the ribbon is 
+taken from the secondary structure of the protein or a constant value of 720 
+for nucleic acids (which produces a ribbon 2.88 Angstroms wide). The default 
+width of protein alpha helices and beta sheets is 380 (1.52 Angstroms) and 
+100 (0.4 Angstroms) for turns and random coil. The secondary structure 
+assignment is either from the PDB file or calculated using the DSSP 
+algorithm as used by the `structure' command. This command is similar to the 
+RasMol command `strands' which renders the biomolecular ribbon as parallel 
+depth-cued curves. 
 
 ?rotate
 Rotate
@@ -270,18 +324,20 @@ parameters such as those controlling rendering options. Each parameter has
 its own set or permissible parameter options. Typically, ommiting the 
 paramter option resets that parameter to its default value. A list of valid 
 parameter names is given below. For more information on each internal 
-parameter type `help set <parameter>.' 
+parameter type `help set parameter.' 
 
-    ambient         background      bondmode        display
-    hbond           hetero          hourglass       hydrogen
-    mouse           ribbons         shadow          slabmode
-    specular        specpower       ssbonds         strands
+    ambient         axes            background      bondmode
+    boundbox        display         hbond           hetero
+    hourglass       hydrogen        menus           mouse
+    shadow          slabmode        specular        specpower
+    ssbonds         strands         unitcell        vectps
 
 
 ?show
 Show
 Syntax:  show information
          show sequence
+         show symmetry
 
 The RasMol `show' command display details of the status of the currently 
 loaded molecule. The command `show information' lists the molecule's name, 
@@ -348,6 +404,34 @@ By default disulphide bonds are drawn between the sulphur atoms within the
 cysteine groups. By using the `set ssbonds' command the position of the 
 cysteine's alpha carbons may be used instead. 
 
+?strands
+Strands
+Syntax:  strands {<boolean>}
+         strands <value>
+
+The RasMol `strands' command displays the currently loaded protein or 
+nucleic acid as a smooth "ribbon" of depth-cued curves passing along the 
+backbone of the protein. The ribbon is composed of a number of strands that 
+run parallel to one another along the peptide plane of each residue. The 
+ribbon is drawn between each amino acid whose alpha carbon is currently 
+selected. The colour of the ribbon is changed by the RasMol `colour ribbon' 
+command. If the current ribbon colour is `none' (the default), the colour is 
+taken from the alpha carbon at each position along its length. The colour of 
+the central and outermost strands may be coloured independently using the 
+`colour ribbon1' and `colour ribbon2' commands respectively. The number of 
+strands in the ribbon may be altered using the RasMol `set strands' command. 
+
+The width of the ribbon at each position is determined by the optional 
+parameter in the usual RasMol units. By default the width of the ribbon is 
+taken from the secondary structure of the protein or a constant value of 720 
+for nucleic acids (which produces a ribbon 2.88 Angstroms wide). The default 
+width of protein alpha helices and beta sheets is 380 (1.52 Angstroms) and 
+100 (0.4 Angstroms) for turns and random coil. The secondary structure 
+assignment is either from the PDB file or calculated using the DSSP 
+algorithm as used by the `structure' command. This command is similar to the 
+RasMol command `ribbons' which renders the biomolecular ribbon as a smooth 
+shaded surface. 
+
 ?structure
 Structure
 Syntax:  structure
@@ -391,9 +475,15 @@ Write
 Syntax:  write {<format>} <filename>
 
 Write the current image to a file in a standard raster format. Currently 
-supported file formats include "gif" (Compuserve GIF), "ppm" (Portable 
+supported image file formats include "gif" (Compuserve GIF), "ppm" (Portable 
 Pixmap), "ras" (Sun rasterfile), "ps" and "epsf" (Encapsulated PostScript), 
 "monops" (Monochrome Encapsulated PostScript) and "bmp" (Microsoft bitmap). 
+The `write' command may also be used to generate command scripts for other 
+graphics programs. The format `script' writes out a file containing the 
+RasMol `script' commands to reproduce the current image. The format 
+`molscript' writes out the commands required to render the current view of 
+the molecule as ribbons in Per Kraulis' Molscript program. 
+
 This command should not be confused with the RasMol `save' command which 
 save the currently selected portion of the molecule. 
 
@@ -425,10 +515,11 @@ rendering options and mouse button mappings.
 A complete list of internal parameter names is given below. Type "help set 
 <parametername>" for more information on each option. 
 
-    ambient         background      bondmode        display
-    hbond           hetero          hourglass       hydrogen
-    mouse           ribbons         shadow          slabmode
-    specular        specpower       ssbonds         strands
+    ambient         axes            background      bondmode
+    boundbox        display         hbond           hetero
+    hourglass       hydrogen        menus           mouse
+    shadow          slabmode        specular        specpower
+    ssbonds         strands         unitcell        vectps
 
 
 ?ambient
@@ -448,6 +539,20 @@ This parameter is commonly used to correct for monitors with different
 appears when printed or to alter the feeling of depth for wireframe or 
 ribbon representations. 
 
+?axis
+?axes
+?set axis
+?set axes
+Set Axes
+Syntax:  set axes <boolean>
+
+The RasMol `axes' parameter controls the display of orthogonal co-ordinate 
+axes on the current display. The co-ordinate axes are those used in the 
+molecule data file, and the origin is the centre of the molecule's bounding 
+box. The `set axes' command is similar the the commands `set boundbox' and 
+`set unitcell' that display the bounding box and the crystallographic unit 
+cell respectively. 
+
 ?set background
 Set Background
 Syntax:  set background <colour>
@@ -465,21 +570,58 @@ Set BondMode
 Syntax:  set bondmode and
          set bondmode or
 
-set bondmode 
+The RasMol `set bondmode' command controls the mechanism used to select 
+individual bonds. When using the `select' and `restrict' commands, a given 
+bond will be selected if i) the bondmode is `or' and either of the connected 
+atoms is selected, or ii) the bondmode is `and' and both atoms connected by 
+the bond are selected. Hence an individual bond may be uniquely identified 
+by using the command "set bondmode and" and then uniquely selecting the 
+atoms at both ends. 
 
+?boundbox
+?boundingbox
+?bounding box
+?set boundbox
+Set BoundBox
+Syntax:  set boundbox <boolean>
+
+The RasMol `boundbox' parameter controls the display of the current 
+molecules bounding box on the display. The bounding box is orthogonal to the 
+data file's original co-ordinate axes. The `set boundbox' command is similar 
+the the commands `set axes' and `set unitcell' that display orthogonal 
+co-ordinate axes and the bounding box respectively. 
+
+?display
 ?set display
 Set Display
 Syntax:  set display selected
          set display normal
 
-set display 
+This command controls the display mode within RasMol. By default, `set 
+display normal,' RasMol displays the molecule in the representation 
+specified by the user. The command `set display selected' changes the 
+display mode such that the molecule is temporarily drawn so as to indicate 
+currently selected portion of the molecule. The user specified colour scheme 
+and representation remains unchanged. In this representation all selected 
+atoms are shown in yellow and all non selected atoms are shown in blue. The 
+colour of the background is also changed to a dark grey to indicate the 
+change of display mode. This command is typically only used by external 
+Graphical User Interfaces (GUIs). 
 
 ?set hbonds
 Set HBonds
 Syntax:  set hbonds backbone
          set hbonds sidechain
 
-set hbonds 
+The RasMol `hbonds' parameter determines whether hydrogen bonds are drawn 
+between the donor and acceptor atoms of the hydrogen bond, `set hbonds 
+sidechain' or between the alpha carbon atoms of the protein backbone and 
+between the phosphorous atoms of the nucleic acid backbone, `set hbonds 
+backbone.' The actual display of hydrogen bonds is controlled by the 
+`hbonds' command. Drawing hydrogen bonds between protein alpha carbons or 
+nucleic acid phosphorous atoms is useful when the rest of the molecule is 
+shown in only a schematic representation such as `backbone,' `ribbons' or 
+`strands.' his parameter is similar to the RasMol `ssbonds' parameter. 
 
 ?set hetero
 Set Hetero
@@ -500,12 +642,22 @@ sequence of commands from a script file or using interprocess communication
 to execute complex sequences of commands. In these cases a `flashing' cursor 
 may be distracting. 
 
+?hydrogen
 ?set hydrogen
 Set Hydrogen
 Syntax:  set hydrogen <boolean>
 
 set hydrogen 
 
+?set menus
+Set Menus
+Syntax:  set menus <boolean>
+
+The RasMol `set menus' command enables the canvas window's menu buttons or 
+menu bar. This command is typically only used by graphical user interfaces 
+or to create as large as image as possible. 
+
+?mouse
 ?set mouse
 Set Mouse
 Syntax:  set mouse rasmol
@@ -521,18 +673,6 @@ modifier key on the keyboard. [Shift] and the first button performs scaling,
 [shift] and the second button performs Z-rotation, and [control] and the 
 first mouse button controls the clipping plane. The `insight' and `quanta' 
 provide the same mouse bindings as other packages for experienced users. 
-
-?set ribbons
-Set Ribbons
-Syntax:  set ribbons strands
-         set ribbons solid
-
-The RasMol `set ribbons' command controls the way that macromolecular 
-ribbons are displayed. The default value `strands' display macromolecular 
-ribbons as parallel depth-cued strands that pass along the protein or 
-nucleic acid backbone. The number of strands in the ribbon may be altered 
-using the RasMol `set strands' command. The `set ribbons solid' command 
-renders the macromolecular ribbon as a solid shaded ribbon. 
 
 ?set shadow
 Set Shadow
@@ -552,8 +692,8 @@ Set SlabMode
 Syntax:  set slabmode <slabmode>
 
 The RasMol `slabmode' parameter controls the rendering method of objects cut 
-by the slabbing (z-clipping) plane. Valid slab modes are "reject", "half", 
-"hollow", "solid" and "section". 
+by the slabbing (z-clipping) plane. Valid slabmode parameters are "reject", 
+"half", "hollow", "solid" and "section". 
 
 ?set specular
 Set Specular
@@ -585,7 +725,14 @@ Set SSBonds
 Syntax:  set ssbonds backbone
          set ssbonds sidechain
 
-set ssbonds 
+The RasMol `ssbonds' parameter determines whether disulphide bridges are 
+drawn between the sulphur atoms in the sidechain (the default) or between 
+the alpha carbon atoms in the backbone of the cysteines residues. The actual 
+display of disulphide bridges is controlled by the `ssbonds' command. 
+Drawing disulphide bridges between alpha carbons is useful when the rest of 
+the protein is shown in only a schematic representation such as `backbone,' 
+`ribbons' or `strands.' his parameter is similar to the RasMol `hbonds' 
+parameter. 
 
 ?set strands
 Set Strands
@@ -597,6 +744,31 @@ values for this parameter are 1, 2, 3, 4, 5 and 9. The default value is 5.
 The number of strands is constant for all ribbons being displayed. However, 
 the ribbon width (the separation between strands) may be controlled on a 
 residue by residue basis using the RasMol `ribbons' command. 
+
+?set unitcell
+Set UnitCell
+Syntax:  set unitcell <boolean>
+
+The RasMol `unitcell' parameter controls the display of the crystallographic 
+unit cell on the current display. The crystal cell is only enabled if the 
+appropriate crystal symmetry information is contained in the PDB data file. 
+The RasMol command `show symmetry' display details of the crystal's space 
+group and unit cell axes. The `set unitcell' command is similar the the 
+commands `set axes' and `set boundbox' that display orthogonal co-ordinate 
+axes and the bounding box respectively. 
+
+?set vectps
+Set VectPS
+Syntax:  set vectps <boolean>
+
+The RasMol `vectps' parameter is use to control the way in which the RasMol 
+`write' command generates vector PostScript output files. The command `set 
+vectps on' enables to use of black outlines around spheres and cylinder 
+bonds producing `cartoon-like' high resolution output. However, the current 
+implementation of RasMol incorrectly cartoons spheres that are intersected 
+by more than one other sphere. Hence `ball and stick' models are rendered 
+correctly by not large spacefilling spheres models. Cartoon outlines can be 
+disabled, the default, by the command `set vectps off' 
 
 ?expression
 ?expressions
@@ -649,8 +821,8 @@ For examples of the precise syntax, type "help expressions".
 ?primitive expressions
 Primitive Expressions
 RasMol primitive expressions are the fundamental building blocks of atom 
-expressions. There a two basic types of primitive expression. The first type 
-is used to identify a given residue number or range of residue numbers. A 
+expressions. There are two types of primitive expression. The first type is 
+used to identify a given residue number or range of residue numbers. A 
 single residue is identified by its number (position in the sequence), and a 
 range is specified by lower and upper bounds separated by a hyphen 
 character. For example `select 5,6,7,8' is also `select 5-8.' Note that this 
@@ -705,7 +877,7 @@ nested `within' expressions.
 
 For example, the command `select within(800,backbone)' selects any atom 
 within a 3.2 Angstrom radius of any atom in a protein or nucleic acid 
-backbone. `Within' expressions are particularly usefull for selecting the 
+backbone. `Within' expressions are particularly useful for selecting the 
 atoms around an active site. 
 
 ?sets
@@ -715,17 +887,18 @@ RasMol atom expressions may contain predefined sets. Thsese sets are single
 keywords that represent portions of a molecule of interest. Predefined sets 
 are often abbreviations primitive atom expressions, and in some cases of 
 selecting areas of a molecule that could not otherwise be distinguished. A 
-list of the currently predfined sets is given below. Type "help sets 
+list of the currently predefined sets is given below. Type "help sets 
 setname" for more information about a given set. 
 
     at              acidic          acyclic         aliphatic
     alpha           amino           aromatic        backbone
-    basic           buried          cg              charged
-    cyclic          cystine         helix           hetero
-    hydrogen        hydrophobic     large           medium
-    neutral         nucleic         polar           protein
-    purine          pyrimidine      selected        sheet
-    sidechain       small           surface         turn
+    basic           bonded          buried          cg
+    charged         cyclic          cystine         helix
+    hetero          hydrogen        hydrophobic     ions
+    large           ligand          medium          neutral
+    nucleic         polar           protein         purine
+    pyrimidine      selected        sheet           sidechain
+    small           solvent         surface         turn
     water
 
 
@@ -738,10 +911,10 @@ expressions "a,t" and "nucleic and not cg"
 
 ?acidic set
 Acidic Set
-The set of acidic amino acids. These are the residue types Asp, Glu and Tyr. 
-All amino acids are classified as either `acidic,' `basic' `or' `neutral.' 
-This set is equivalent to the RasMol atom expressions "asp, glu, tyr" and 
-"amino and not (basic or neutral)" 
+The set of acidic amino acids. These are the residue types Asp and Glu. All 
+amino acids are classified as either `acidic,' `basic' `or' `neutral.' This 
+set is equivalent to the RasMol atom expressions "asp, glu" and "amino and 
+not (basic or neutral)" 
 
 ?acyclic set
 Acyclic Set
@@ -783,14 +956,19 @@ polypeptide N-C-C-O backbone of proteins, and the atoms the sugar phosphate
 backbone of nucleic acids. Use the RasMol predefined sets `protein' and 
 `nucleic' to distinguish between the two forms of backbone. Atoms in nucleic 
 acids and proteins are either `backbone' or `sidechain.' This set is 
-equivalent to the RasMol expression "(protein or nucleic) and not sidechain 
+equivalent to the RasMol expression "(protein or nucleic) and not sidechain" 
 
 ?basic set
 Basic Set
-The set of basic amino acids. These are the residue types Asp, Glu and Tyr. 
+The set of basic amino acids. These are the residue types Arg, His and Lys. 
 All amino acids are classified as either `acidic,' `basic' or `neutral.' 
-This set is equivalent to the RasMol atom expressions "asp, glu, tyr" and 
+This set is equivalent to the RasMol atom expressions "arg, his, lys" and 
 "amino and not (acidic or neutral)" 
+
+?bonded set
+Bonded Set
+This set contain all the atoms in the current molecule database that are 
+bonded to atleast one other atom. 
 
 ?buried set
 Buried Set
@@ -841,15 +1019,16 @@ algorithm. By default, RasMol uses the secondary structure determination
 given in the PDB file if it exists. Otherwise, it uses the DSSP algorithm as 
 used by the RasMol `structure' command. 
 
-This command should not be confused with the predefined set `alpha' which 
-contains the alpha carbon atoms of a protein. 
+This predefined set should not be confused with the predefined set `alpha' 
+which contains the alpha carbon atoms of a protein. 
 
 ?hetero set
 Hetero Set
 This set contains all the heterogenous atoms in the molecule. These are the 
 atoms described by HETATM entries in the PDB file. These typically contain 
-water, cofactors and other solvents and ligands. The RasMol predefined set 
-`water' is often used to partition this set. 
+water, cofactors and other solvents and ligands. All `hetero' atoms are 
+classified as either `ligand' or `solvent' atoms. These heterogenous 
+`solvent' atoms are further classified as either `water' or `ions.' 
 
 ?hydrogen set
 Hydrogen Set
@@ -864,11 +1043,27 @@ either `hydrophobic' or `polar.' This set is equivalent to the RasMol atom
 expressions "ala, leu, val, ile, pro, phe, met, trp" and "amino and not 
 polar" 
 
+?ions set
+Ions Set
+This set contains all the heterogenous phosphate and sulphate ions in the 
+current molecule data file. A large number of these ions are sometimes 
+associated with protein and nucleic acid structures determined by X-ray 
+crystallography. These atoms tend to clutter an image. All `hetero' atoms 
+are classified as either `ligand' or `solvent' atoms. All `solvent' atoms 
+are classified as either `water' or `ions.' 
+
 ?large set
 Large Set
 All amino acids are classified as either `small,' `medium' or `large.' This 
 set is equivalent to the RasMol atom expression "amino and not (small or 
 medium)" 
+
+?ligand set
+Ligand Set
+This set contains all the heterogenous cofactor and ligand moieties that are 
+contained in the current molecule data file. At this set is defined to be 
+all `hetero' atoms that are not `solvent' atoms. Hence this set is 
+equivalent to the RasMol atom expression "hetero and not solvent" 
 
 ?medium set
 Medium Set
@@ -879,12 +1074,16 @@ small)"
 ?neutral set
 Neutral Set
 The set of neutral amino acids. All amino acids are classified as either 
-`acidic,' `basic' `or' `neutral.' This set is equivalent to the RasMol atom 
+`acidic,' `basic' or `neutral.' This set is equivalent to the RasMol atom 
 expression "amino and not (acidic or basic)" 
 
 ?nucleic set
 Nucleic Set
-The set of all atoms in nucleic acids. 
+The set of all atoms in nucleic acids, which consists of the four nucleotide 
+bases adenosine, cytidine, guanosine and thymidine (A, C, G and T 
+respectively). All neucleotides are classified as either `purine' or 
+`pyrimidine.' This set is equivalent to the RasMol atom expressions 
+"a,c,g,t" and "purine or pyrimidine" 
 
 ?polar set
 Polar Set
@@ -907,9 +1106,9 @@ and "nucleic and not purine"
 ?pyrimidine set
 Pyrimidine Set
 The set of pyrimidine nucleotides. These are the bases cytidine and 
-thymidine (C and T respectively). All nucleotides are either `purineset 
-purines' or `pyrimidines.' This set is equivalent to the RasMol atom 
-expressions "c,t" and "nucleic and not pyrimidine" 
+thymidine (C and T respectively). All nucleotides are either `purines' or 
+`pyrimidines.' This set is equivalent to the RasMol atom expressions "c,t" 
+and "nucleic and not pyrimidine" 
 
 ?selected set
 Selected Set
@@ -933,7 +1132,7 @@ backbone of proteins or the sugar phosphate backbone of nucleic acids. Use
 the RasMol predefined sets `protein' and `nucleic' to distinguish between 
 the two forms of sidechain. Atoms in nucleic acids and proteins are either 
 `backbone' or `sidechain.' This set is equivalent to the RasMol expression 
-"(protein or nucleic) and not backbone 
+"(protein or nucleic) and not backbone" 
 
 ?small set
 Small Set
@@ -941,11 +1140,20 @@ All amino acids are classified as either `small,' `medium' or `large.' This
 set is equivalent to the RasMol atom expression "amino and not (medium or 
 large)" 
 
+?solvent set
+Solvent Set
+This set contains the solvent atoms in the molecule co-ordinate file. These 
+are the heterogenous water molecules, phosphate and sulphate ions. All 
+`hetero' atoms are classified as either `ligand' or `solvent' atoms. All 
+`solvent' atoms are classified as either `water' or `ions.' This set is 
+equivalent to the RasMol atom expressions "hetero and not ligand" and "water 
+or ions" 
+
 ?surface set
 Surface Set
 This set contains the atoms in those amino acids that tend (prefer) to be on 
 the surface of proteins, in contact with solvent molecules. This set refers 
-to the amino acids preference and not the actual solvent acessibility for 
+to the amino acids preference and not the actual solvent accessibility for 
 the current protein. All amino acids are classified as either `surface' or 
 `buried.' This set is equivalent to the RasMol atom expression "amino and 
 not buried" 
@@ -963,7 +1171,9 @@ Water Set
 This set contains all the heterogenous water molecules in the current 
 database. A large number of water molecules are sometimes associated with 
 protein and nucleic acid structures determined by X-ray crystallography. 
-These atoms tend to clutter an image. 
+These atoms tend to clutter an image. All `hetero' atoms are classified as 
+either `ligand' or `solvent' atoms. The `solvent' atoms are further 
+classified as either `water' or `ions.' 
 
 ?colors
 ?colours
@@ -977,10 +1187,10 @@ Colour Schemes
 The RasMol `colour' command allows different objects (such as atoms, bonds 
 and ribbon segments) to be given a specified colour. Typically this colour 
 is either a RasMol predefined colour name or an RGB triple. Additionally 
-RasMol also supports `amino,' `chain,' `group,' `shapely,' `structure,' 
-`temperature,' `user' and `hbond type' colour schemes. The currently 
-predefined colour names are listed below with their corresponding RGB 
-triplet. 
+RasMol also supports `cpk,' `amino,' `chain,' `group,' `shapely,' 
+`structure,' `temperature,' `user' and `hbond type' colour schemes. The 
+currently predefined colour names are listed below with their corresponding 
+RGB triplet. 
 
     blue         [0,0,255]          black        [0,0,0]
     cyan         [0,255,255]        green        [0,255,0]
@@ -998,7 +1208,7 @@ Amino Colours
 The RasMol `amino' colour scheme colours amino acids according to 
 traditional amino acid properties. The purpose of colouring is to identify 
 amino acids in an unusual or surprising environment. The outer parts of a 
-protein are polar are visible (bright) colours and non-polar residues 
+protein that are polar are visible (bright) colours and non-polar residues 
 darker. Most colours are hallowed by tradition. This colour scheme is 
 similar to the `shapely' scheme. 
 
@@ -1016,7 +1226,7 @@ similar to the `shapely' scheme.
 ?chain colours
 Chain Colours
 The RasMol `chain' colour scheme assigns each macromolecular chain a unique 
-colour. This colour scheme is particularly usefull for distinguishing the 
+colour. This colour scheme is particularly useful for distinguishing the 
 parts of multimeric structure or the individual `strands' of a DNA chain. 
 
 ?cpk
@@ -1095,8 +1305,8 @@ file, and colour the molecule appropriately.
 User Colours
 The RasMol `user' colour scheme allows RasMol to use the colour scheme 
 stored in the PDB file. The colours for each atom are stored in COLO records 
-placed in the PDB data file. This convention was introducted by David 
-Bacon's Raster3D program. 
+placed in the PDB data file. This convention was introduced by David Bacon's 
+Raster3D program. 
 
 ?type
 ?color type
@@ -1104,8 +1314,8 @@ Bacon's Raster3D program.
 ?hbond type colours
 HBond Type Colours
 The RasMol `type' colour scheme applies only to hydrogen bonds, hence is 
-used in the command "colour hbonds type" This colour scheme colour codes 
-each hydrogen bond according to the distance along a protein chain between 
+used in the command "colour hbonds type" This scheme colour codes each 
+hydrogen bond according to the distance along a protein chain between 
 hydrogen bond donor and acceptor. This schematic representation was 
 introduced by Belhadj-Mostefa and Milner-White. This representation gives a 
 good insight into protein secondary structure (hbonds forming alpha helices 

@@ -1,13 +1,12 @@
 [OPTIONS]
-TITLE=RasWin 2.2 Help
-COPYRIGHT=(c) Copyright Roger Sayle 1994
+TITLE=RasWin 2.4 Help
+COPYRIGHT=(c) Copyright Roger Sayle 1994 
 CONTENTS=rasmol
 COMPRESS=TRUE
 WARNING=3
 
 [FILES]
-raswin.rtf
+RASWIN.RTF
 
 [CONFIG]
 BrowseButtons()
-

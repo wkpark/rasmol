@@ -1,7 +1,7 @@
 /* raswin.idm
  * RasWin Molecular Graphics
- * Roger Sayle, October 1993
- * Version 2.2
+ * Roger Sayle, October 1994
+ * Version 2.5
  */
 
 #define IDM_OPEN       1000
@@ -10,7 +10,6 @@
 #define IDM_PRINT      1003
 #define IDM_CLOSE      1004
 #define IDM_EXIT       1005
-#define IDM_ABOUT      1006
 
 #define IDM_WIREFRAME  1010
 #define IDM_BACKBONE   1011
@@ -18,6 +17,8 @@
 #define IDM_SPHERES    1013
 #define IDM_BALLSTICK  1014
 #define IDM_RIBBONS    1015
+#define IDM_STRANDS    1016
+#define IDM_DOTS       1017
 
 #define IDM_MONO       1020
 #define IDM_CPK        1021
@@ -40,7 +41,10 @@
 #define IDM_EPSF       1043
 #define IDM_PPM        1044
 #define IDM_RAST       1045
+#define IDM_PICT       1046
 
+#define IDM_ABOUT      1050
+#define IDM_HELP       1051
 
 #define IDD_HARDWARE   200
 #define IDD_FILETEXT   201

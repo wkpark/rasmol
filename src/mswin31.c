@@ -1,7 +1,7 @@
 /* mswin31.c
  * RasMol2 Molecular Graphics
- * Roger Sayle, February 1994
- * Version 2.3
+ * Roger Sayle, October 1994
+ * Version 2.5
  */
 #include <windows.h>
 #include <stdlib.h>
@@ -16,35 +16,36 @@
 #include "render.h"
 
 
+static int ColCount;
 static BITMAPINFO __far *BitInfo;
 static HCURSOR WaitCursor;
 static HCURSOR OldCursor;
-static int ColCount;
+static HMENU hMenu;
 
 
 void AllocateColourMap()
 {
-    register COLORREF ref;	
+    register COLORREF ref;      
     register int i;
     
     if( ColourMap )
-        DeleteObject(ColourMap);
-        
+	DeleteObject(ColourMap);
+	
 
     ColCount = 0;
     for( i=0; i<256; i++ )
-        if( ULut[i] ) 
-        {  Palette->palPalEntry[ColCount].peFlags = 0;
-           Palette->palPalEntry[ColCount].peRed   = RLut[i];
-           Palette->palPalEntry[ColCount].peGreen = GLut[i];
-           Palette->palPalEntry[ColCount].peBlue  = BLut[i];
+	if( ULut[i] ) 
+	{  Palette->palPalEntry[ColCount].peFlags = 0;
+	   Palette->palPalEntry[ColCount].peRed   = RLut[i];
+	   Palette->palPalEntry[ColCount].peGreen = GLut[i];
+	   Palette->palPalEntry[ColCount].peBlue  = BLut[i];
 
-           BitInfo->bmiColors[ColCount].rgbBlue     = BLut[i];
-           BitInfo->bmiColors[ColCount].rgbGreen    = GLut[i];
-           BitInfo->bmiColors[ColCount].rgbRed      = RLut[i];
-           BitInfo->bmiColors[ColCount].rgbReserved = 0;
-           ColCount++;
-        }   
+	   BitInfo->bmiColors[ColCount].rgbBlue     = BLut[i];
+	   BitInfo->bmiColors[ColCount].rgbGreen    = GLut[i];
+	   BitInfo->bmiColors[ColCount].rgbRed      = RLut[i];
+	   BitInfo->bmiColors[ColCount].rgbReserved = 0;
+	   ColCount++;
+	}   
     Palette->palNumEntries = ColCount;
     BitInfo->bmiHeader.biClrUsed = ColCount;   
     ColourMap = CreatePalette(Palette);
@@ -52,8 +53,54 @@ void AllocateColourMap()
     for( i=0; i<256; i++ )
        if( ULut[i] )
        {   ref = RGB(RLut[i],GLut[i],BLut[i]);
-           Lut[i] = GetNearestPaletteIndex(ColourMap,ref);
+	   Lut[i] = GetNearestPaletteIndex(ColourMap,ref);
        }    
+}
+
+
+
+int CreateImage()
+{
+    register Long size;
+
+    if( FBufHandle ) GlobalFree(FBufHandle);
+    size = (Long)XRange*YRange*sizeof(Pixel)+16;
+    FBufHandle = GlobalAlloc(GMEM_MOVEABLE,size);
+    return( (int)FBufHandle );
+}
+
+
+void TransferImage()
+{
+    HPALETTE OldCMap;
+    HDC hDC;
+	
+    if( PixMap )
+	DeleteObject(PixMap);
+
+    BitInfo->bmiHeader.biWidth = XRange;
+    BitInfo->bmiHeader.biHeight = YRange;
+	
+    hDC = GetDC(NULL);
+    FBuffer = (Pixel  __huge*)GlobalLock(FBufHandle);
+    /* CreateBitMap(XRange,YRange,1,8,FBuffer); */
+
+    if( ColourMap )
+    {   OldCMap = SelectPalette(hDC,ColourMap,FALSE);
+	RealizePalette(hDC);  /* GDI Bug?? */
+    }
+	
+    PixMap = CreateDIBitmap( hDC, (BITMAPINFOHEADER __far *)BitInfo, 
+			     CBM_INIT, FBuffer, BitInfo, DIB_RGB_COLORS);
+	
+    if( ColourMap && OldCMap )                         
+	SelectPalette(hDC,OldCMap,False);
+
+    GlobalUnlock(FBufHandle);
+    ReleaseDC(NULL,hDC);
+    
+    InvalidateRect(CanvWin,NULL,FALSE);
+    UpdateWindow(CanvWin);
 }
 
 
@@ -69,42 +116,8 @@ void ClearImage()
 
     if( PixMap )
     {   DeleteObject(PixMap);
-        PixMap = NULL;
+	PixMap = NULL;
     }
-}
-
-
-void TransferImage()
-{
-    HPALETTE OldCMap;
-    HDC hDC;
-    	
-    if( PixMap )
-        DeleteObject(PixMap);
-
-    BitInfo->bmiHeader.biWidth = XRange;
-    BitInfo->bmiHeader.biHeight = YRange;
-        
-    hDC = GetDC(NULL);
-    FBuffer = (Pixel  __huge*)GlobalLock(FBufHandle);
-    /* CreateBitMap(XRange,YRange,1,8,FBuffer); */
-
-    if( ColourMap )
-    {   OldCMap = SelectPalette(hDC,ColourMap,FALSE);
-        RealizePalette(hDC);  /* GDI Bug?? */
-    }
-        
-    PixMap = CreateDIBitmap( hDC, (BITMAPINFOHEADER __far *)BitInfo, 
-                             CBM_INIT, FBuffer, BitInfo, DIB_RGB_COLORS);
-        
-    if( ColourMap )                         
-        SelectPalette(hDC,OldCMap,False);
-
-    GlobalUnlock(FBufHandle);
-    ReleaseDC(NULL,hDC);
-    
-    InvalidateRect(CanvWin,NULL,FALSE);
-    UpdateWindow(CanvWin);
 }
 
 
@@ -158,8 +171,8 @@ int PrintImage()
     FBuffer = (Pixel  __huge*)GlobalLock(FBufHandle);
 
     StretchDIBits( hDC, xres>>1, yres, dx, dy, 
-                        0, 0, XRange, YRange, 
-                        FBuffer, BitInfo, DIB_RGB_COLORS, SRCCOPY );
+			0, 0, XRange, YRange, 
+			FBuffer, BitInfo, DIB_RGB_COLORS, SRCCOPY );
 
     GlobalUnlock(FBufHandle);
 
@@ -168,6 +181,69 @@ int PrintImage()
 
     DeleteDC( hDC );
     return( True );
+}
+
+
+int ClipboardImage()
+{
+    register BITMAPINFO __far *bitmap;
+    register char __huge *src;
+    register char __huge *dst;
+    register long size,len;
+    register HANDLE hand;
+    register int i;
+
+
+    if( OpenClipboard(CanvWin) )
+    {   EmptyClipboard();
+
+	/* SetClipboardData(CF_DIB,NULL);     */
+	/* SetClipboardData(CF_PALETTE,NULL); */
+
+	if( PixMap )
+	{   len = (long)XRange*YRange*sizeof(Pixel);
+	    size = sizeof(BITMAPINFOHEADER) + 256*sizeof(RGBQUAD);
+	    if( (hand=GlobalAlloc(GHND,size+len)) )
+	    {   bitmap = (BITMAPINFO __far *)GlobalLock(hand);
+		bitmap->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+		bitmap->bmiHeader.biWidth = XRange;
+		bitmap->bmiHeader.biHeight = YRange;
+		bitmap->bmiHeader.biPlanes = 1;
+		bitmap->bmiHeader.biBitCount = 8;
+		bitmap->bmiHeader.biCompression = BI_RGB;
+		bitmap->bmiHeader.biSizeImage = len;
+		bitmap->bmiHeader.biXPelsPerMeter = 0;
+		bitmap->bmiHeader.biYPelsPerMeter = 0;
+		bitmap->bmiHeader.biClrImportant = 0;
+		bitmap->bmiHeader.biClrUsed = 0;
+
+		for( i=0; i<256; i++ )
+		    if( ULut[i] )
+		    {   bitmap->bmiColors[Lut[i]].rgbBlue  = BLut[i];
+			bitmap->bmiColors[Lut[i]].rgbGreen = GLut[i];
+			bitmap->bmiColors[Lut[i]].rgbRed   = RLut[i];
+		    }
+
+
+		src = (Pixel __huge*)GlobalLock(FBufHandle);
+		dst = ((Pixel __huge*)bitmap)+size;
+
+		/* Transfer the frame buffer */
+		while( len-- ) *dst++ = *src++;
+
+		GlobalUnlock(FBufHandle);
+		GlobalUnlock(hand);
+		SetClipboardData(CF_DIB,hand);
+	    }
+	}
+
+	if( ColourMap )
+	{   if( (hand = CreatePalette(Palette)) )
+		SetClipboardData(CF_PALETTE,hand);
+	}
+	CloseClipboard();
+	return( True );
+    } else return( False );
 }
 
 
@@ -183,11 +259,28 @@ void UpdateScrollBars()
 }
 
 
+void SetMouseMode( mode )
+    int mode;
+{
+    MouseMode = mode;
+}
+
+
 int LookUpColour( name, r, g, b )
     char *name; int *r, *g, *b;
 {
     return( False );
 }    
+
+
+void EnableMenus( flag )
+    int flag;
+{
+    if( flag )
+    {   SetMenu(CanvWin,hMenu);
+    } else SetMenu(CanvWin,0);
+    DisableMenu = !flag;
+}
 
 
 int OpenDisplay( instance, mode )
@@ -200,14 +293,16 @@ int OpenDisplay( instance, mode )
     PixMap = NULL;
     ColourMap = NULL;
     UseHourGlass = True;
+    DisableMenu = False;
+    MouseMode = MMRasMol;
 
     for( i=0; i<8; i++ )
-         DialValue[i] = 0.0;
+	 DialValue[i] = 0.0;
 
-
+    ULut[0] = True;
     RLut[0] = GLut[0] = BLut[0] = 0;
-    XRange = CanvWidth;   WRange = XRange>>1;
-    YRange = CanvHeight;  HRange = YRange>>1;
+    XRange = InitialWide;   WRange = XRange>>1;
+    YRange = InitialHigh;   HRange = YRange>>1;
     Range = MinFun(XRange,YRange);
     
     rect.top  = 0;   rect.bottom = YRange;
@@ -215,15 +310,15 @@ int OpenDisplay( instance, mode )
 
     
     style = WS_OVERLAPPEDWINDOW | WS_HSCROLL | WS_VSCROLL;
-    
-    
+
+    hMenu = LoadMenu(instance,"RasWinMenu");
     AdjustWindowRect(&rect,style,TRUE);
-    CanvWin = CreateWindow("RasWinClass","RasMol Version 2.3", style,
+    CanvWin = CreateWindow("RasWinClass","RasMol Version 2.5", style,
 			    CW_USEDEFAULT, CW_USEDEFAULT,
-                            rect.right-rect.left, 
-                            rect.bottom-rect.top,
-                            NULL,NULL,instance,NULL);
-                            
+			    rect.right-rect.left, 
+			    rect.bottom-rect.top,
+			    NULL,hMenu,instance,NULL);
+			    
 
     WaitCursor = LoadCursor(NULL,IDC_WAIT);
 
@@ -234,8 +329,8 @@ int OpenDisplay( instance, mode )
 
 
     if( !CanvWin || !Palette || !BitInfo )
-        return( False );
-        
+	return( False );
+	
     Palette->palVersion = 0x300;   
     
     BitInfo->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -246,8 +341,12 @@ int OpenDisplay( instance, mode )
     BitInfo->bmiHeader.biSizeImage = 0;
     BitInfo->bmiHeader.biBitCount = 8;
     BitInfo->bmiHeader.biPlanes = 1;
-    
-  
+
+    /* Initialise Palette! */
+    for( i=1; i<256; i++ )
+	ULut[i] = False;
+    AllocateColourMap();
+
     ShowWindow(CanvWin,mode);
     UpdateScrollBars();
     UpdateWindow(CanvWin);
@@ -258,22 +357,22 @@ int OpenDisplay( instance, mode )
 void BeginWait()
 {
     if( UseHourGlass )
-        OldCursor = SetCursor(WaitCursor);
+	OldCursor = SetCursor(WaitCursor);
 }
 
 
 void EndWait()
 {
     if( UseHourGlass )
-        SetCursor(OldCursor);
+	SetCursor(OldCursor);
 }
 
 
 void CloseDisplay()
 {
     if( ColourMap )
-        DeleteObject(ColourMap);
+	DeleteObject(ColourMap);
     if( PixMap )
-        DeleteObject(PixMap);
+	DeleteObject(PixMap);
 }
 

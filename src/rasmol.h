@@ -1,75 +1,139 @@
 /* rasmol.h
  * RasMol2 Molecular Graphics
- * Roger Sayle, February 1994
- * Version 2.3
+ * Roger Sayle, October 1994
+ * Version 2.5
  */
+
+
+/*****************************/
+/*  User Definable Options!  */
+/*****************************/
+
+/* #define IBMPC        */
+/* #define APPLEMAC     */
+/* #define DIALBOX      */
+#define TERMIOS
+#define MITSHM
+
+/* Use Default Depth!   */
+/* #define THIRTYTWOBIT */
+/* #define EIGHTBIT     */
+
+
+/**************************/
+/*  Default User Options! */
+/**************************/
+
+#ifdef IBMPC
+#undef THIRTYTWOBIT
+#endif
+
+#if !defined(EIGHTBIT) && !defined(THIRTYTWOBIT)
+#define EIGHTBIT
+#endif
+
+#ifndef RASMOLDIR
+#ifdef IBMPC
+#define RASMOLDIR  "C:\\RASWIN\\"
+#endif
+
+#if !defined(IBMPC) && !defined(APPLEMAC) && !defined(VMS)
+#define RASMOLDIR "/usr/local/lib/rasmol/"
+#endif
+#endif
+
+#if !defined(INVERT) && defined(IBMPC)
+#define INVERT
+#endif
+
+#ifndef FUNCPROTO
+#if defined(__STDC__) || defined(IBMPC) || defined(APPLEMAC)
+#define FUNCPROTO
+#endif
+#endif
+
+/********************************/
+/*  Application-wide Constants  */
+/********************************/
 
 #ifndef True
 #define True  1
 #define False 0
 #endif
 
-#define Real double
-#define Byte unsigned char
-
 #ifndef PI   /* Avoid Linux Warnings! */
 #define PI   3.14159265358979323846
 #endif
 
+
+typedef double Real;
+#ifndef APPLEMAC
+typedef unsigned char Byte;
+#endif
+
 #ifdef __STDC__
-#define Char signed char
+typedef signed char Char;
 #else
-#define Char char
+typedef char Char;
 #endif
 
 #ifdef _LONGLONG
-#define Long int
-#define Card unsigned int
+typedef unsigned int Card;
+typedef int Long;
 #else
-#define Long long
-#define Card unsigned long
+typedef unsigned long Card;
+typedef long Long;
+#endif
+
+#ifdef EIGHTBIT
+typedef Byte Pixel;
+#else
+typedef Long Pixel;
 #endif
 
 
+
+#define Rad2Deg      (180.0/PI)
+#define Deg2Rad      (PI/180.0)
 #define AbsFun(a)    (((a)<0)? -(a) : (a))
 #define MinFun(a,b)  (((a)<(b))? (a) : (b) )
 #define MaxFun(a,b)  (((a)>(b))? (a) : (b) )
 
-#define EIGHTBIT
-/* #define DIALBOX */
-/* #define PROFILE */
-#define TERMIOS
-#define MITSHM
-/* #define INVERT */
-#define ISQRT
-/* #define IBMPC */
-
-
-#ifdef EIGHTBIT
-#define Pixel    Byte
+#if defined(__STDC__) || defined(IBMPC)  || defined(APPLEMAC) || defined(__sgi)
+#define ToUpper(x)   (toupper((x)))
 #else
-#define Pixel    Long
+#define ToUpper(x)   (islower((x))?toupper((x)):(x))
 #endif
 
-#ifndef IBMPC
-#define _fmalloc  malloc
-#define _ffree    free
+
+#if !defined(IBMPC) || defined(_WIN32)
+#ifdef APPLEMAC
+#define _fmalloc   NewPtrSys
+#define _ffree(x)  DisposePtr((Ptr)(x))
+#else
+#define _fmalloc   malloc
+#define _ffree     free
+#endif
+#define _fstrcmp   strcmp
+#define _fmemset   memset
 #define __huge
 #define __far
 #endif
 
 
-#define ItemCount       6
-#define AdvPickAtom	0
+#define ItemCount       8
+#define AdvPickAtom     0
 #define AdvPickNumber   1
 #define AdvSelectCount  2
-#define AdvName		3
+#define AdvName         3
 #define AdvIdent        4
-#define AdvClass	5
+#define AdvClass        5
+#define AdvImage        6
+#define AdvPickCoord    7
 
 
 #ifndef RASMOL
-#ifdef __STDC__
+#ifdef FUNCPROTO
 void WriteChar( int );
 void WriteString( char* );
 void RasMolFatalExit( char* );

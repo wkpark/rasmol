@@ -59,7 +59,7 @@ transfor.o:	transfor.c transfor.h rasmol.h molecule.h command.h \
 
 command.o:	command.c command.h rasmol.h tokens.h abstree.h \
 		molecule.h transfor.h render.h graphics.h pixutils.h \
-                outfile.h
+                outfile.h script.h
 		$(CC) -c $(CFLAGS) command.c
 
 abstree.o:	abstree.c abstree.h rasmol.h molecule.h

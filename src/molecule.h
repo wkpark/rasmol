@@ -1,9 +1,8 @@
 /* molecule.h
  * RasMol2 Molecular Graphics
- * Roger Sayle, February 1994
- * Version 2.3
+ * Roger Sayle, October 1994
+ * Version 2.5
  */
-
 #define SerNoFlag 0x01
 #define ResNoFlag 0x02
 
@@ -17,7 +16,7 @@ typedef struct {
         } MaskDesc;
 
 #define MAXMASK 40
-#define MAXELEM 180
+#define MAXELEM 256
 #define MINELEM 29
 #define MAXRES  80
 #define MINRES  35
@@ -60,7 +59,7 @@ typedef struct {
 #define SelectFlag      0x01
 #define DrawBondFlag    0x06
 #define AllAtomFlag     0x1c
-#define HelixFlag       0x0e
+#define HelixFlag       0x03
 
 /* Atom Flags */
 #define SphereFlag      0x02     /* Sphere representation */
@@ -76,16 +75,20 @@ typedef struct {
 #define HydrBondFlag    0x08     /* Hydrogen *-H bond            */
 #define NormBondFlag    0x10
 #define DoubBondFlag    0x20
-#define AromBondFlag    0x40
+#define TripBondFlag    0x40
+#define AromBondFlag    0x80
 
 /* Group Flags */
-#define CystineFlag     0x01     /* Disulphide bonded cysteine */
-#define Helix3Flag      0x02     /* 3,10-Helix structure       */
-#define Helix4Flag      0x04     /* Alpha Helix structure      */
-#define Helix5Flag      0x08     /* 5-Helix structure          */
-#define SheetFlag       0x10     /* Beta Sheet structure       */
-#define TurnFlag        0x20     /* Turn Secondary structure   */
-#define RibbonFlag      0x40     /* Ribbon representation      */
+#define CystineFlag     0x01     /* Disulphide bonded cysteine  */
+#define RibbonFlag      0x02     /* Solid Ribbon representation */
+#define StrandFlag      0x04     /* Strands representation      */
+
+/* Structure Flags */
+#define Helix3Flag      0x01     /* 3,10-Helix structure       */
+#define Helix4Flag      0x02     /* Alpha Helix structure      */
+#define Helix5Flag      0x03     /* 5-Helix structure          */
+#define SheetFlag       0x04     /* Beta Sheet structure       */
+#define TurnFlag        0x08     /* Turn Secondary structure   */
 
 
 /*=====================*/
@@ -96,12 +99,13 @@ typedef struct _Atom {
         struct _Atom __far *anext;        /* Linked list of atoms  */
         struct _Atom __far *bucket;       /* Sphere Y-Bucket       */
 	struct _Atom __far *next;         /* Active Object List    */
-        Long xorg, yorg, zorg;            /* World Co-ordinates    */
+        Long   xorg, yorg, zorg;          /* World Co-ordinates    */
         short  x, y, z;                   /* Image Co-ordinates    */
         short  radius;                    /* World Radius          */
         short  serno;                     /* Atom Serial Number    */
         short  temp;                      /* Temperature Factor    */
         short  col;                       /* Atom Colour           */
+        void   *label;                    /* Atom Label Structure  */
         Byte   refno;                     /* ElemDesc index number */
         Byte   flag;                      /* Database flags        */
         char   altl;                      /* Alternate Location    */
@@ -125,13 +129,20 @@ typedef struct _Group {
         Atom __far *alist;                /* Linked list of atoms  */
         short serno;                      /* Group serial number   */
         short width;                      /* Ribbon Width          */
-        short col;			  /* Ribbon Colour         */
+        short col1;			  /* Ribbon Colour #1      */
+        short col2;			  /* Ribbon Colour #2      */
         Byte  refno;                      /* Residue index number  */
+        Byte  struc;                      /* Secondary Structure   */
         Byte  flag;                       /* Database flags        */
 	} Group;
+ 
+#ifdef APPLEMAC
+/* Avoid Name Clash! */
+#define Chain ChainSeg
+#endif
 
-typedef struct _Chain {
-        struct _Chain __far *cnext;       /* Linked list of chains     */
+typedef struct _ChainSeg {
+        struct _ChainSeg __far *cnext;       /* Linked list of chains     */
         Group __far *glist;               /* Linked list of groups     */
         Bond __far *blist;                /* Linked list of back bonds */
         char  ident;                      /* Chain identifier          */
@@ -230,11 +241,14 @@ char ElemDesc[MAXELEM][4] = {
 
 
 
-char InfoFileName[80];
+char InfoFileName[256];
 char InfoClassification[42];
-char InfoMoleculeName[62];
+char InfoMoleculeName[80];
 char InfoSpaceGroup[11];
 char InfoIdentCode[6];
+
+Real InfoCellAlpha, InfoCellBeta, InfoCellGamma;
+Real InfoCellA, InfoCellB, InfoCellC;
 
 int InfoSSBondCount;
 int InfoLadderCount;
@@ -262,16 +276,20 @@ Long MinHBondDist, MaxHBondDist;
 Long MinBondDist,  MaxBondDist;
 int AbsMaxBondDist;
 int ElemNo,ResNo;
+int HasHydrogen;
 int MaskCount;
 
 #else
-extern char InfoFileName[80];
+extern char InfoFileName[256];
 extern char Residue[MAXRES][4];
 extern char ElemDesc[MAXELEM][4];
 extern char InfoClassification[42];
-extern char InfoMoleculeName[62];
+extern char InfoMoleculeName[80];
 extern char InfoSpaceGroup[11];
 extern char InfoIdentCode[6];
+
+extern Real InfoCellAlpha, InfoCellBeta, InfoCellGamma;
+extern Real InfoCellA, InfoCellB, InfoCellC;
 
 extern int InfoSSBondCount;
 extern int InfoLadderCount;
@@ -299,18 +317,23 @@ extern Long MinHBondDist, MaxHBondDist;
 extern Long MinBondDist,  MaxBondDist;
 extern int AbsMaxBondDist;
 extern int ElemNo,ResNo;
+extern int HasHydrogen;
 extern int MaskCount;
 
-#ifdef __STDC__
+#ifdef FUNCPROTO
 int LoadAlchemyMolecule( FILE* );
+int LoadCharmmMolecule( FILE* );
+int LoadMol2Molecule( FILE* );
 int LoadPDBMolecule( FILE* );
 int LoadXYZMolecule( FILE* );
+int LoadMDLMolecule( FILE* );
 
 int SaveAlchemyMolecule( char* );
+int SaveCIFMolecule( char* );
 int SavePDBMolecule( char* );
 int SaveXYZMolecule( char* );
 
-void CreateMoleculeBonds( int );
+void CreateMoleculeBonds( int, int );
 void FindDisulphideBridges();
 void CalcHydrogenBonds();
 void DetermineStructure();
@@ -318,15 +341,21 @@ void RenumberMolecule( int );
 void InitialiseDatabase();
 void DescribeMolecule();
 void DestroyDatabase();
+void PurgeDatabase();
 
 Atom __far *FindGroupAtom( Group __far*, int );
 
 #else /* non-ANSI C compiler */
 int LoadAlchemyMolecule();
+int LoadCharmmMolecule();
+int LoadMol2Molecule();
 int LoadPDBMolecule();
 int LoadXYZMolecule();
+int LoadMDLMolecule();
 
 int SaveAlchemyMolecule();
+int SaveMol2Molecule();
+int SaveCIFMolecule();
 int SavePDBMolecule();
 int SaveXYZMolecule();
 
@@ -338,6 +367,7 @@ void RenumberMolecule();
 void InitialiseDatabase();
 void DescribeMolecule();
 void DestroyDatabase();
+void PurgeDatabase();
 
 Atom __far *FindGroupAtom();
 

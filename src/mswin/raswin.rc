@@ -15,8 +15,6 @@ BEGIN
         MENUITEM "&Close",         IDM_CLOSE
         MENUITEM SEPARATOR
         MENUITEM "E&xit",          IDM_EXIT
-        MENUITEM SEPARATOR
-        MENUITEM "&About RasWin",  IDM_ABOUT
     END
 
     POPUP "&Display"
@@ -27,6 +25,7 @@ BEGIN
         MENUITEM "&Spacefill",     IDM_SPHERES
         MENUITEM "&Ball && Stick", IDM_BALLSTICK 
         MENUITEM "&Ribbons",       IDM_RIBBONS
+        MENUITEM "Strands",        IDM_STRANDS
     END
 
     POPUP "&Colours"
@@ -58,20 +57,26 @@ BEGIN
         MENUITEM "&PPM",           IDM_PPM
         MENUITEM "&RAST",          IDM_RAST
     END
+
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About RasMol",  IDM_ABOUT
+        MENUITEM "&User Manual",   IDM_HELP
+    END
 END
 
 
 
 AboutBox DIALOG 25, 20, 150, 88
 STYLE DS_MODALFRAME | WS_CAPTION | WS_SYSMENU
-CAPTION "About RasWin"
+CAPTION "About RasMol"
 FONT 8,"Helv"    
 BEGIN
     ICON "RasWinIcon" -1, 2, 2, 0, 0, SS_ICON
-    CTEXT "RasWin Molecular Graphics"   -1, 25,  5, 125, 8
-    CTEXT "Windows Version 2.2"         -1, 25, 14, 125, 8
-    CTEXT "Copyright (c) 1993, R.Sayle" -1, 0,  32, 150, 8
-    CTEXT "" IDD_HARDWARE,                  0,  50, 150, 8
+    CTEXT "RasWin Molecular Graphics"       -1, 25,  5, 125, 8
+    CTEXT "Windows Version 2.4"             -1, 25, 14, 125, 8
+    CTEXT "Copyright (c) 1993,1994 R.Sayle" -1, 0,  32, 150, 8
+    CTEXT "" IDD_HARDWARE,                      0,  50, 150, 8
     DEFPUSHBUTTON "OK" IDOK, 56, 70, 32, 14, WS_GROUP
 END
 
@@ -83,7 +88,7 @@ FONT 8,"Helv"
 BEGIN
     ICON "RasWinIcon" -1, 2, 2, 0, 0, SS_ICON
     CTEXT "RasWin Molecular Graphics"   -1, 25,  5, 175, 8
-    CTEXT "Windows Version 2.2"         -1, 25, 14, 175, 8
+    CTEXT "Windows Version 2.5"         -1, 25, 14, 175, 8
     DEFPUSHBUTTON "OK" IDOK, 81, 96, 32, 14, WS_GROUP
 
     LTEXT "" IDD_INFOTEXT1, 0,  32, 200, 8, SS_LEFTNOWORDWRAP

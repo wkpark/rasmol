@@ -1,7 +1,7 @@
 /* abstree.c
  * RasMol2 Molecular Graphics
- * Roger Sayle, February 1994
- * Version 2.3
+ * Roger Sayle, October 1994
+ * Version 2.5
  */
 #include "rasmol.h"
 
@@ -107,7 +107,7 @@ static void FatalExprError(ptr)
 }
 
 
-#if defined(__STDC__) || defined(IBMPC)
+#ifdef FUNCPROTO
 /* Function Prototypes */
 static AtomSet __far *SetInsert( AtomSet __far*, Atom __far* );
 static int IsWithinRadius( AtomSet __far*, Long );
@@ -240,86 +240,234 @@ void DeAllocateExpr( expr )
 }
 
 
-int GetElemIdent( aptr )
+int GetElemNumber( aptr )
     Atom __far *aptr;
 {
     register char *ptr;
+    register char ch;
 
     ptr = ElemDesc[aptr->refno];
+    ch = ptr[1];
+
     switch( *ptr )
-    {   case(' '):  switch( ptr[1] )
-                    {   case('B'): return( HandB );
-                        case('C'): return( HandC );
-                        case('D'): return( HandH );
-                        case('F'): return( HandF );
-                        case('H'): return( HandH );
-                        case('I'): return( HandI );
-                        case('K'): return( HandK );
-                        case('N'): return( HandN );
-                        case('O'): return( HandO );
-                        case('P'): return( HandP );
-                        case('S'): return( HandS );
+    {   case(' '):  switch( ch )
+                    {   case('B'):  return(  5 );
+                        case('C'):  return(  6 );
+                        case('D'):  return(  1 );
+                        case('F'):  return(  9 );
+                        case('H'):  return(  1 );
+                        case('I'):  return( 53 );
+                        case('K'):  return( 19 );
+                        case('L'):  return(  1 );
+                        case('N'):  return(  7 );
+                        case('O'):  return(  8 );
+                        case('P'):  return( 15 );
+                        case('S'):  return( 16 );
+                        case('U'):  return( 92 );
+                        case('V'):  return( 23 );
+                        case('W'):  return( 74 );
+                        case('Y'):  return( 39 );
                     }
                     break;
 
-        case('A'):  if( ptr[1]=='G' )
-                    {   return( HandAg );
-                    } else if( ptr[1]=='L' )
-                    {   return( HandAl );
-                    } else if( ptr[2]=='U' )
-                        return( HandAu );
-                    break;
-
-        case('B'):  if( ptr[1]=='R' )
-                        return( HandBr );
-                    break;
-
-        case('C'):  switch( ptr[1] )
-                    {   case('A'): return( HandCa );
-                        case('L'): return( HandCl );
-                        case('R'): return( HandCr );
-                        case('U'): return( HandCu );
+        case('A'):  switch( ch )
+                    {   case('C'):  return( 89 );
+                        case('G'):  return( 47 );
+                        case('L'):  return( 13 );
+                        case('M'):  return( 95 );
+                        case('R'):  return( 18 );
+                        case('S'):  return( 33 );
+                        case('T'):  return( 85 );
+                        case('U'):  return( 79 );
                     }
                     break;
 
-        case('F'):  if( ptr[1]=='E' )
-                        return( HandFe );
+        case('B'):  switch( ch )
+                    {   case('A'):  return( 56 );
+                        case('E'):  return(  4 );
+                        case('I'):  return( 83 );
+                        case('K'):  return( 97 );
+                        case('R'):  return( 35 );
+                    }
                     break;
 
-        case('H'):  if( ptr[1]=='E' )
-                        return( HandHe );
+        case('C'):  switch( ch )
+                    {   case('A'):  return( 20 );
+                        case('D'):  return( 48 );
+                        case('E'):  return( 58 );
+                        case('F'):  return( 98 );
+                        case('L'):  return( 17 );
+                        case('M'):  return( 96 );
+                        case('O'):  return( 27 );
+                        case('R'):  return( 24 );
+                        case('S'):  return( 55 );
+                        case('U'):  return( 29 );
+                    }
                     break;
 
-        case('L'):  if( ptr[1]=='I' )
-                        return( HandLi );
+        case('D'):  if( ch=='Y' )
+                        return( 66 );
                     break;
 
-        case('M'):  if( ptr[1]=='G' )
-                    {   return( HandMg );
-                    } else if( ptr[1]=='N' )
-                        return( HandMn );
+        case('E'):  if( ch=='R' )
+                    {   return( 68 );
+                    } else if( ch=='S' )
+                    {   return( 99 );
+                    } else if( ch=='U' )
+                        return( 63 );
                     break;
 
-        case('N'):  if( ptr[1]=='A' )
-                    {   return( HandNa );
-                    } else if( ptr[1]=='I' )
-                        return( HandNi );
+        case('F'):  if( ch=='E' )
+                    {   return(  26 );
+                    } else if( ch=='M' )
+                    {   return( 100 );
+                    } else if( ch=='R' )
+                        return(  87 );
                     break;
 
-        case('S'):  if( ptr[1]=='I' )
-                        return( HandSi );
+        case('G'):  if( ch=='A' )
+                    {   return( 31 );
+                    } else if( ch=='D' )
+                    {   return( 64 );
+                    } else if( ch=='E' )
+                        return( 32 );
                     break;
 
-        case('Z'):  if( ptr[1]=='N' )
-                        return( HandZn );
+        case('H'):  if( ch=='E' )
+                    {   return(  2 );
+                    } else if( ch=='F' )
+                    {   return( 72 );
+                    } else if( ch=='G' )
+                    {   return( 80 );
+                    } else if( ch=='O' )
+                        return( 67 );
+                    break;
+
+        case('I'):  if( ch=='N' )
+                    {   return( 49 );
+                    } else if( ch=='R' )
+                        return( 77 );
+                    break;
+
+        case('K'):  if( ch=='R' )
+                        return( 36 );
+                    break;
+
+        case('L'):  if( ch=='A' )
+                    {   return(  57 );
+                    } else if( ch=='I' )
+                    {   return(   3 );
+                    } else if( (ch=='R') || (ch=='W') )
+                    {   return( 103 );
+                    } else if( ch=='U' )
+                        return(  71 );
+                    break;
+
+        case('M'):  if( ch=='D' )
+                    {   return( 101 );
+                    } else if( ch=='G' )
+                    {   return(  12 );
+                    } else if( ch=='N' )
+                    {   return(  25 );
+                    } else if( ch=='O' )
+                        return(  42 );
+                    break;
+
+        case('N'):  switch( ch )
+                    {   case('A'):  return(  11 );
+                        case('B'):  return(  41 );
+                        case('D'):  return(  60 );
+                        case('E'):  return(  10 );
+                        case('I'):  return(  28 );
+                        case('O'):  return( 102 );
+                        case('P'):  return(  93 );
+                    }
+                    break;
+
+        case('O'):  if( ch=='S' )
+                        return( 76 );
+                    break;
+
+        case('P'):  switch( ch )
+                    {   case('A'):  return( 91 );
+                        case('B'):  return( 82 );
+                        case('D'):  return( 46 );
+                        case('M'):  return( 61 );
+                        case('O'):  return( 84 );
+                        case('R'):  return( 59 );
+                        case('T'):  return( 78 );
+                        case('U'):  return( 94 );
+                    }
+                    break;
+
+        case('R'):  switch( ch )
+                    {   case('A'):  return( 88 );
+                        case('B'):  return( 37 );
+                        case('E'):  return( 75 );
+                        case('H'):  return( 45 );
+                        case('N'):  return( 86 );
+                        case('U'):  return( 44 );
+                    }
+                    break;
+                    break;
+
+        case('S'):  switch( ch )
+                    {   case('B'):  return( 51 );
+                        case('C'):  return( 21 );
+                        case('E'):  return( 34 );
+                        case('I'):  return( 14 );
+                        case('M'):  return( 62 );
+                        case('N'):  return( 50 );
+                        case('R'):  return( 38 );
+                    }
+                    break;
+
+        case('T'):  switch( ch )
+                    {   case('A'):  return( 73 );
+                        case('B'):  return( 65 );
+                        case('C'):  return( 43 );
+                        case('E'):  return( 52 );
+                        case('H'):  return( 90 );
+                        case('I'):  return( 22 );
+                        case('L'):  return( 81 );
+                        case('M'):  return( 69 );
+                    }
+                    break;
+
+        case('X'):  if( ch=='E' )
+                        return( 54 );
+                    break;
+
+        case('Y'):  if( ch=='B' )
+                        return( 70 );
+                    break;
+
+        case('Z'):  if( ch=='N' )
+                    {   return( 30 );
+                    } else if( ch=='R' )
+                        return( 40 );
                     break;
     }
 
     if( (*ptr>='0') && (*ptr<='9') )
-        if( (ptr[1]=='H') || (ptr[1]=='D') )
-            return( HandH );
+        if( (ch=='H') || (ch=='D') )
+            return( 1 ); /* Hydrogen */
 
     return( 0 );
+}
+
+
+int ElemVDWRadius( elem )
+    int elem;
+{
+    if( !HasHydrogen )
+        switch( elem )
+        {   case(  6 ):  return( VDWCarbon );
+            case(  7 ):  return( VDWNitrogen );
+            case(  8 ):  return( VDWOxygen );    
+            case( 16 ):  return( VDWSulphur );
+        }
+    return( Element[elem].vdwrad );
 }
 
 
@@ -337,6 +485,7 @@ static int EvaluateProperty( prop )
         case( PropResName ):  return( QGroup->refno );
         case( PropChain ):    return( QChain->ident );
         case( PropSelect ):   return( QAtom->flag&SelectFlag );
+        case( PropElemNo ):   return( GetElemNumber(QAtom) );
         case( PropRad ):      if( QAtom->flag&SphereFlag )
                               {   return( QAtom->radius );
                               } else return( 0 );
@@ -347,9 +496,9 @@ static int EvaluateProperty( prop )
         case( PredHydrogen ):     return( QAtom->flag&HydrogenFlag );
         case( PredHetero ):       return( QAtom->flag&HeteroFlag );
         case( PredCystine ):      return( QGroup->flag&CystineFlag );
-        case( PredHelix ):        return( QGroup->flag&HelixFlag );
-        case( PredSheet ):        return( QGroup->flag&SheetFlag );
-        case( PredTurn ):         return( QGroup->flag&TurnFlag );
+        case( PredHelix ):        return( QGroup->struc&HelixFlag );
+        case( PredSheet ):        return( QGroup->struc&SheetFlag );
+        case( PredTurn ):         return( QGroup->struc&TurnFlag );
 
         /* Residue type predicates */
         case( PredDNA ):
@@ -364,14 +513,14 @@ static int EvaluateProperty( prop )
         /* General Predicates */
         case( PredAlpha ):        return( IsAmino(QGroup->refno) &&
                                           IsAlphaCarbon(QAtom->refno) );
-        case( PredBackbone ):     return( (IsAmino(QGroup->refno) && 
+        case( PredMainChain ):    return( (IsAmino(QGroup->refno) && 
                                            IsAminoBackbone(QAtom->refno)) ||
                                           (IsNucleo(QGroup->refno) &&
                                            IsNucleicBackbone(QAtom->refno)) );
-        case( PredLigand ):       return( (QAtom->flag&HeteroFlag) &&
-                                          !IsSolvent(QGroup->refno) );
         case( PredSidechain ):    return( IsAmino(QGroup->refno) &&
                                           !IsAminoBackbone(QAtom->refno) );
+        case( PredLigand ):       return( (QAtom->flag&HeteroFlag) &&
+                                          !IsSolvent(QGroup->refno) );
 
         /* Nucleic Acid Classifications */
         case( PredAT ):           return( IsAdenine(QGroup->refno) ||
@@ -564,6 +713,62 @@ Expr *LookUpSetExpr( ident )
 }
 
 
+static int ElemCompare( ident, elem )
+    char *ident, *elem;
+{
+    while( *elem )
+        if( *elem++ != *ident++ )
+            return( False );
+
+    /* Handle Plurals */
+    if( (ident[0]=='S') && !ident[1] )
+        return( (elem[-1]!='S') && (elem[-1]!='Y') );
+    return( !*ident );
+}
+
+
+Expr *LookUpElement( ident )
+    char *ident;
+{
+    register Expr *expr;
+    register int elem;
+
+    for( elem=1; elem<MAXELEMNO; elem++ )
+        if( ElemCompare(ident,Element[elem].name) )
+            break;
+
+    /* Handle Difficult Plurals & US Spelling! */
+    if( elem == MAXELEMNO )
+    {   if( *ident=='A' )
+        {   if( ElemCompare(ident,"ALUMINUM") )
+            {   elem = 13;
+            } else if( !strcmp(ident,"ANTIMONIES") )
+                elem = 51;
+        } else if( *ident=='C' )
+        {   if( ElemCompare(ident,"CESIUM") )
+                elem = 55;
+        } else if( *ident=='M' )
+        {   if( !strcmp(ident,"MERCURIES") )
+                elem = 80;
+        } else if( *ident=='P' )
+        {   if( !strcmp(ident,"PHOSPHORUSES") )
+                elem = 8;
+        } else if( *ident=='S' )
+        {   if( ElemCompare(ident,"SULFUR") )
+                elem = 16;
+        }
+    }
+
+    if( elem<MAXELEMNO )
+    {   expr = AllocateNode();
+        expr->type = OpEqual|OpLftProp|OpRgtVal;
+        expr->lft.val = PropElemNo;
+        expr->rgt.val = elem;
+    } else expr = (Expr*)0;
+    return( expr );
+}
+
+
 
 static int MatchWildName( src, dst, size, len )
     char *src, *dst; int size, len;
@@ -614,13 +819,13 @@ int ParsePrimitiveExpr( orig )
         {   i = 0;
             while( (ch = *ptr++) != ']' )
                 if( ch && (i<3) )
-                {   NameBuf[i++] = islower(ch)? toupper(ch) : ch;
+                {   NameBuf[i++] = ToUpper(ch);
                 } else return( False );
             ch = *ptr++;
         } else
             for( i=0; i<3; i++ )
                 if( isalpha(ch) )
-                {   NameBuf[i] = islower(ch)? toupper(ch) : ch;
+                {   NameBuf[i] = ToUpper(ch);
                     ch = *ptr++;
                 } else if( (ch=='?') || (ch=='%') )
                 {   NameBuf[i] = '?';
@@ -676,8 +881,7 @@ int ParsePrimitiveExpr( orig )
         ch = *ptr++;
 
     if( isalnum(ch) )
-    {   if( islower(ch) )
-            ch = toupper(ch);
+    {   ch = ToUpper(ch);
 
         tmp1 = AllocateNode();
         tmp1->type = OpEqual | OpLftProp | OpRgtVal;
@@ -699,9 +903,9 @@ int ParsePrimitiveExpr( orig )
         if( ch!='*' )
         {   for( i=0; i<4; i++ )
                 if( isalnum(ch) || ch=='\'' || ch=='*' )
-                {   NameBuf[i] = islower(ch)? toupper(ch) : ch;
+                {   NameBuf[i] = ToUpper(ch);
                     ch = *ptr++;
-                } else if( (ch=='?') || (ch=='%') )
+                } else if( (ch=='?') || (ch=='%') || (ch=='#') )
                 {   NameBuf[i] = '?';
                     ch = *ptr++;
                 } else break;
@@ -740,7 +944,96 @@ int ParsePrimitiveExpr( orig )
 }
 
 
-#if defined(__STDC__) || defined(IBMPC)
+static char *FormatInteger( ptr, value )
+    char *ptr; int value;
+{
+    auto char buffer[10];
+    register char *tmp;
+
+    if( value<0 )
+    {   value = -value;
+        *ptr++ = '-';
+    }
+
+    if( value>9 )
+    {   tmp = buffer;
+        while( value>9 )
+        {   *tmp++ = (value%10) + '0';
+            value /= 10;
+        }
+
+        *ptr++ = value + '0';
+        do { tmp--; 
+            *ptr++ = *tmp;
+        } while( tmp != buffer );
+    } else *ptr++ = value + '0';
+    return( ptr );
+}
+
+
+void FormatLabel( chain, group, aptr, label, ptr )
+    Chain __far *chain;
+    Group __far *group;
+    Atom __far *aptr;
+    char *label, *ptr;
+{
+    register char ch;
+    register int i,j;
+
+    while( ch = *label++ )
+       if( ch=='%' )
+       {   ch = *label++;
+           if( isupper(ch) )
+             ch = tolower(ch);
+
+           switch( ch )
+           {   case('a'):  /* Atom Name */
+                           i = aptr->refno;
+                           for( j=0; j<4; j++ )
+                               if( ElemDesc[i][j]!=' ' )
+                                   *ptr++ = ElemDesc[i][j];
+                           break;
+
+               case('b'):  /* Temperature/B-factor */
+               case('t'):  ptr = FormatInteger(ptr,aptr->temp);
+                           break;
+
+               case('c'):  /* Chain Identifier */
+               case('s'):  *ptr++ = chain->ident;
+                           break;
+
+               case('e'):  /* Element Type */
+                           i = GetElemNumber(aptr);
+                           *ptr++ = Element[i].symbol[0];
+                           if( Element[i].symbol[1]!=' ' )
+                               *ptr++ = Element[i].symbol[1];
+                           break;
+
+               case('i'):  /* Atom Number */
+                           ptr = FormatInteger(ptr,aptr->serno);
+                           break;
+
+               case('n'):  /* Residue Name   */
+                           i = group->refno;
+                           for( j=0; j<3; j++ )
+                               if( Residue[i][j]!=' ' )
+                                   *ptr++ = Residue[i][j];
+                           break;
+
+               case('r'):  /* Residue Number */
+                           ptr = FormatInteger(ptr,group->serno);
+                           break;
+
+               case('%'):  *ptr++ = '%';
+                           break;
+           }
+       } else if( (ch>=' ') && (ch<='~') )
+           *ptr++ = ch;
+    *ptr = '\0';
+}
+
+
+#ifdef FUNCPROTO
 /* Function Prototypes */
 static void DeleteSymEntry( SymEntry __far* );
 #endif

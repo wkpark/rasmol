@@ -1,13 +1,14 @@
 /* x11win.c
  * RasMol2 Molecular Graphics
- * Roger Sayle, February 1994
- * Version 2.3
+ * Roger Sayle, October 1994
+ * Version 2.5
  */
 #ifndef sun386
 #include <stdlib.h>
 #endif
 #include <string.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <math.h>
 
 #include <X11/Xlib.h>
@@ -21,15 +22,113 @@
 #include "graphics.h"
 #include "bitmaps.h"
 #include "command.h"
+#include "render.h"
+
+
+/* Menu Definitions */
+#define mbEnable    0x01
+#define mbOption    0x02
+#define mbCheck     0x04
+#define mbSepBar    0x08
+#define mbAccel     0x10
+
+
+typedef struct _MenuItem {
+            char *text;
+            int flags;
+            int pos;
+            int len;
+        } MenuItem;
+
+static MenuItem FilMenu[5] = {
+    { "Open...",    0x11, 0,  7 },
+    { "Save As...", 0x11, 0, 10 },
+    { "Close",      0x11, 0,  5 },
+    { "",           0x08, 0,  0 },
+    { "Exit",       0x11, 0,  4 } };
+
+static MenuItem DisMenu[7] = {
+    { "Wireframe",    0x11, 0,  9 },
+    { "Backbone",     0x11, 0,  8 },
+    { "Sticks",       0x11, 1,  6 },
+    { "Spacefill",    0x11, 0,  9 },
+    { "Ball & Stick", 0x11, 0, 12 },
+    { "Ribbons",      0x11, 0,  7 },
+    { "Strands",      0x01, 0,  7 } };
+
+static MenuItem ColMenu[8] = {
+    { "Monochrome",  0x11, 0, 10 },
+    { "CPK",         0x11, 0,  3 },
+    { "Shapely",     0x11, 0,  7 },
+    { "Group",       0x11, 0,  5 },
+    { "Chain",       0x11, 1,  5 },
+    { "Temperature", 0x11, 0, 11 },
+    { "Structure",   0x11, 2,  9 },
+    { "User",        0x11, 0,  4 } };
+
+static MenuItem OptMenu[5] = {
+    { "Slab Mode",    0x13, 0,  9 },
+    { "Hydrogens",    0x17, 1,  9 },
+    { "Hetero Atoms", 0x17, 2, 12 },
+    { "Specular",     0x13, 1,  8 },
+    { "Shadows",      0x13, 1,  7 } };
+
+static MenuItem ExpMenu[6] = {
+    { "GIF...",        0x11, 0,  6 },
+    { "PostScript...", 0x11, 0, 13 },
+    { "PPM...",        0x11, 2,  6 },
+    { "Sun Raster...", 0x11, 0, 13 },
+    { "BMP...",        0x11, 0,  6 },
+    { "PICT...",       0x11, 1,  7 } };
+
+static MenuItem HelMenu[2] = {
+    { "About RasMol...",  0x10, 0, 15 },
+    { "User Manual...",   0x10, 0, 14 } };
+
+
+typedef struct _BarItem {
+            MenuItem *menu;
+            char *text;
+            int count;
+            int flags;
+            int len;
+        } BarItem;
+
+#define MenuBarMax 6
+static BarItem MenuBar[MenuBarMax] = { 
+    { FilMenu, "File",    5, 0x01, 4 },
+    { DisMenu, "Display", 7, 0x01, 7 },
+    { ColMenu, "Colours", 8, 0x01, 7 },
+    { OptMenu, "Options", 5, 0x01, 7 },
+    { ExpMenu, "Export",  6, 0x01, 6 },
+    { HelMenu, "Help",    2, 0x01, 4 } };
+
+static int MenuFocus;
+static int ItemFocus;
+static int MenuItemSelect;
+static int MenuBarSelect;
+static int MenuBarCount;
+static int PopUpWide;
+static int PopUpHigh;
+static int PopUpFlag;
+static int ItemFlag;
 
 
 #ifdef DIALBOX
 #include <X11/extensions/XInput.h>
 
+static char *DialLabel[] = { "ROTATE X", "ROTATE Y", "ROTATE Z", "  ZOOM  ",
+                             "TRANS X ", "TRANS Y ", "TRANS Z ", "  SLAB  " };
+static int *DialMap;
+static int ESVDialMap[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+static int SGIDialMap[8] = { 3, 7, 2, 6, 1, 5, 0, 4 };
+
+static Real DialRes[8];
+static int DialPrev[8];
+static int DialMode;
+
 static int UseDialLEDs;
-static XEventClass DialClass;
 static XDevice *Dials;
-static XID DialIdent;
 static int DialEvent;
 static int UseDials;
 #endif
@@ -41,39 +140,27 @@ static int UseDials;
 #include <sys/shm.h>
 #include <X11/extensions/XShm.h>
 
-#ifdef __STDC__
-Bool XShmQueryExtension( Display* );
-#else /* non-ANSI C compiler */
-Bool XShmQueryExtension();
-#endif
-
 XShmSegmentInfo xshminfo;
 int SharedMemOption;
 int SharedMemFlag;
 #endif
 
-
-#define ButWide    96
-#define ButHigh    32
 #define XScrlDial  1 /*1*/
 #define YScrlDial  0 /*0*/
 #define XScrlSkip  8
 #define YScrlSkip  8
 
+typedef union {
+    Long longword;
+    Byte bytes[4];
+    } ByteTest;
+
 
 /* Determine Mouse Sensitivity! */
 #define IsClose(u,v) (((u)>=(v)-1) && ((u)<=(v)+1))
-#define MinHeight    (ButMax*(ButHigh+18)+18)
-#define MinWidth     (ButWide+127+32)
 
-
-/* Increased point size for NCD X-terminals! */
-#define NrmFontMax 4
-static char *NrmFont[] = {
-        "-*-lucida-bold-r-*-*-12-*",
-        "-*-helvetica-bold-r-*-*-12-*",
-        "-*-lucida-bold-r-*-*-14-*",
-        "-*-helvetica-bold-r-*-*-14-*" };
+static int MenuHigh;
+static int FontHigh;
 
 static Cursor cross;
 static Cursor arrow;
@@ -83,11 +170,14 @@ static Pixmap tilepix;
 static Pixmap uppix, dnpix;
 static Pixmap lfpix, rgpix;
 static Pixmap ButUp, ButDn;
-static XFontStruct *NrmInfo;
+static XFontStruct *MenuFont;
 static XSetWindowAttributes attr;
 static Window XScrlWin, YScrlWin;
+static Window PopUpWin;
 static Window MainWin;
 static Window CanvWin;
+static Window MenuWin;
+static Window RootWin;
 static XWMHints hints;
 static Colormap cmap;
 static Colormap lmap;
@@ -102,21 +192,16 @@ static int IdentCount;
 #endif
 
 
-static int MouseMode;
 static int InitX, InitY;
 static int HeldButton;
 static int HeldStep;
 
-static Window OptWin[ButMax];
-static char *OptPtr[ButMax];
-static int OptLen[ButMax];
-static int OptCount;
-
-static int MaxWidth;
-static int MaxHeight;
+static int MinWidth,MaxWidth;
+static int MinHeight,MaxHeight;
 static int MainWide, MainHigh;
-static int ScrlX, NewScrlX;
-static int ScrlY, NewScrlY;
+static int ScrlX,NewScrlX;
+static int ScrlY,NewScrlY;
+static int SwapBytes;
 static int PixDepth;
 static int LocalMap;
 
@@ -128,6 +213,12 @@ static Atom ProtoXAtom;
 static Atom InterpAtom;
 static Atom CommAtom;
 
+
+/* Routine in rasmol.c! */
+extern int ProcessCommand();
+
+/* Forward Declarations */
+static int HandleMenuLoop();
 
 
 static void FatalGraphicsError(ptr)
@@ -159,9 +250,9 @@ void AllocateColourMap()
 
     for( i=0; i<256; i++ )
         if( ULut[i] )
-        {   Col.red   = RLut[i]<<8;
-            Col.green = GLut[i]<<8;
-            Col.blue  = BLut[i]<<8;
+        {   Col.red   = RLut[i]<<8 | RLut[i];
+            Col.green = GLut[i]<<8 | GLut[i];
+            Col.blue  = BLut[i]<<8 | BLut[i];
             Col.flags = DoRed | DoGreen | DoBlue;
             if( !XAllocColor(dpy,cmap,&Col) )
                 break;
@@ -174,18 +265,18 @@ void AllocateColourMap()
         LocalMap = True;
 
         for( j=0; j<5; j++ )
-        {   Col.red   = RLut[j]<<8;
-            Col.green = GLut[j]<<8;
-            Col.blue  = BLut[j]<<8;
+        {   Col.red   = RLut[j]<<8 | RLut[j];
+            Col.green = GLut[j]<<8 | GLut[j];
+            Col.blue  = BLut[j]<<8 | BLut[j];
             XAllocColor(dpy,cmap,&Col);
             Lut[i] = Col.pixel;
         }
 
         for( j=i; j<256; j++ )
             if( ULut[j] )
-            {   Col.red   = RLut[j]<<8;
-                Col.green = GLut[j]<<8;
-                Col.blue  = BLut[j]<<8;
+            {   Col.red   = RLut[j]<<8 | RLut[j];
+                Col.green = GLut[j]<<8 | GLut[j];
+                Col.blue  = BLut[j]<<8 | BLut[j];
                 XAllocColor(dpy,lmap,&Col);
                 Lut[j] = Col.pixel;
             }
@@ -193,11 +284,33 @@ void AllocateColourMap()
         XSetWindowColormap(dpy,CanvWin,lmap);
         XInstallColormap(dpy,lmap);
     }
+#else
+    static XColor Col;
+    static ByteTest buf;
+    register Byte temp;
+    register int i;
+
+    for( i=0; i<256; i++ )
+        if( ULut[i] )
+        {   Col.red   = RLut[i]<<8 | RLut[i];
+            Col.green = GLut[i]<<8 | GLut[i];
+            Col.blue  = BLut[i]<<8 | BLut[i];
+            XAllocColor(dpy,cmap,&Col);
+            if( SwapBytes )
+            {   buf.longword = (Long)Col.pixel;
+                temp = buf.bytes[0];
+                buf.bytes[0] = buf.bytes[3];
+                buf.bytes[3] = temp;
+
+                temp = buf.bytes[1];
+                buf.bytes[1] = buf.bytes[2];
+                buf.bytes[2] = temp;
+                Lut[i] = buf.longword;
+            } else Lut[i] = (Long)Col.pixel;
+       }
 #endif
-
-    XSetWindowBackground(dpy,CanvWin,(long)Lut[5]);
+    XSetWindowBackground(dpy,CanvWin,(unsigned long)Lut[5]);
 }
-
 
 
 static void OpenCanvas( x, y )
@@ -211,21 +324,28 @@ static void OpenCanvas( x, y )
     attr.cursor = cross;                           mask |= CWCursor;
     attr.background_pixel = Lut[0];                mask |= CWBackPixel;
 
-    CanvWin = XCreateWindow(dpy, MainWin, 18, 18, x, y, 0, CopyFromParent,
-                            InputOutput, vis, mask, &attr );
+    CanvWin = XCreateWindow(dpy, MainWin, 14, MenuHigh+14, x, y, 0, 
+                            CopyFromParent, InputOutput, vis, mask, &attr );
 }
 
 
 static void OpenFonts()
 {
+    static char *fontname[] = { "-*-helvetica-bold-o-normal-*-14-*" };
     register int i;
+
     cross = XCreateFontCursor(dpy,XC_tcross);
     arrow = XCreateFontCursor(dpy,XC_top_left_arrow);
 
-    for( i=0; i<NrmFontMax; i++ )
-        if( (NrmInfo=XLoadQueryFont(dpy,NrmFont[i])) ) 
-            return;
-    FatalGraphicsError("Unable to find suitable font");
+    for( i=0; i<1; i++ )
+        if( (MenuFont=XLoadQueryFont(dpy,fontname[i])) ) 
+            break;
+
+    if( !MenuFont )
+        FatalGraphicsError("Unable to find suitable font");
+    FontHigh = MenuFont->max_bounds.descent +
+               MenuFont->max_bounds.ascent + 1;
+    MenuHigh = FontHigh+6;
 }
 
 
@@ -256,9 +376,9 @@ static void OpenColourMap()
     Col.flags = DoRed | DoGreen | DoBlue;
 
     for( i=0; i<5; i++ )
-    {   Col.red   = RLut[i]<<8;
-        Col.green = GLut[i]<<8;
-        Col.blue  = BLut[i]<<8;
+    {   Col.red   = RLut[i]<<8 | RLut[i];
+        Col.green = GLut[i]<<8 | GLut[i];
+        Col.blue  = BLut[i]<<8 | BLut[i];
         if( !XAllocColor(dpy,cmap,&Col) )
         {   cmap = XCopyColormapAndFree(dpy,cmap);
             XAllocColor(dpy,cmap,&Col);
@@ -291,11 +411,12 @@ static int RegisterInterpName( name )
                                 &format, &len, &left, &registry );
 
     if( (result!=Success) || (format!=8) || (type!=XA_STRING) )
-    {   if( (type!=None) && registry ) XFree(registry);
+    {   if( (type!=None) && registry ) XFree( (char*)registry );
 
         sprintf(buffer,"%x %s",MainWin,name);
         XChangeProperty( dpy, RootWindow(dpy,0), InterpAtom, XA_STRING, 
-                         8, PropModeReplace, buffer, strlen(buffer)+1 );
+                         8, PropModeReplace, (unsigned char*)buffer, 
+                         strlen(buffer)+1 );
         return( True );
     }
 
@@ -307,17 +428,18 @@ static int RegisterInterpName( name )
 
         /* Compare Interp Name */
         if( !strcmp(ptr,name) )
-        {   XFree(registry);
+        {   XFree( (char*)registry );
             return(False);
         }
 
         while( *ptr++ );
     }
 
-    XFree(registry);
+    XFree( (char*)registry );
     sprintf(buffer,"%x %s",MainWin,name);
     XChangeProperty( dpy, RootWindow(dpy,0), InterpAtom, XA_STRING, 
-                     8, PropModeAppend, buffer, strlen(buffer)+1 );
+                     8, PropModeAppend, (unsigned char*)buffer, 
+                     strlen(buffer)+1 );
     return( True );
 }
 
@@ -342,7 +464,7 @@ static void DeRegisterInterpName( name )
 
     if( (result!=Success) || (format!=8) || (type!=XA_STRING) )
     {   XDeleteProperty( dpy, RootWindow(dpy,0), InterpAtom );
-        if( registry ) XFree(registry);
+        if( registry ) XFree( (char*)registry );
         return;
     }
 
@@ -371,7 +493,7 @@ static void DeRegisterInterpName( name )
         XChangeProperty( dpy, RootWindow(dpy,0), InterpAtom, XA_STRING,
                          8, PropModeReplace, registry, dst-(char*)registry );
     }
-    XFree( registry );
+    XFree( (char*)registry );
 }
 
 
@@ -403,116 +525,97 @@ static void OpenIPCComms()
 }
 
 
-static void DrawBox(wdw,pos,x1,y1,x2,y2)
-    Drawable wdw; int pos,x1,y1,x2,y2;
+static void DrawUpBox( wdw, x1, y1, x2, y2 )
+    Drawable wdw;  int x1,y1,x2,y2;
 {
-    register unsigned long colour;
-    register int ux,uy,lx,ly;
-    register int index;
+    register int lx,ly,ux,uy;
 
-    lx=x1; ly=y1; ux=x2; uy=y2;
-    colour = Lut[pos? 3 : 1 ];
-    XSetForeground(dpy,gcon,colour);
-    for( index=0; index<3; index++ )
-    {   XDrawLine(dpy,wdw,gcon,lx,ly,ux,ly);
-        XDrawLine(dpy,wdw,gcon,lx,ly,lx,uy);
-        lx++; ly++; ux--; uy--;
-    }
+    lx = x1+1;  ly = y1+1;
+    ux = x2-1;  uy = y2-1;
 
-    
-    lx=x1; ly=y1; ux=x2; uy=y2;
-    colour = Lut[pos? 1 : 3 ];
-    XSetForeground(dpy,gcon,colour);
-    for( index=0; index<3; index++ )
-    {   XDrawLine(dpy,wdw,gcon,ux,ly,ux,uy);
-        XDrawLine(dpy,wdw,gcon,lx,uy,ux,uy);
-        lx++; ly++; ux--; uy--;
-    }
+    XSetForeground(dpy,gcon,(unsigned long)Lut[3]);
+    XDrawLine(dpy,wdw,gcon,x1,y1,x2,y1);
+    XDrawLine(dpy,wdw,gcon,x1,y1,x1,y2);
+    XDrawLine(dpy,wdw,gcon,lx,ly,ux,ly);
+    XDrawLine(dpy,wdw,gcon,lx,ly,lx,uy);
+
+    XSetForeground(dpy,gcon,(unsigned long)Lut[1]);
+    XDrawLine(dpy,wdw,gcon,x2,y1,x2,y2);
+    XDrawLine(dpy,wdw,gcon,x1,y2,x2,y2);
+    XDrawLine(dpy,wdw,gcon,ux,ly,ux,uy);
+    XDrawLine(dpy,wdw,gcon,lx,uy,ux,uy);
 }
 
 
-static void OpenButtons()
+static void DrawDnBox( wdw, x1, y1, x2, y2 )
+    Drawable wdw;  int x1,y1,x2,y2;
+{
+    register int lx,ly,ux,uy;
+
+    lx = x1+1;  ly = y1+1;
+    ux = x2-1;  uy = y2-1;
+
+    XSetForeground(dpy,gcon,(unsigned long)Lut[1]);
+    XDrawLine(dpy,wdw,gcon,x1,y1,x2,y1);
+    XDrawLine(dpy,wdw,gcon,x1,y1,x1,y2);
+    XDrawLine(dpy,wdw,gcon,lx,ly,ux,ly);
+    XDrawLine(dpy,wdw,gcon,lx,ly,lx,uy);
+
+    XSetForeground(dpy,gcon,(unsigned long)Lut[3]);
+    XDrawLine(dpy,wdw,gcon,x2,y1,x2,y2);
+    XDrawLine(dpy,wdw,gcon,x1,y2,x2,y2);
+    XDrawLine(dpy,wdw,gcon,ux,ly,ux,uy);
+    XDrawLine(dpy,wdw,gcon,lx,uy,ux,uy);
+}
+
+
+static void DrawNoBox( wdw, x1, y1, x2, y2 )
+    Drawable wdw;  int x1,y1,x2,y2;
+{
+    register int lx,ly,ux,uy;
+
+    lx = x1+1;  ly = y1+1;
+    ux = x2-1;  uy = y2-1;
+
+    XSetForeground(dpy,gcon,(unsigned long)Lut[2]);
+
+    XDrawLine(dpy,wdw,gcon,x1,y1,x2,y1);
+    XDrawLine(dpy,wdw,gcon,x2,y1,x2,y2);
+    XDrawLine(dpy,wdw,gcon,x2,y2,x1,y2);
+    XDrawLine(dpy,wdw,gcon,x1,y2,x1,y1);
+
+    XDrawLine(dpy,wdw,gcon,lx,ly,ux,ly);
+    XDrawLine(dpy,wdw,gcon,ux,ly,ux,uy);
+    XDrawLine(dpy,wdw,gcon,ux,uy,lx,uy);
+    XDrawLine(dpy,wdw,gcon,lx,uy,lx,ly);
+}
+
+
+static void OpenMenuBar()
 {
     register unsigned long mask;
-    register int index;
-
-    ButUp = XCreatePixmap( dpy, MainWin, ButWide+8, ButHigh+8, PixDepth );
-    ButDn = XCreatePixmap( dpy, MainWin, ButWide+8, ButHigh+8, PixDepth );
-
-    XSetForeground( dpy, gcon, (unsigned long)Lut[2] );
-    XFillRectangle( dpy, ButUp, gcon, 0, 0, ButWide+7, ButHigh+7 );
-    XFillRectangle( dpy, ButDn, gcon, 0, 0, ButWide+7, ButHigh+7 );
-
-    XSetForeground( dpy, gcon, (unsigned long)Lut[0] );
-    XDrawRectangle( dpy, ButUp, gcon, 0, 0, ButWide+7, ButHigh+7 );
-    XDrawRectangle( dpy, ButDn, gcon, 0, 0, ButWide+7, ButHigh+7 );
-    
-    DrawBox( ButUp, True,  1, 1, ButWide+6, ButHigh+6 );
-    DrawBox( ButDn, False, 1, 1, ButWide+6, ButHigh+6 );
-
 
     mask = CWEventMask;
-    attr.event_mask = ButtonPressMask | ButtonReleaseMask;
-
-    for( index=0; index<ButMax; index++ )
-        OptWin[index] = XCreateWindow( dpy, MainWin,
-                                       XRange+58, index*(ButHigh+18)+15,
-                                       ButWide+6, ButHigh+6, 0,
-                                       CopyFromParent, InputOnly, vis,
-                                       mask, &attr );
-    OptCount = 0;
-}
+    attr.event_mask = ExposureMask | ButtonPressMask | ButtonReleaseMask;
+    MenuWin = XCreateWindow( dpy, MainWin, 2, 2, XRange+49, FontHigh+5, 0,
+                             CopyFromParent, InputOnly, vis, mask, &attr );
 
 
-static void ReDrawButton( num, pos )
-    int num, pos;
-{
-    register int deltaX, deltaY;
-    register int xpos, ypos;
+    /* Create Unmapped PopUp Window! */
+    mask = CWEventMask;
+    attr.event_mask = ExposureMask | ButtonPressMask | ButtonReleaseMask | 
+                      KeyPressMask;
+    attr.background_pixel = Lut[2];     mask |= CWBackPixel;
+    attr.border_pixel = Lut[2];         mask |= CWBorderPixel;
+    attr.override_redirect = True;      mask |= CWOverrideRedirect;
+    attr.save_under = True;             mask |= CWSaveUnder;
+    attr.colormap = cmap;               mask |= CWColormap;
 
-    xpos = XRange+61;
-    ypos = num*(ButHigh+18)+18;
-
-    deltaY = (ButHigh-(NrmInfo->ascent+NrmInfo->descent))/2+NrmInfo->ascent;
-    deltaX = (ButWide-XTextWidth(NrmInfo,OptPtr[num],OptLen[num]))/2;
-
-    XSetFont( dpy, gcon, NrmInfo->fid );
-    XSetForeground( dpy, gcon, (unsigned long)Lut[0] );
-    XCopyArea( dpy, pos? ButUp : ButDn, MainWin, gcon,
-               0, 0, ButWide+8, ButHigh+8, xpos-4, ypos-4 );
-    XDrawString( dpy, MainWin, gcon, xpos+deltaX, ypos+deltaY, 
-                 OptPtr[num], OptLen[num] );
-    XFlush(dpy);
-}
-
-
-void NewMenu( num, option )
-    int num; char **option;
-{
-    register char *ptr;
-    register int start,stop;
-    register int index;
-    register int len;
-
-    for( index=0; index<num; index++ )
-    {   len = 0;
-        OptPtr[index] = ptr = *option++;
-        while( *ptr++ ) len++;
-        OptLen[index] = len;
-
-        ReDrawButton( index, True );
-    }
-    MenuDisable = False;
-    OptCount = num;
-
-    if( num<ButMax )
-    {    start = num*(ButHigh+18)+13;
-         stop = ButMax*(ButHigh+18)+5;
-         XSetForeground(dpy,gcon,(unsigned long)Lut[2]);
-         XFillRectangle( dpy, MainWin, gcon, 
-                         XRange+56, start, ButWide+10, stop-start );
-    }
-    XSync(dpy,False);
+    PopUpWin = XCreateWindow(dpy, RootWin, 0, 0, 100, 100, 0, 
+                             PixDepth, InputOutput, vis,
+                             mask, &attr );
+    MenuFocus = False;
+    PopUpFlag = False;
 }
 
 
@@ -525,43 +628,48 @@ static void OpenScrollBars()
     XFillRectangle(dpy,Scrl,gcon,0,0,15,15);
     XSetForeground(dpy,gcon,(unsigned long)Lut[0]); 
     XDrawRectangle(dpy,Scrl,gcon,0,0,15,15);
-    DrawBox( Scrl, True, 1, 1, 14, 14 );
+    DrawUpBox( Scrl, 1, 1, 14, 14 );
 
-    tilepix = XCreatePixmapFromBitmapData( dpy, MainWin, (char*)ScrlTile,
-                                           8, 8, Lut[0], Lut[2], PixDepth );
+    tilepix = XCreatePixmapFromBitmapData( dpy, MainWin, (char*)ScrlTile, 8, 8,
+                                           (unsigned long)Lut[0], 
+                                           (unsigned long)Lut[2], PixDepth );
 
     mask = CWEventMask;
     attr.event_mask = ExposureMask | ButtonPressMask | ButtonMotionMask 
                     | ButtonReleaseMask;
     attr.background_pixmap = tilepix;              mask |= CWBackPixmap;
 
-    XScrlWin = XCreateWindow( dpy, MainWin, 18, YRange+27, XRange, 16, 0,
-                              CopyFromParent, InputOutput, vis, mask, &attr );
-    lfpix = XCreatePixmapFromBitmapData( dpy, MainWin, (char*)LfArrow,
-                                         16, 16, Lut[0], Lut[2], PixDepth );
-    rgpix = XCreatePixmapFromBitmapData( dpy, MainWin, (char*)RgArrow,
-                                         16, 16, Lut[0], Lut[2], PixDepth );
+    XScrlWin = XCreateWindow( dpy, MainWin, 14, YRange+MenuHigh+24, XRange, 16, 
+                              0, CopyFromParent, InputOutput, vis, mask, &attr );
+    lfpix = XCreatePixmapFromBitmapData( dpy, MainWin, (char*)LfArrow, 16, 16,
+                                         (unsigned long)Lut[0], 
+                                         (unsigned long)Lut[2], PixDepth );
+    rgpix = XCreatePixmapFromBitmapData( dpy, MainWin, (char*)RgArrow, 16, 16, 
+                                         (unsigned long)Lut[0], 
+                                         (unsigned long)Lut[2], PixDepth );
 
 
-    YScrlWin = XCreateWindow( dpy, MainWin, XRange+27, 18, 16, YRange, 0,
-                              CopyFromParent, InputOutput, vis, mask, &attr );
-    uppix = XCreatePixmapFromBitmapData( dpy, MainWin, (char*)UpArrow,
-                                         16, 16, Lut[0], Lut[2], PixDepth );
-    dnpix = XCreatePixmapFromBitmapData( dpy, MainWin, (char*)DnArrow,
-                                         16, 16, Lut[0], Lut[2], PixDepth );
+    YScrlWin = XCreateWindow( dpy, MainWin, XRange+24, MenuHigh+14, 16, YRange, 
+                              0, CopyFromParent, InputOutput, vis, mask, &attr );
+    uppix = XCreatePixmapFromBitmapData( dpy, MainWin, (char*)UpArrow, 16, 16,
+                                         (unsigned long)Lut[0], 
+                                         (unsigned long)Lut[2], PixDepth );
+    dnpix = XCreatePixmapFromBitmapData( dpy, MainWin, (char*)DnArrow, 16, 16,
+                                         (unsigned long)Lut[0], 
+                                         (unsigned long)Lut[2], PixDepth );
 
     ScrlX = (XRange/2)-8;
     ScrlY = (YRange/2)-8;
 }
 
-static void ReDrawXScroll()
+static void DrawXScroll()
 {
     XCopyArea(dpy,rgpix,XScrlWin,gcon,0,0,16,16,XRange-16,0);
     XCopyArea(dpy,Scrl ,XScrlWin,gcon,0,0,16,16,ScrlX,0);
     XCopyArea(dpy,lfpix,XScrlWin,gcon,0,0,16,16,0,0);
 }
 
-static void ReDrawYScroll()
+static void DrawYScroll()
 {
     XCopyArea(dpy,dnpix,YScrlWin,gcon,0,0,16,16,0,YRange-16);
     XCopyArea(dpy,Scrl ,YScrlWin,gcon,0,0,16,16,0,ScrlY);
@@ -610,68 +718,111 @@ static void SetDialLabel( num, ptr )
        text[length++] = *ptr++;
 
     ctrl.id = num;
-    ctrl.class = DialIdent;
     ctrl.num_keysyms = length;
+    ctrl.class = ValuatorClass;
     ctrl.syms_to_display = text;
-    XChangeFeedbackControl(dpy,Dials,DvString,&ctrl);
+    XChangeFeedbackControl(dpy,Dials,DvString,
+                           (XFeedbackControl*)&ctrl);
+}
+
+
+static void GetDialState()
+{
+    register XValuatorState *ptr;
+    register XDeviceState *stat;
+    register int i,j,max;
+
+    stat = XQueryDeviceState(dpy,Dials);
+    ptr = (XValuatorState*)stat->data;
+    for( i=0; i<stat->num_classes; i++ )
+    {   if( ptr->class == ValuatorClass )
+        {   if( ptr->mode & 0x01 )
+            {   DialMode = Absolute;
+                max = MinFun(ptr->num_valuators,8);
+                for( j=0; j<max; j++ )
+                    DialPrev[j] = ptr->valuators[j];
+            } else DialMode = Relative;
+            break;
+        } else ptr = (XValuatorState*)(((char*)ptr) + 
+                                       ptr->length);
+    }
+    XFreeDeviceState(stat);
 }
 
 
 static void OpenDialsBox()
 {
+    register XValuatorInfo *valptr;
     register XFeedbackState *list;
     register XFeedbackState *feed;
     register XDeviceInfo *devlist;
     register XDeviceInfo *ptr;
     register Atom devtype;
-    register int index;
+    register int i,j,max;
+
+    static XEventClass dclass;
     static int count;
 
+
     UseDials = False;
+    /* Avoid X Server's without the extension */
+    if( !XQueryExtension(dpy,"XInputExtension",
+                         &count,&count,&count) )
+        return;
+    
     devlist = XListInputDevices(dpy,&count);
     devtype = XInternAtom(dpy,XI_KNOB_BOX,True );
     if( (devtype==None) || !devlist ) return;
 
     ptr = devlist;
-    for( index=0; index<count; index++ )
+    for( i=0; i<count; i++ )
         if( (ptr->use==IsXExtensionDevice) && (ptr->type==devtype) )
-        {   Dials = XOpenDevice(dpy,ptr->id);
-            DialIdent = ptr->inputclassinfo->class;
-            UseDials = True;
-            break;
+        {   valptr = (XValuatorInfo*)ptr->inputclassinfo;
+            for( j=0; j<ptr->num_classes; j++ )
+            {   if( valptr->class == ValuatorClass )
+                    if( (Dials=XOpenDevice(dpy,ptr->id)) )
+                    {   UseDials = True;
+                        break;
+                    }
+                valptr = (XValuatorInfo*)(((char*)valptr) +
+                                          valptr->length);
+            }
+            if( UseDials ) break;
         } else ptr++;
     /* XFreeDeviceList(devlist); */
-    if( !UseDials ) return;
+
+    if( UseDials ) 
+    {   /* Determine Dial Mapping! */
+        if( !strcmp(ServerVendor(dpy),"Silicon Graphics") )
+        {      DialMap = SGIDialMap;
+        } else DialMap = ESVDialMap;
+
+        DialMode = valptr->mode;
+        max = MinFun(valptr->num_axes,8);
+        for( i=0; i<max; i++ )
+            DialRes[i] = (Real)valptr->axes[i].resolution;
+        GetDialState();
+    } else return;
 
     UseDialLEDs = 0;
     feed = list = XGetFeedbackControl( dpy, Dials, &count );
-    for( index=0; index<count; index++ )
-    {   if( feed->class == StringFeedbackClass )
-            UseDialLEDs++;
+    for( i=0; i<count; i++ )
+    {   if( feed->class == StringFeedbackClass ) UseDialLEDs++;
         feed = (XFeedbackState*)(((char*)feed) + feed->length);
     }
     XFreeFeedbackList( list );
 
     if( UseDialLEDs >= 8 )
-    {   SetDialLabel(0,"ROTATE X");
-        SetDialLabel(1,"ROTATE Y");
-        SetDialLabel(2,"ROTATE Z");
-        SetDialLabel(3,"  ZOOM  ");
-
-        SetDialLabel(4,"TRANS X ");
-        SetDialLabel(5,"TRANS Y ");
-        SetDialLabel(6,"TRANS Z ");
-        SetDialLabel(7,"  SLAB  ");
+    {   for( i=0; i<8; i++ )
+            SetDialLabel(i,DialLabel[DialMap[i]]);
     } else UseDialLEDs = False;
 
-    DeviceMotionNotify( Dials, DialEvent, DialClass );
-    XSelectExtensionEvent( dpy, MainWin, &DialClass, 1 );
-    XSelectExtensionEvent( dpy, CanvWin, &DialClass, 1 );
-    XSelectExtensionEvent( dpy, XScrlWin, &DialClass, 1 );
-    XSelectExtensionEvent( dpy, YScrlWin, &DialClass, 1 );
-
-    for( index=0; index<ButMax; index++ )
-       XSelectExtensionEvent( dpy, OptWin[index], &DialClass, 1 );
+    DeviceMotionNotify( Dials, DialEvent, dclass );
+    XSelectExtensionEvent( dpy, MainWin, &dclass, 1 );
+    XSelectExtensionEvent( dpy, MenuWin, &dclass, 1 );
+    XSelectExtensionEvent( dpy, CanvWin, &dclass, 1 );
+    XSelectExtensionEvent( dpy, XScrlWin, &dclass, 1 );
+    XSelectExtensionEvent( dpy, YScrlWin, &dclass, 1 );
 }
 
 
@@ -686,13 +837,20 @@ static void HandleDialEvent( ptr )
 
     /* Limit Number of Dials */
     count = 8 - ptr->first_axis;
-    if( count > ptr->axes_count )
-        count = ptr->axes_count;
+    if( count > (int)ptr->axes_count )
+        count = (int)ptr->axes_count;
 
     for( index=0; index<count; index++ )
-        if( value = ptr->axis_data[index] )
-        {   num = ptr->first_axis+index;
-            temp = DialValue[num]+(value/1024.0);
+    {   num = ptr->first_axis+index;
+        if( DialMode == Absolute )
+        {   value = ptr->axis_data[index] - DialPrev[num];
+            DialPrev[num] = ptr->axis_data[index];
+        } else value = ptr->axis_data[index];
+
+        if( value )
+        {   temp = (Real)value/DialRes[num];
+            num = DialMap[num];
+            temp += DialValue[num];
             ReDrawFlag |= (1<<num);
 
             if( num<3 )
@@ -714,22 +872,499 @@ static void HandleDialEvent( ptr )
                 NewScrlX = (value>>1)+16;
             }
         }
+    }
 }
 #endif
 
 
-static void ReDrawMain()
+static void DrawMainWin()
 {
+    register int temp;
+
+    DrawUpBox(MainWin,0,0,MainWide,MainHigh);
+    DrawUpBox(MainWin,0,0,MainWide-2,FontHigh+7);
+
+    temp = YRange+MenuHigh;
+    DrawDnBox(MainWin,12,MenuHigh+12,XRange+16,temp+16);
+    DrawDnBox(MainWin,XRange+22,MenuHigh+12,XRange+41,temp+16);
+    DrawDnBox(MainWin,12,temp+22,XRange+16,temp+41);
+}
+
+
+/********************/
+/* Menu Bar Display */
+/********************/
+
+static void DisplayMenuBarText( ptr, x, y )
+    BarItem *ptr;  int x, y;
+{
+    register unsigned long col;
+    register int under,wide;
+
+    if( ptr->flags&mbEnable && !DisableMenu )
+    {      col = Lut[0];
+    } else col = Lut[1];
+    XSetForeground( dpy, gcon, col );
+
+    XDrawString( dpy, MainWin, gcon, x, y, ptr->text, ptr->len );
+
+    under = y + MenuFont->descent;
+    wide = XTextWidth( MenuFont, ptr->text, 1 );
+    XDrawLine( dpy, MainWin, gcon, x, under, x+wide, under );
+}
+
+
+static void DrawMenuBar()
+{
+    register BarItem *ptr;
+    register int wide;
+    register int x,y;
+    register int i;
+
+    x = 6; y = MenuFont->ascent+4;
+    XSetFont( dpy, gcon, MenuFont->fid );
+
+    for( i=0; i<MenuBarMax; i++ )
+    {   ptr = MenuBar+i;
+        wide = XTextWidth( MenuFont, ptr->text, ptr->len );
+        if( x+wide+24 > MainWide ) break;
+
+        /* Right Justify "Help" */
+        if( i == MenuBarMax-1 )
+            x = MainWide - (wide+24);
+
+        DisplayMenuBarText( ptr, x+8, y );
+
+        if( MenuFocus && (i==MenuBarSelect) )
+        {      DrawUpBox( MainWin, x, 2, x+wide+16, FontHigh+5 );
+        } else DrawNoBox( MainWin, x, 2, x+wide+16, FontHigh+5 );
+        x += wide+24;
+    }
+    MenuBarCount = i;
+    XSync(dpy,False);
+}
+
+
+/***********************/
+/* Pop-up Menu Display */
+/***********************/
+
+static void DisplayPopUpText( ptr, x, y )
+    MenuItem *ptr; int x, y;
+{
+    register unsigned long col;
+    register int pos, wide;
+    register int i,under;
     register int index;
 
-    DrawBox(MainWin,True,0,0,MainWide,MainHigh);
-    DrawBox(MainWin,False,15,15,XRange+20,YRange+20);
-    DrawBox(MainWin,False,XRange+24,15,XRange+45,YRange+20);
-    DrawBox(MainWin,False,15,YRange+24,XRange+20,YRange+45);
+    col = (ptr->flags&mbEnable)? Lut[0] : Lut[1];
+    XSetForeground( dpy, gcon, col );
 
-    for( index=0; index<OptCount; index++ )
-        ReDrawButton( index, True );
+    XDrawString( dpy, PopUpWin, gcon, x, y, ptr->text, ptr->len );
+
+    if( ptr->flags & mbAccel )
+    {   under = y + MenuFont->descent;
+
+        pos = x;
+        for( i=0; i<ptr->pos; i++ )
+        {   index = ptr->text[i] - MenuFont->min_char_or_byte2;
+            pos += MenuFont->per_char[index].width;
+        }
+
+        index = ptr->text[ptr->pos] - MenuFont->min_char_or_byte2;
+        wide = pos+MenuFont->per_char[index].rbearing;
+        pos += MenuFont->per_char[index].lbearing;
+
+        XDrawLine( dpy, PopUpWin, gcon, pos, under, wide, under );
+    }
 }
+
+
+static void DrawPopUpMenu()
+{
+    register unsigned long col;
+    register MenuItem *ptr;
+    register int count;
+    register int x,y;
+    register int i;
+
+    DrawUpBox(PopUpWin,0,0,PopUpWide,PopUpHigh);
+
+    ptr = MenuBar[MenuBarSelect].menu;
+    count = MenuBar[MenuBarSelect].count;
+
+    y = 2;  x = 2;
+    for( i=0; i<count; i++ )
+    {   if( !(ptr->flags&mbSepBar) )
+        {   DisplayPopUpText( ptr, x+8, y+MenuFont->ascent+2 );
+
+            if( ItemFlag && (i==MenuItemSelect) )
+            {      DrawUpBox(PopUpWin,2,y,PopUpWide-2,y+FontHigh+3);
+            } else DrawNoBox(PopUpWin,2,y,PopUpWide-2,y+FontHigh+3);
+            y += FontHigh+4;
+        } else
+        {   XSetForeground( dpy, gcon, (unsigned long)Lut[1] );
+            XDrawLine(dpy,PopUpWin,gcon,2,y,PopUpWide-2,y);
+            XSetForeground( dpy, gcon, (unsigned long)Lut[3] );
+            XDrawLine(dpy,PopUpWin,gcon,2,y+1,PopUpWide-2,y+1);
+            y += 2;
+        }
+        ptr++;
+    }
+    XSync(dpy,False);
+}
+
+
+static void DisplayPopUpMenu( i, x )
+    int i, x;
+{
+    register unsigned long mask;
+    register int wide, count;
+    register MenuItem *ptr;
+    register int flag;
+
+    static int xpos, ypos;
+    static Window win;
+
+
+    MenuBarSelect = i;
+    DrawMenuBar();
+
+    ptr = MenuBar[i].menu;
+    count = MenuBar[i].count;
+
+    flag = False;
+    PopUpHigh = 4;
+    PopUpWide = 4;
+    for( i=0; i<count; i++ )
+    {   if( !(ptr->flags&mbSepBar) )
+        {   if( ptr->flags & mbOption ) flag = True;
+            wide = XTextWidth(MenuFont,ptr->text,ptr->len);
+            if( wide+28 > PopUpWide ) PopUpWide = wide+28;
+            PopUpHigh += FontHigh+4;
+        } else PopUpHigh += 2;
+        ptr++;
+    }
+
+    /* Determine pop-up menu position! */
+    XTranslateCoordinates(dpy,MainWin,RootWin,x,FontHigh+6,
+                          &xpos, &ypos, &win );
+
+    if( ypos+PopUpHigh > MaxHeight )
+        ypos -= (PopUpHigh+FontHigh+6);
+    if( xpos+PopUpWide > MaxWidth )
+        xpos = MaxWidth-PopUpWide;
+    if( xpos < 0 ) xpos = 0;
+
+    XUnmapWindow(dpy,PopUpWin);
+    XMoveResizeWindow(dpy,PopUpWin,xpos,ypos,PopUpWide+1,PopUpHigh+1);
+    XRaiseWindow(dpy,PopUpWin);
+    XMapWindow(dpy,PopUpWin);
+    PopUpFlag = True;
+    DrawPopUpMenu();
+}
+
+
+/******************************/
+/* Pop-Up Menu Event Handling */
+/******************************/
+
+
+static int HandleItemClick( x, y )
+    int x, y;
+{
+    register MenuItem *ptr;
+    register int count,i;
+
+    static int xpos, ypos;
+    static Window win;
+
+    XTranslateCoordinates(dpy,MenuWin,PopUpWin,x,y,
+                          &xpos,&ypos,&win);
+
+
+    /* Ignore by not setting ItemFocus! */
+    if( (xpos<0) || (xpos>PopUpWide) ) return;
+    if( (ypos<0) || (ypos>PopUpHigh) ) return;
+    ItemFocus = True;
+
+    ptr = MenuBar[MenuBarSelect].menu;
+    count = MenuBar[MenuBarSelect].count;
+
+    y = 2;
+    for( i=0; i<count; i++ )
+    {   if( !(ptr->flags&mbSepBar) )
+        {   if( (ypos>=y) && (ypos<=y+FontHigh+3) )
+            {   if( ptr->flags & mbEnable )
+                {   if( !ItemFlag || (MenuItemSelect!=i) )
+                    {   /* Avoid Flickering */
+                        MenuItemSelect = i;
+                        ItemFlag = True;
+                        DrawPopUpMenu();
+                    }
+                    return;
+                } else break;
+            }
+            y += FontHigh+4;
+        } else y += 2;
+        ptr++;
+    }
+
+    if( ItemFlag )
+    {   ItemFlag = False;
+        DrawPopUpMenu();
+    }
+}
+
+
+static int HandleItemMove( x, y )
+    int x, y;
+{
+    register MenuItem *ptr;
+    register int count,i;
+
+    static int xpos, ypos;
+    static Window win;
+
+    XTranslateCoordinates(dpy,MenuWin,PopUpWin,x,y,
+                          &xpos,&ypos,&win);
+
+    if( (xpos>=0) && (xpos<=PopUpWide) )
+    {   ptr = MenuBar[MenuBarSelect].menu;
+        count = MenuBar[MenuBarSelect].count;
+
+        y = 2;
+        for( i=0; i<count; i++ )
+        {   if( !(ptr->flags&mbSepBar) )
+            {   if( (ypos>=y) && (ypos<=y+FontHigh+3) )
+                {   if( !ItemFlag || (MenuItemSelect!=i) )
+                    {   /* Avoid Flicker! */
+                        MenuItemSelect = i;
+                        ItemFlag = True;
+                        DrawPopUpMenu();
+                    }
+                    ItemFocus = True;
+                    return;
+                }
+                y += FontHigh+4;
+            } else y += 2;
+            ptr++;
+        }
+    }
+
+    if( ItemFlag )
+    {   /* Avoid Flicker! */
+        ItemFlag = False;
+        DrawPopUpMenu();
+    }
+}
+
+
+static int HandleItemKey( key )
+    int key;
+{
+    register MenuItem *ptr;
+    register int count;
+    register int item;
+    register int ch;
+    register int i;
+
+    key = ToUpper( key );
+    item = MenuItemSelect;
+    ptr = &MenuBar[MenuBarSelect].menu[item];
+    count = MenuBar[MenuBarSelect].count;
+    for( i=0; i<count; i++ )
+    {   if( (ptr->flags&(mbEnable|mbAccel)) && 
+           !(ptr->flags&mbSepBar) )
+        {   ch = ptr->text[ptr->pos];
+            if( ToUpper(ch) == key )
+                return( (MenuBarSelect<<8)+item+1 );
+        }
+
+        /* Advance to next item! */
+        if( item == count-1 )
+        {   ptr = MenuBar[MenuBarSelect].menu;
+            item = 0;
+        } else 
+        {   item++;
+            ptr++;
+        }
+    }
+    return( 0 );
+}
+
+
+static void SelectFirstItem( menu )
+    int menu;
+{
+    register MenuItem *ptr;
+    register int count;
+    register int i;
+
+    count = MenuBar[menu].count;
+    ptr = MenuBar[menu].menu;
+
+    ItemFlag = False;
+    for( i=0; i<count; i++ )
+        if( (ptr->flags&mbEnable) &&
+           !(ptr->flags&mbSepBar) )
+        {   MenuItemSelect = i;
+            ItemFlag = True;
+            break;
+        } else ptr++;
+}
+
+
+static void SelectPrevItem()
+{
+    register BarItem *ptr;
+    register int flags;
+    register int item;
+    register int i;
+
+    if( !ItemFlag )
+        return;
+
+    item = MenuItemSelect;
+    ptr = MenuBar + MenuBarSelect;
+    for( i=0; i<ptr->count; i++ )
+    {   if( !item )
+        {   item = ptr->count-1;
+        } else item--;
+
+        flags = ptr->menu[item].flags;
+        if( (flags&mbEnable) && !(flags&mbSepBar) )
+            break;
+    }
+
+    if( item != MenuItemSelect )
+    {   MenuItemSelect = item;
+        DrawPopUpMenu();
+    }
+}
+
+static void SelectNextItem()
+{
+    register BarItem *ptr;
+    register int flags;
+    register int item;
+    register int i;
+
+    if( !ItemFlag )
+        return;
+
+    item = MenuItemSelect;
+    ptr = MenuBar + MenuBarSelect;
+    for( i=0; i<ptr->count; i++ )
+    {   if( item == ptr->count-1 )
+        {   item = 0;
+        } else item++;
+
+        flags = ptr->menu[item].flags;
+        if( (flags&mbEnable) && !(flags&mbSepBar) )
+            break;
+    }
+
+    if( item != MenuItemSelect )
+    {   MenuItemSelect = item;
+        DrawPopUpMenu();
+    }
+}
+
+
+
+/***************************/
+/* Menu Bar Event Handling */
+/***************************/
+
+static void SelectMenu( menu )
+    int menu;
+{
+    register BarItem *ptr;
+    register int wide;
+    register int i,x;
+
+
+    if( !PopUpFlag )
+    {   MenuBarSelect = menu;
+        DrawMenuBar();
+        return;
+    }
+
+    if( menu != MenuBarMax-1 )
+    {   x = 6;
+        for( i=0; i<menu; i++ )
+        {   ptr = MenuBar+i;
+            wide = XTextWidth(MenuFont,ptr->text,ptr->len);
+            x += wide+24;
+        }
+    } else 
+    {   ptr = MenuBar+menu;
+        wide = XTextWidth(MenuFont,ptr->text,ptr->len);
+        x = MainWide - (wide+24);
+    }
+
+    SelectFirstItem( menu );
+    DisplayPopUpMenu( menu, x );
+    ItemFocus = False;
+}
+
+
+static int HandleMenuClick( pos )
+    int pos;
+{
+    register BarItem *ptr;
+    register int wide;
+    register int x,i;
+
+    x = 6;
+    for( i=0; i<MenuBarCount; i++ )
+    {   ptr = MenuBar+i;
+        wide = XTextWidth( MenuFont, ptr->text, ptr->len );
+        if( i == MenuBarMax-1 ) x = MainWide - (wide+24);
+
+        if( (pos>=x) && (pos<=x+wide+16) )
+        {   if( !PopUpFlag || (MenuBarSelect!=i) )
+            {   ItemFlag = False;
+                DisplayPopUpMenu(i,x);
+            } else if( ItemFlag )
+            {   ItemFlag = False;
+                DrawPopUpMenu();
+            }
+            ItemFocus = True;
+            return( True );
+        } else x += wide+24;
+    }
+    return( False );
+}
+
+
+static int HandleMenuKey( key )
+    char key;
+{
+    register int i;
+
+    key = ToUpper(key);
+    for( i=0; i<MenuBarCount; i++ )
+        if( MenuBar[i].text[0] == key )
+        {   if( !PopUpFlag || (MenuBarSelect!=i) )
+            {   PopUpFlag = True;
+                SelectMenu( i );
+            }
+            return( True );
+        }
+    return( False );
+}
+
+
+void EnableMenus( flag )
+    int flag;
+{
+    DisableMenu = !flag;
+    if( Interactive )
+        DrawMenuBar();
+}
+
 
 
 static void ReSizeWindow( wide, high )
@@ -737,22 +1372,25 @@ static void ReSizeWindow( wide, high )
 {
     register Real xpos;
     register Real ypos;
-    register int index;
+    register int dx;
 
     xpos = (XRange>48)? (Real)(ScrlX-16)/(XRange-48) : 0.0;
     ypos = (YRange>48)? (Real)(ScrlY-16)/(YRange-48) : 0.0;
 
-    wide = (wide & ~3) | ((ButWide+79) & 3);
-    MainWide = wide;  XRange = wide-(ButWide+79);  WRange = XRange>>1;
-    MainHigh = high;  YRange = high-61;            HRange = YRange>>1;
+    YRange = high-(MenuHigh+53);
+    XRange = wide-53;
+
+    if( dx = XRange%4 )
+        XRange += 4-dx;
+
+    MainHigh = YRange+(MenuHigh+53);  HRange = YRange>>1;
+    MainWide = XRange+53;             WRange = XRange>>1;
     Range = MinFun(XRange,YRange);
 
     XResizeWindow( dpy, CanvWin, XRange, YRange);
-    XMoveResizeWindow( dpy, XScrlWin, 18, YRange+27, XRange, 16 );
-    XMoveResizeWindow( dpy, YScrlWin, XRange+27, 18, 16, YRange );
-
-    for( index=0; index<ButMax; index++ )
-        XMoveWindow( dpy, OptWin[index], XRange+58, index*(ButHigh+18)+15 );
+    XResizeWindow( dpy, MenuWin, XRange+49, FontHigh+5 );
+    XMoveResizeWindow( dpy, XScrlWin, 14, YRange+MenuHigh+24, XRange, 16 );
+    XMoveResizeWindow( dpy, YScrlWin, XRange+24, MenuHigh+14, 16, YRange );
 
     NewScrlX = ScrlX = (xpos*(XRange-48))+16;
     NewScrlY = ScrlY = (ypos*(YRange-48))+16;
@@ -760,9 +1398,10 @@ static void ReSizeWindow( wide, high )
     XClearWindow( dpy, MainWin );
     XClearWindow( dpy, CanvWin );
 
-    ReDrawXScroll();
-    ReDrawYScroll();
-    ReDrawMain();
+    DrawXScroll();
+    DrawYScroll();
+    DrawMainWin();
+    DrawMenuBar();
 
     ReDrawFlag |= RFReSize;
     XSync(dpy,True);
@@ -782,20 +1421,23 @@ int FatalXError( ptr )
 int OpenDisplay( x, y )
     int x, y;
 {
+    register unsigned long mask;
     register int i,num;
     register char *ptr;
-    register unsigned long mask;
+ 
+    static ByteTest test;
     static XVisualInfo visinfo;
+    static XClassHint xclass;
     static XSizeHints size;
-    static Window rootwin;
     static Pixmap icon;
+    static int temp;
 
 
     image = (XImage*)NULL;
 
     MouseMode = MMRasMol;
     UseHourGlass = True;
-    MenuDisable = False;
+    DisableMenu = False;
     HeldButton = -1;
 
     for( i=0; i<8; i++ )
@@ -819,22 +1461,26 @@ int OpenDisplay( x, y )
     YRange = y;  HRange = YRange>>1;
     Range = MinFun(XRange,YRange);
 
+    if( !Interactive ) return( False );
     if( (dpy=XOpenDisplay(NULL)) == NULL )
         return( 0 );
 
     num = DefaultScreen(dpy);
-    rootwin = RootWindow(dpy,num);
+    RootWin = RootWindow(dpy,num);
     XSetIOErrorHandler( FatalXError );
 
 #ifdef EIGHTBIT
-    if( !XMatchVisualInfo(dpy,num,8,PseudoColor,&visinfo) )
+    if( !(XMatchVisualInfo(dpy,num,8,PseudoColor,&visinfo) ||
+          XMatchVisualInfo(dpy,num,8,GrayScale,&visinfo)) )
     {   XCloseDisplay(dpy);
         return(0);
     } else PixDepth = 8;
 #else
-    if( XMatchVisualInfo(dpy,num,32,TrueColor,&visinfo) )
+    if( XMatchVisualInfo(dpy,num,32,TrueColor,&visinfo) ||
+        XMatchVisualInfo(dpy,num,32,DirectColor,&visinfo) )
     {   PixDepth = 32;
-    } else if( XMatchVisualInfo(dpy,num,24,TrueColor,&visinfo) )
+    } else if( XMatchVisualInfo(dpy,num,24,TrueColor,&visinfo) ||
+               XMatchVisualInfo(dpy,num,24,DirectColor,&visinfo) )
     {   PixDepth = 24;
     } else /* No suitable display! */
     {   XCloseDisplay(dpy);
@@ -844,16 +1490,17 @@ int OpenDisplay( x, y )
 
     vis = visinfo.visual;
     if( vis != DefaultVisual(dpy,num) )
-    {   cmap = XCreateColormap(dpy,rootwin,vis,AllocNone);
+    {   cmap = XCreateColormap(dpy,RootWin,vis,AllocNone);
     } else cmap = DefaultColormap(dpy,num);
 
     OpenFonts();
     OpenColourMap();
 
-    MaxWidth = DisplayWidth(dpy,num);
-    MaxHeight = DisplayHeight(dpy,num);
-    MainWide = x+ButWide+79;
-    MainHigh = y+61;
+    MaxHeight = DisplayHeight(dpy,num);  MinHeight = MenuHigh+101;
+    MaxWidth = DisplayWidth(dpy,num);    MinWidth = 101;
+
+    MainHigh = YRange+MenuHigh+53;
+    MainWide = XRange+53;
 
     mask = CWEventMask;
     attr.event_mask = ExposureMask | KeyPressMask | StructureNotifyMask
@@ -863,7 +1510,7 @@ int OpenDisplay( x, y )
     attr.colormap = cmap;               mask |= CWColormap;
     attr.cursor = arrow;                mask |= CWCursor;
 
-    MainWin = XCreateWindow(dpy, rootwin, 0, 0, MainWide, MainHigh, 2,
+    MainWin = XCreateWindow(dpy, RootWin, 0, 0, MainWide, MainHigh, 2,
 			    PixDepth, InputOutput, vis, mask, &attr );
 
     gcon = XCreateGC(dpy,MainWin,0L,NULL);
@@ -876,17 +1523,21 @@ int OpenDisplay( x, y )
     size.flags = PMinSize | PMaxSize;
     size.min_width = MinWidth;    size.max_width = MaxWidth;
     size.min_height = MinHeight;  size.max_height = MaxHeight;
-    XSetStandardProperties(dpy, MainWin, "RasMol Version 2.3",
+    XSetStandardProperties(dpy, MainWin, "RasMol Version 2.5",
                            "RasMol", icon, NULL, 0, &size );
 
-    hints.icon_pixmap = icon;
+    xclass.res_name = "rasmol";
+    xclass.res_class = "RasMol";
+    XSetClassHint(dpy,MainWin,&xclass);
+
+    hints.icon_pixmap = icon;       
     hints.flags = IconPixmapHint;
     XSetWMHints(dpy,MainWin,&hints);
 
-    OpenCanvas( x, y );
+    OpenCanvas( XRange, YRange );
     OpenScrollBars();
+    OpenMenuBar();
     OpenCursors();
-    OpenButtons();
     OpenIPCComms();
 
 #ifdef DIALBOX
@@ -897,54 +1548,42 @@ int OpenDisplay( x, y )
     ptr = DisplayString(dpy);
     if( !ptr || (*ptr==':') || !strncmp(ptr,"localhost:",10) || 
         !strncmp(ptr,"unix:",5) || !strncmp(ptr,"local:",6) )
-    {   SharedMemOption = XShmQueryExtension(dpy);
+    {   SharedMemOption = XQueryExtension(dpy,"MIT-SHM",&temp,&temp,&temp);
     } else SharedMemOption = False;
     SharedMemFlag = False;
+#endif
+
+#ifndef EIGHTBIT
+    /* Determine Byte Ordering */
+    test.longword = (Long)0x000000ff;
+    if( ImageByteOrder(dpy) == MSBFirst )
+    {      SwapBytes = test.bytes[0];
+    } else SwapBytes = test.bytes[3];
 #endif
 
     XMapSubwindows(dpy,MainWin);
     XMapWindow(dpy,MainWin);
 
-    ReDrawMain();
-    ReDrawXScroll();
-    ReDrawYScroll();
+    DrawXScroll();
+    DrawYScroll();
+    DrawMainWin();
+    DrawMenuBar();
     XSync(dpy,False);
 
     return( ConnectionNumber(dpy) );
 }
 
 
-#ifdef MITSHM
-Pixel *AllocSharedMem( size )
-    int size;
-{
-    register Pixel *ptr;
-
-    SharedMemFlag = False;
-    if( SharedMemOption )
-
-    if( !SharedMemFlag ) 
-        ptr = (Pixel*)malloc(size);
-    return( ptr );
-}
-
-
-void FreeSharedMem( ptr )
-    Pixel *ptr;
-{
-    if( SharedMemFlag )
-    {   XShmDetach(dpy,&xshminfo);
-        shmdt(xshminfo.shmaddr);
-    } else free( ptr );
-}
-#endif
-
-
-
-Pixel *CreateImage()
+int CreateImage()
 {
     register Long size, temp;
-    register Pixel *ptr;
+
+    if( !Interactive )
+    {   if( FBuffer ) free(FBuffer);
+        size = (Long)XRange*YRange*sizeof(Pixel);
+        FBuffer = (Pixel*)malloc( size+32 );
+        return( (int)FBuffer );
+    }
 
     if( image ) 
     {
@@ -956,6 +1595,7 @@ Pixel *CreateImage()
         }
 #endif
         XDestroyImage( image );
+        image = (XImage*)NULL;
     }
 
     size = (Long)XRange*YRange*sizeof(Pixel) + 32;
@@ -973,7 +1613,7 @@ Pixel *CreateImage()
             {   xshminfo.shmaddr = (char*)shmat(xshminfo.shmid,0,0);
                 if( xshminfo.shmaddr != (char*)-1 )
                 {   image->data = xshminfo.shmaddr;
-                    ptr = (Pixel*)xshminfo.shmaddr;
+                    FBuffer = (Pixel*)xshminfo.shmaddr;
                     xshminfo.readOnly = True;
 
                     SharedMemFlag = XShmAttach( dpy, &xshminfo );
@@ -985,17 +1625,19 @@ Pixel *CreateImage()
 
             if( !SharedMemFlag )
             {   XDestroyImage( image );
-            } else return( ptr );
+                image = (XImage*)NULL;
+            } else return( True );
         }
     }
 
 #endif
-    if( (ptr = (Pixel*)malloc( size )) )
-    {   image = XCreateImage( dpy, vis, PixDepth, ZPixmap, 0, (char*)ptr, 
-                              XRange, YRange, ((PixDepth>8)?32: 8) , 0 );
-        if( !image ) return( (Pixel*)NULL );
-    } else image = (XImage*)NULL;
-    return( ptr );
+    /* Allocate Frame Buffer! */
+    FBuffer = (Pixel*)malloc( size );
+    if( !FBuffer ) return( False );
+
+    image = XCreateImage( dpy, vis, PixDepth, ZPixmap, 0, (char*)FBuffer, 
+                          XRange, YRange, ((PixDepth>8)?32: 8) , 0 );
+    return( (int)image );
 }
 
 
@@ -1016,6 +1658,18 @@ void ClearImage()
     XClearWindow( dpy, CanvWin );
     XFlush(dpy);
 }
+
+
+int PrintImage()
+{
+    return( False );
+}
+
+int ClipboardImage()
+{
+    return( False );
+}
+
 
 static int HandleIPCError( disp, ptr )
     Display *disp;  XErrorEvent *ptr;
@@ -1043,7 +1697,7 @@ static void HandleIPCCommand()
                                  XA_STRING, &type, &format, &len, &left,
                                  &command );
     if( (result!=Success) || (type!=XA_STRING) || (format!=8) )
-    {   if( command ) XFree(command);
+    {   if( command ) XFree( (char*)command );
         return;
     }
 
@@ -1060,7 +1714,8 @@ static void HandleIPCCommand()
             sprintf(buffer,"R %x 0 %d",serial,result);
             handler = XSetErrorHandler( HandleIPCError );
             XChangeProperty( dpy, source, CommAtom, XA_STRING, 8,
-                             PropModeAppend, buffer, strlen(buffer)+1 );
+                             PropModeAppend, (unsigned char*)buffer, 
+                             strlen(buffer)+1 );
             XSync(dpy,False);
             XSetErrorHandler(handler);
         } 
@@ -1068,7 +1723,7 @@ static void HandleIPCCommand()
         /* Next Command! */
         while( *ptr++ );
     }
-    XFree(command);
+    XFree( (char*)command );
 
     if( result==2 )
         RasMolExit();
@@ -1112,6 +1767,7 @@ static void WrapDial( dial, value )
 
 
 void SetMouseMode( mode )
+    int mode;
 {
     if( mode==MouseMode )
         return;
@@ -1267,219 +1923,395 @@ static void MouseMove( status, dx, dy )
 }
 
 
-int FetchEvent( wait )
-    int wait;
-{ 
-    static XEvent event;
-    register Real temp;
+static int ProcessEvent( event )
+    XEvent *event;
+{
+    register int result;
     register int index;
 
+    result = 0;
+    switch( event->type )
+    {   case(ButtonPress):
+            {   XButtonPressedEvent *ptr;
 
-    NewScrlX = ScrlX;
-    NewScrlY = ScrlY;
+                HeldButton = -1;
+                ptr = (XButtonPressedEvent*)event;
 
-    if( HeldButton != -1 ) 
-        wait = False;
+                if( ptr->window==CanvWin )
+                {   InitX = PointX = ptr->x;
+                    InitY = PointY = ptr->y;
+                } else if( ptr->window==MenuWin )
+                {   if( !DisableMenu )
+                        if( HandleMenuClick(ptr->x) )
+                            result = HandleMenuLoop();
+                } else if( ptr->window==XScrlWin )
+                {   ReDrawFlag |= RFRotateY;
+                    if( ptr->x<16 )
+                    {   HeldButton = XScrlDial;
+                        HeldStep = -XScrlSkip;
+                    } else if( ptr->x>=XRange-16 )
+                    {   HeldButton = XScrlDial;
+                        HeldStep = XScrlSkip;
+                    } else
+                    {   index = ptr->x-8;
+                        if( XScrlDial<3 )
+                        {   if( index>XRange-32 ) index -= XRange-48;
+                            else if( index<16 ) index += XRange-48;
+                            NewScrlX = index;
+                        } else NewScrlX = CropRange(index,16,XRange-32);
+                    }
 
-    while( XPending(dpy) || (wait && !ReDrawFlag) )
-    {   XNextEvent(dpy,&event);
+                } else if( ptr->window==YScrlWin )
+                {   ReDrawFlag |= RFRotateX;
+                    if( ptr->y<16 )
+                    {   HeldButton = YScrlDial;
+                        HeldStep = -YScrlSkip;
+                    } else if( ptr->y>=YRange-16 )
+                    {   HeldButton = YScrlDial;
+                        HeldStep = YScrlSkip;
+                    } else
+                    {   index = ptr->y-8;
+                        if( YScrlDial<3 )
+                        {   if( index>YRange-32 ) index -= YRange-48;
+                            else if( index<16 ) index += YRange-48;
+                            NewScrlY = index;
+                        } else NewScrlY = CropRange(index,16,YRange-32);
+                    }
+
+                } 
+            } break;
+
+        case(MotionNotify):
+            {   XMotionEvent *ptr;
+                int dx, dy;
+
+                ptr = (XMotionEvent*)event;
+                if( ptr->window==CanvWin )
+                {   if( !IsClose(ptr->x,InitX) || !IsClose(ptr->y,InitY) )
+                    {   dx = ptr->x-PointX;  dy = ptr->y-PointY;
+                        MouseMove( ptr->state, dx, dy );
+
+                        PointX = ptr->x;
+                        PointY = ptr->y;
+                    }
+                } else if( HeldButton == -1 )
+                {   if( ptr->window==XScrlWin )
+                    {   index = ptr->x-8;
+                        NewScrlX = CropRange(index,16,XRange-32);
+                    } else /* if( ptr->window==YScrlWin ) */
+                    {   index = ptr->y-8;
+                        NewScrlY = CropRange(index,16,YRange-32);
+                    }
+                }
+            } break;
+             
+        case(ButtonRelease):
+            {   XButtonReleasedEvent *ptr;
+
+                HeldButton = -1;
+                ptr = (XButtonReleasedEvent*)event;
+                if( ptr->window==CanvWin )
+                {   PointX = ptr->x;  PointY = ptr->y;
+                    if( IsClose(PointX,InitX) && IsClose(PointY,InitY) )
+                        ReDrawFlag |= RFPoint;
+                }
+            } break;
+
+        case(KeyPress):
+            {   XKeyPressedEvent *ptr;
+                static KeySym symbol;
+                static char keychar;
+                register int i;
+
+                ptr = (XKeyPressedEvent*)event;
+                index = XLookupString(ptr,&keychar,1,&symbol,NULL);
+                switch( symbol )
+                {   case(XK_Begin):
+                    case(XK_Home):  ProcessCharacter(0x01);  break;
+                    case(XK_Right): ProcessCharacter(0x06);  break;
+                    case(XK_Left):  ProcessCharacter(0x02);  break;
+                    case(XK_End):   ProcessCharacter(0x05);  break;
+                    case(XK_Up):
+                    case(XK_Prior): ProcessCharacter(0x10);  break;
+                    case(XK_Down):
+                    case(XK_Next):  ProcessCharacter(0x0e);  break;
+
+                    case(XK_F10):   if( !DisableMenu )
+                                    {   SelectMenu(0);
+                                        result = HandleMenuLoop();
+                                    }
+                                    break;
+
+                    default:        if( index == 1 )
+                                        if( !(ptr->state&(Mod1Mask|Mod2Mask)) )
+                                        {   if( ProcessCharacter(keychar) )
+                                            {   if( ProcessCommand() )
+                                                    RasMolExit();
+
+                                                if( !CommandActive )
+                                                    ResetCommandLine(0);
+                                            }
+                                        } else if( !DisableMenu )
+                                            if( HandleMenuKey(keychar) )
+                                                result = HandleMenuLoop();
+                }
+            } break;
+
+
+        case(Expose):
+            {   XExposeEvent *ptr;
+
+                ptr = (XExposeEvent*)event;
+                if( ptr->window==CanvWin )
+                {   if( image ) {
+#ifdef MITSHM
+                        if( SharedMemFlag )
+                        {   XShmPutImage( dpy, CanvWin, gcon, image,
+                                          ptr->x, ptr->y, ptr->x, ptr->y,
+                                          ptr->width, ptr->height, False);
+                        } else
+#endif 
+                        XPutImage( dpy, CanvWin, gcon, image,
+                                   ptr->x, ptr->y, ptr->x, ptr->y,
+                                   ptr->width, ptr->height );
+                    }
+                } else if( ptr->window==MainWin )
+                {   DrawMainWin();
+                    DrawMenuBar();
+                } else if( ptr->window==XScrlWin )
+                {   DrawXScroll();
+                } else if( ptr->window==YScrlWin )
+                    DrawYScroll();
+                XSync(dpy,False);
+            } break;
+
+        case(EnterNotify):
+            {   XCrossingEvent *ptr;
+
+                ptr = (XCrossingEvent*)event;
+                if( ptr->detail != NotifyInferior )
+                {   if( LocalMap )
+                        XInstallColormap(dpy,lmap);
+                }
+#ifdef DIALBOX
+                if( UseDials )
+                    GetDialState();
+#endif
+            }
+            break;
+
+        case(LeaveNotify):
+            if( LocalMap )
+            {   XCrossingEvent *ptr;
+
+                ptr = (XCrossingEvent*)event;
+                if( ptr->detail != NotifyInferior )
+                    XUninstallColormap(dpy,lmap);
+            }
+            break;
+
+        case(ConfigureNotify):
+            {   XConfigureEvent *ptr;
+                register int wide,high;
+
+                ptr = (XConfigureEvent*)event;
+                wide = CropRange(ptr->width, MinWidth, MaxWidth );
+                high = CropRange(ptr->height,MinHeight,MaxHeight);
+                if( (wide!=MainWide) || (high!=MainHigh) )
+                        ReSizeWindow(wide,high);
+            } break;
+
+        case(ClientMessage):
+            {   XClientMessageEvent *ptr;
+
+                ptr = (XClientMessageEvent*)event;
+                if( (ptr->message_type==ProtoXAtom) && 
+                    (ptr->data.l[0]==DelWinXAtom) )
+                    RasMolExit();
+            } break;
+
+        case(PropertyNotify):
+            {   XPropertyEvent *ptr;
+
+                ptr = (XPropertyEvent*)event;
+                if( (ptr->atom==CommAtom) &&
+                    (ptr->state==PropertyNewValue) )
+                    HandleIPCCommand();
+            } break;
+
+        case(MapNotify):
+            DrawXScroll();
+            DrawYScroll();
+            DrawMainWin();
+            DrawMenuBar();
+            break;
+
+        default:  
+#ifdef DIALBOX
+            if( event->type == DialEvent )
+                HandleDialEvent( event );
+#endif
+            break;
+    }
+    return( result );
+}
+
+
+/*************************/
+/* Modal Dialog Handling */
+/*************************/
+
+static int HandleMenuLoop()
+{
+    register unsigned int mask;
+    register int result;
+    register int done;
+    auto XEvent event;
+
+    /* Passive Pointer Grab */
+    mask = ButtonPressMask | ButtonReleaseMask | ButtonMotionMask;
+    XGrabPointer(dpy,MenuWin,False,mask,
+                 GrabModeAsync,GrabModeAsync,
+                 None,None,CurrentTime);
+
+    HeldButton = -1;
+    MenuFocus = True;
+    DrawMenuBar();
+
+    result = 0;
+    done = False;
+    while( !done )
+    {   XNextEvent( dpy, &event );
         switch( event.type )
-        {   case(ButtonPress):
+        {   case(Expose):
+                {   XExposeEvent *ptr;
+
+                    ptr = (XExposeEvent*)&event;
+                    if( ptr->window==PopUpWin )
+                    {   DrawPopUpMenu();
+                    } else ProcessEvent(&event);
+                } break;
+
+            case(ButtonPress): 
                 {   XButtonPressedEvent *ptr;
 
-                    HeldButton = -1;
                     ptr = (XButtonPressedEvent*)&event;
-                    if( !MenuDisable )
-                        for( index=0; index<OptCount; index++ )
-                            if( ptr->window==OptWin[index] )
-                            {   ReDrawButton( index, False );
-                                break;
-                            }
-
-                    if( ptr->window==XScrlWin )
-                    {   wait = False;
-                        if( ptr->x<16 )
-                        {   HeldButton = XScrlDial;
-                            HeldStep = -XScrlSkip;
-                        } else if( ptr->x>=XRange-16 )
-                        {   HeldButton = XScrlDial;
-                            HeldStep = XScrlSkip;
-                        } else
-                        {   index = ptr->x-8;
-                            if( XScrlDial<3 )
-                            {   if( index>XRange-32 ) index -= XRange-48;
-                                else if( index<16 ) index += XRange-48;
-                                NewScrlX = index;
-                            } else NewScrlX = CropRange(index,16,XRange-32);
-                        }
-
-                    } else if( ptr->window==YScrlWin )
-                    {   wait = False;
-                        if( ptr->y<16 )
-                        {   HeldButton = YScrlDial;
-                            HeldStep = -YScrlSkip;
-                        } else if( ptr->y>=YRange-16 )
-                        {   HeldButton = YScrlDial;
-                            HeldStep = YScrlSkip;
-                        } else
-                        {   index = ptr->y-8;
-                            if( YScrlDial<3 )
-                            {   if( index>YRange-32 ) index -= YRange-48;
-                                else if( index<16 ) index += YRange-48;
-                                NewScrlY = index;
-                            } else NewScrlY = CropRange(index,16,YRange-32);
-                        }
-
-                    } else if( ptr->window==CanvWin )
-                    {   InitX = PointX = ptr->x;
-                        InitY = PointY = ptr->y;
-                    }
+                    /* All Events Relative to MenuWin */
+                    if( (ptr->y>=0) && (ptr->y<=FontHigh+5) )
+                    {   HandleMenuClick(ptr->x);
+                    } else if( PopUpFlag )
+                    {   HandleItemClick(ptr->x,ptr->y);
+                    } else done = True;
                 } break;
 
             case(MotionNotify):
-                {   XMotionEvent *ptr;
-                    int dx, dy;
+                    if( ItemFocus )
+                    {   XMotionEvent *ptr;
 
-                    ptr = (XMotionEvent*)&event;
-                    if( ptr->window==CanvWin )
-                    {   if( !IsClose(ptr->x,InitX) || !IsClose(ptr->y,InitY) )
-                        {   dx = ptr->x-PointX;  dy = ptr->y-PointY;
-                            MouseMove( ptr->state, dx, dy );
+                        ptr = (XMotionEvent*)&event;
+                        /* All Events Relative to MenuWin */
+                        if( (ptr->y>=0) && (ptr->y<=FontHigh+5) )
+                        {   HandleMenuClick( ptr->x );
+                        } else if( PopUpFlag )
+                            HandleItemMove(ptr->x,ptr->y);
+                    } break;
 
-                            PointX = ptr->x;
-                            PointY = ptr->y;
-                        }
-                    } else if( HeldButton == -1 )
-                    {   if( ptr->window==XScrlWin )
-                        {   index = ptr->x-8;
-                            NewScrlX = CropRange(index,16,XRange-32);
-                        } else /* if( ptr->window==YScrlWin ) */
-                        {   index = ptr->y-8;
-                            NewScrlY = CropRange(index,16,YRange-32);
-                        }
-                    }
-                } break;
-             
             case(ButtonRelease):
-                {   XButtonReleasedEvent *ptr;
+                    {   XButtonReleasedEvent *ptr;
 
-		    HeldButton = -1;
-                    ptr = (XButtonReleasedEvent*)&event;
-                    if( ptr->window==CanvWin )
-                    {   PointX = ptr->x;  PointY = ptr->y;
-                        if( IsClose(PointX,InitX) && IsClose(PointY,InitY) )
-                            ReDrawFlag |= RFPoint;
-                    } else if( !MenuDisable )
-                        for( index=0; index<OptCount; index++ )
-                            if( ptr->window==OptWin[index] )
-                                return(index-ButMax);
-
-                } break;
-
+                        ptr = (XButtonReleasedEvent*)&event;
+                        /* All Events Relative to MenuWin */
+                        if( (ptr->y>=0) && (ptr->y<=FontHigh+5) )
+                        {   if( HandleMenuClick( ptr->x ) )
+                            {   SelectFirstItem(MenuBarSelect);
+                                DrawPopUpMenu();
+                            } else done = True;
+                        } else if( PopUpFlag )
+                        {   if( ItemFocus )
+                                HandleItemClick(ptr->x,ptr->y);
+                            if( ItemFlag )
+                                result = (MenuBarSelect<<8) +
+                                         MenuItemSelect+1;
+                            done = True;
+                        } else done = False;
+                        ItemFocus = False;
+                    }
+                    break;
+     
             case(KeyPress):
+                if( !ItemFocus )
                 {   XKeyPressedEvent *ptr;
                     static KeySym symbol;
                     static char keychar;
+                    register int index;
 
                     ptr = (XKeyPressedEvent*)&event;
                     index = XLookupString(ptr,&keychar,1,&symbol,NULL);
                     switch( symbol )
-                    {   case(XK_Begin):
-                        case(XK_Home):  return( 0x01 );  break;
-                        case(XK_Right): return( 0x06 );  break;
-                        case(XK_Left):  return( 0x02 );  break;
-                        case(XK_End):   return( 0x05 );  break;
-                        case(XK_Up):
-                        case(XK_Prior): return( 0x10 );  break;
-                        case(XK_Down):
-                        case(XK_Next):  return( 0x0e );  break;
+                    {   case(XK_Right): index = MenuBarSelect+1;
+                                        if( index != MenuBarCount )
+                                        {   SelectMenu( index );
+                                        } else SelectMenu( 0 );
+                                        break;
 
-                        default:        if( index==1 ) 
-                                            return( keychar );
+                        case(XK_Left):  if( MenuBarSelect )
+                                        {   SelectMenu( MenuBarSelect-1 );
+                                        } else SelectMenu( MenuBarCount-1 );
+                                        break;
+
+                        case(XK_Up):    if( !PopUpFlag )
+                                        {   PopUpFlag = True;
+                                            SelectMenu(MenuBarSelect);
+                                        } else SelectPrevItem();
+                                        break;
+
+                        case(XK_Down):  if( !PopUpFlag )
+                                        {   PopUpFlag = True;
+                                            SelectMenu(MenuBarSelect);
+                                        } else SelectNextItem();
+                                        break;
+
+                        case(XK_KP_Enter):
+                        case(XK_Linefeed):
+                        case(XK_Return):   if( PopUpFlag && ItemFlag )
+                                               result = (MenuBarSelect<<8) +
+                                                        MenuItemSelect+1;
+                                           done = True;
+                                           break;
+
+                        default:    if( (index==1) && (keychar>=' ') ) 
+                                    {   if( !(ptr->state&(Mod1Mask|Mod2Mask)) )
+                                        {   if( PopUpFlag )
+                                            {   result = HandleItemKey(keychar);
+                                                if( result ) done = True;
+                                            } else HandleMenuKey(keychar);
+                                        } else HandleMenuKey(keychar);
+                                    }
                     }
                 } break;
 
 
-            case(Expose):
-                {   XExposeEvent *ptr;
-
-                    ptr = (XExposeEvent*)&event;
-                    if( ptr->window==CanvWin )
-                    {   if( image ) {
-#ifdef MITSHM
-                            if( SharedMemFlag )
-                            {   XShmPutImage( dpy, CanvWin, gcon, image,
-                                              ptr->x, ptr->y, ptr->x, ptr->y,
-                                              ptr->width, ptr->height, False);
-                            } else
-#endif 
-                            XPutImage( dpy, CanvWin, gcon, image,
-                                       ptr->x, ptr->y, ptr->x, ptr->y,
-                                       ptr->width, ptr->height );
-                        }
-                    } else if( ptr->window==MainWin )
-                    {   ReDrawMain();
-                    } else if( ptr->window==XScrlWin )
-                    {   ReDrawXScroll();
-                    } else if( ptr->window==YScrlWin )
-                        ReDrawYScroll();
-                    XSync(dpy,False);
-                } break;
-
-            case(EnterNotify):
-                if( LocalMap )
-                    XInstallColormap(dpy,lmap);
-                break;
-
-            case(LeaveNotify):
-                if( LocalMap )
-                    XUninstallColormap(dpy,lmap);
-                break;
-
-            case(ConfigureNotify):
-                {   XConfigureEvent *ptr;
-                    register int wide,high;
-
-                    ptr = (XConfigureEvent*)&event;
-                    wide = CropRange(ptr->width, MinWidth, MaxWidth );
-                    high = CropRange(ptr->height,MinHeight,MaxHeight);
-                    if( (wide!=MainWide) || (high!=MainHigh) )
-                        ReSizeWindow(wide,high);
-                     
-                } break;
-
-            case(ClientMessage):
-                {   XClientMessageEvent *ptr;
-
-                    ptr = (XClientMessageEvent*)&event;
-                    if( (ptr->message_type==ProtoXAtom) && 
-                        (ptr->data.l[0]==DelWinXAtom) )
-                        RasMolExit();
-                } break;
-
-            case(PropertyNotify):
-                {   XPropertyEvent *ptr;
-
-                    ptr = (XPropertyEvent*)&event;
-                    if( (ptr->atom==CommAtom) &&
-                        (ptr->state==PropertyNewValue) )
-                        HandleIPCCommand();
-                } break;
-
-            case(MapNotify):
-                ReDrawXScroll();
-                ReDrawYScroll();
-                ReDrawMain();
-		break;
-
-            default:  
-#ifdef DIALBOX
-                if( event.type==DialEvent )
-		    HandleDialEvent( &event );
-#endif
-                break;
+            case(ConfigureNotify):  /* done = True; */
+            default:                ProcessEvent(&event);
         }
     }
+
+    /* Passive Grab Release */
+    XUngrabPointer(dpy,CurrentTime);
+
+
+    XUnmapWindow(dpy,PopUpWin);
+    PopUpFlag = False;
+    MenuFocus = False;
+    DrawMenuBar();
+    return( result );
+}
+
+
+static void DoneEvents()
+{
+    register Real temp;
+    register int index;
 
     if( HeldButton == YScrlDial )
     {   index = NewScrlY+HeldStep;
@@ -1523,6 +2355,26 @@ int FetchEvent( wait )
         ScrlX = NewScrlX;
     }
     XSync(dpy,False);
+}
+
+
+int FetchEvent( wait )
+    int wait;
+{
+    register int result;
+    auto XEvent event;
+
+
+    NewScrlX = ScrlX;
+    NewScrlY = ScrlY;
+
+    if( HeldButton != -1 ) wait = False;
+    while( XPending(dpy) || (wait && !ReDrawFlag) )
+    {   XNextEvent( dpy, &event );
+        result = ProcessEvent(&event);
+        if( result ) return( result );
+    }
+    DoneEvents();
     return( 0 );
 }
 
