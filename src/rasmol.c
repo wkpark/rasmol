@@ -1,7 +1,54 @@
+/***************************************************************************
+ *                            RasMol 2.7.1.1                               *
+ *                                                                         *
+ *                                RasMol                                   *
+ *                 Molecular Graphics Visualisation Tool                   *
+ *                            17 January 2001                              *
+ *                                                                         *
+ *                   Based on RasMol 2.6 by Roger Sayle                    *
+ * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
+ *                      Stevenage, Hertfordshire, UK                       *
+ *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
+ *                   Copyright (C) Roger Sayle 1992-1999                   *
+ *                                                                         *
+ *                  and Based on Mods by Arne Mueller                      *
+ *                      Version 2.6x1, May 1998                            *
+ *                   Copyright (C) Arne Mueller 1998                       *
+ *                                                                         *
+ *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
+ *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *                      yaya@bernstein-plus-sons.com                       *
+ *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
+ *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *                                                                         *
+ * Please read the file NOTICE for important notices which apply to this   *
+ * package. If you are not going to make changes to RasMol, you are not    *
+ * only permitted to freely make copies and distribute them, you are       *
+ * encouraged to do so, provided you do the following:                     *
+ *   * 1. Either include the complete documentation, especially the file   *
+ *     NOTICE, with what you distribute or provide a clear indication      *
+ *     where people can get a copy of the documentation; and               *
+ *   * 2. Please give credit where credit is due citing the version and    *
+ *     original authors properly; and                                      *
+ *   * 3. Please do not give anyone the impression that the original       *
+ *     authors are providing a warranty of any kind.                       *
+ *                                                                         *
+ * If you would like to use major pieces of RasMol in some other program,  *
+ * make modifications to RasMol, or in some other way make what a lawyer   *
+ * would call a "derived work", you are not only permitted to do so, you   *
+ * are encouraged to do so. In addition to the things we discussed above,  *
+ * please do the following:                                                *
+ *   * 4. Please explain in your documentation how what you did differs    *
+ *     from this version of RasMol; and                                    *
+ *   * 5. Please make your modified source code available.                 *
+ *                                                                         *
+ * This version of RasMol is not in the public domain, but it is given     *
+ * freely to the community in the hopes of advancing science. If you make  *
+ * changes, please make them in a responsible manner, and please offer us  *
+ * the opportunity to include those changes in future versions of RasMol.  *
+ ***************************************************************************/
+
 /* rasmol.c
- * RasMol2 Molecular Graphics
- * Roger Sayle, August 1995
- * Version 2.6
  */
 
 #ifndef sun386
@@ -22,43 +69,35 @@
 #include "infile.h"
 #include "abstree.h"
 #include "transfor.h"
+#include "cmndline.h"
 #include "command.h"
 #include "render.h"
 #include "repres.h"
 #include "pixutils.h"
 #include "outfile.h"
+#include "langsel.h"
 
 
-
-#ifdef TERMIOS
-#include <sys/types.h>
-#include <sys/time.h>
-
-#ifdef esv
-#include <sysv/sys/termio.h>
-#else
-#ifdef __FreeBSD__
-#include <sys/ioctl.h>
-#include <sys/termios.h>
-#define TCSETAW TIOCSETAW
-#define TCGETA  TIOCGETA
-#else
-#ifdef _CONVEX_SOURCE
-#include <sys/ioctl.h>
-#include "/usr/sys/base/h/ioctl.h"
-#define TCSETAW TIOCSETAW
-#define TCGETA  TIOCGETA
-#else
-#include <sys/termio.h>
-#endif /* _CONVEX_SOURCE */
-#endif /* __FreeBSD__ */
-#endif /* esv */
 
 #ifdef esv
 #include <sysv/unistd.h>
 #else
 #include <unistd.h>
 #endif
+
+#ifdef PROFILE
+#include <sys/types.h>
+#ifndef TIME
+#include <sys/time.h>
+#else
+#include <time.h>
+#endif /* TIME    */
+#endif /* PROFILE */
+
+#ifdef TERMIOS
+#include <sys/types.h>
+#include <sys/time.h>
+#include <termios.h>
 
 #if defined(_SEQUENT_) || defined(_AIX)
 #include <sys/select.h>
@@ -69,6 +108,7 @@
 #include <bstring.h>
 #endif
 #endif /* TERMIOS */
+
 
 #ifdef VMS
 #include <tt2def.h>
@@ -84,9 +124,11 @@
 #include <netdb.h>
 #endif
 
-#define TwoPi           6.28318531
 #define IsIdentChar(x)  ((isalnum(x))||((x)=='_')||((x)=='$'))
+#define TwoPi           2.0*PI
 
+/* Either stdout or stderr */
+#define OutFp stdout
 
 
 #ifdef VMS
@@ -109,17 +151,12 @@ static int StdInFlag;
 #endif
 
 #ifdef TERMIOS
-#ifdef __FreeBSD__
 static struct termios OrigTerm;
 static struct termios IntrTerm;
-#else
-static struct termio OrigTerm;
-static struct termio IntrTerm;
-#endif
 
-static struct fd_set OrigWaitSet;
-static struct fd_set WaitSet;
 static struct timeval TimeOut;
+static fd_set OrigWaitSet;
+static fd_set WaitSet;
 static int WaitWidth;
 static int FileNo;
 
@@ -136,20 +173,22 @@ static int FileNo;
 
 typedef struct {
     int bitmask;
-    char *upper;
     char *name;
     } AdviseType;
 
 static AdviseType AdviseMap[ItemCount] = {
-    { AMPickAtom,    "PICK",    "Pick"    },  /* AdvPickAtom    */
-    { AMPickNumber,  "PICKNO",  "PickNo"  },  /* AdvPickNumber  */
-    { AMSelectCount, "COUNT",   "Count"   },  /* AdvSelectCount */
-    { AMMolName,     "NAME",    "Name"    },  /* AdvName        */
-    { AMNone,        "IDENT",   "Ident"   },  /* AdvIdent       */
-    { AMNone,        "CLASS",   "Class"   },  /* AdvClass       */
-    { AMNone,        "IMAGE",   "Image"   },  /* AdvImage       */
-    { AMPickCoord,   "PICKXYZ", "PickXYZ" }   /* AdvPickCoord   */
+    { AMPickAtom,    "Pick"    },  /* AdvPickAtom    */
+    { AMPickNumber,  "PickNo"  },  /* AdvPickNumber  */
+    { AMSelectCount, "Count"   },  /* AdvSelectCount */
+    { AMMolName,     "Name"    },  /* AdvName        */
+    { AMNone,        "Ident"   },  /* AdvIdent       */
+    { AMNone,        "Class"   },  /* AdvClass       */
+    { AMNone,        "Image"   },  /* AdvImage       */
+    { AMPickCoord,   "PickXYZ" }   /* AdvPickCoord   */
         };
+
+static char AdviseBuffer[256];
+static int AdviseLen;
 
 
 typedef struct {
@@ -158,8 +197,8 @@ typedef struct {
         int advise;
     } IPCConv;
 
-#define MaxConvNum     8
-static IPCConv ConvData[MaxConvNum];
+#define MaxIPCConvNum     8
+static IPCConv IPCConvData[MaxIPCConvNum];
 
 static int ServerPort;
 static int UseSockets;
@@ -179,31 +218,26 @@ static int ProfCount;
 static int LexState;
 
 
-/* Function Prototype */
-#ifdef FUNCPROTO
-int HandleEvents( int );
-#else
-int HandleEvents();
-#endif
-int ProcessCommand();
-void RasMolExit();
+
+/*=======================*/
+/*  Function Prototypes  */
+/*=======================*/
+
+static int HandleEvents( int );
+extern int ProcessCommand( void );
 
 
-/* Either stdout or stderr */
-#define OutFp stdout
-
-void WriteChar( ch )
-    char ch;
+void WriteChar( int ch )
 {   putc(ch,OutFp);
 }
 
-void WriteString( ptr )
-    char *ptr;
+
+void WriteString( char *ptr )
 {   fputs(ptr,OutFp);
 }
 
 
-static void ResetTerminal()
+static void ResetTerminal( void )
 {
 #ifdef SOCKETS
     register int i;
@@ -211,17 +245,17 @@ static void ResetTerminal()
 
 #ifdef TERMIOS
     if( isatty(FileNo) )
-        ioctl(FileNo, TCSETAW, &OrigTerm);
+        tcsetattr(FileNo, TCSANOW, &OrigTerm);
 #endif
 
 #ifdef SOCKETS
     if( UseSockets )
     {   close(SocketNo);
 
-        for( i=0; i<MaxConvNum; i++ )
-            if( ConvData[i].protocol )
-            {   close(ConvData[i].socket);
-                ConvData[i].protocol = 0;
+        for( i=0; i<MaxIPCConvNum; i++ )
+            if( IPCConvData[i].protocol )
+            {   close(IPCConvData[i].socket);
+                IPCConvData[i].protocol = 0;
             }
     }
 #endif
@@ -237,8 +271,7 @@ static void ResetTerminal()
 }
 
 
-
-void RasMolExit()
+void RasMolExit( void )
 {
     WriteChar('\n');
     if( CommandActive )
@@ -251,8 +284,7 @@ void RasMolExit()
 }
 
 
-void RasMolFatalExit( msg )
-    char *msg;
+void RasMolFatalExit( char *msg )
 {
     WriteChar('\n');
     WriteString(msg);
@@ -267,7 +299,7 @@ void RasMolFatalExit( msg )
 
 
 #ifdef VMS
-static int StdInASTEvent()
+static int StdInASTEvent( void )
 {
     register int ch;
     register int i;
@@ -331,7 +363,7 @@ static int StdInASTEvent()
 
 
 #ifdef SOCKETS
-static int OpenSocket()
+static int OpenSocket( void )
 {
     struct sockaddr_in addr;
     auto int length;
@@ -342,8 +374,8 @@ static int OpenSocket()
     if( SocketNo < 0 ) return( False );
 
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(ServerPort);
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons((short)ServerPort);
 
     if( bind(SocketNo, (struct sockaddr*)&addr, sizeof(addr)) )
     {   close(SocketNo);
@@ -359,28 +391,30 @@ static int OpenSocket()
     }
 
     UseSockets = True;
-    for( i=0; i<MaxConvNum; i++ )
-        ConvData[i].protocol = 0;
+    for( i=0; i<MaxIPCConvNum; i++ )
+        IPCConvData[i].protocol = 0;
 
     listen( SocketNo, 5 );
     return( True );
 }
 
 
-static int OpenConnection( socket )
-    int socket;
+static int OpenIPCConnection( int socket )
 {
     register int i;
 
-    for( i=0; i<MaxConvNum; i++ )
-        if( !ConvData[i].protocol )
+    if( socket < 0 )
+        return False;
+
+    for( i=0; i<MaxIPCConvNum; i++ )
+        if( !IPCConvData[i].protocol )
         {   FD_SET(socket,&OrigWaitSet);
             if( socket >= WaitWidth )
                 WaitWidth = socket+1;
 
-            ConvData[i].protocol = ProtoRasMol;
-            ConvData[i].socket = socket;
-            ConvData[i].advise = AMNone;
+            IPCConvData[i].protocol = ProtoRasMol;
+            IPCConvData[i].socket = socket;
+            IPCConvData[i].advise = AMNone;
             return( True );
         }
 
@@ -388,67 +422,88 @@ static int OpenConnection( socket )
     return( False );
 }
 
-static void CloseConnection( conv )
-    int conv;
+
+static void CloseIPCConnection( int conv )
 {
-    FD_CLR(ConvData[conv].socket,&OrigWaitSet);
-    close( ConvData[conv].socket );
-    ConvData[conv].protocol = 0;
+    FD_CLR(IPCConvData[conv].socket,&OrigWaitSet);
+    close( IPCConvData[conv].socket );
+    IPCConvData[conv].protocol = 0;
 }
 
 
-static int IsAdviseRequest( ptr, conv )
-    char *ptr;  int conv;
+static int CaseInsensitiveCompare( char *ptr1, char *ptr2 )
 {
-    static char item[34];
+    register unsigned char *rptr1;
+    register unsigned char *rptr2;
+    register unsigned char c1;
+    register unsigned char c2;
+
+    rptr1 = (unsigned char*)ptr1;
+    rptr2 = (unsigned char*)ptr2;
+
+    do {
+        c1 = ToUpper(*rptr1++);
+        c2 = ToUpper(*rptr2++);
+    } while( c1 && (c1==c2) );
+    return c1 - c2;
+}
+
+
+static int IsIPCAdviseRequest( char *ptr, int conv )
+{
+    auto char item[34];
     register char *dst;
     register char *src;
     register int i,ch;
+    register int flag;
 
     if( !strncmp(ptr,"Advise:",7) )
     {   src = ptr+7;
+        flag = True;
+    } else if( !strncmp(ptr,"Unadvise:",9) )
+    {   src = ptr+9;
+        flag = False;
+    } else return False;
 
-        while( True )
-        {   ch = *src++;
-            if( isspace(ch) )
-                continue;
+    while( *src )
+    {   ch = *src++;
+        if( isspace(ch) )
+            continue;
 
-            if( isalpha(ch) )
-            {   dst = item;
-                *dst++ = ToUpper(ch);
-                while( IsIdentChar(*src) )
-                {   if( dst < item+32 )
-                    {   ch = *src++;
-                        *dst++ = ToUpper(ch);
-                    } else src++;
+        if( isalpha(ch) )
+        {   dst = item;
+            *dst++ = ch;
+            while( IsIdentChar(*src) )
+            {   if( dst < item+32 )
+                {   *dst++ = *src++;
+                } else src++;
+            }
+            *dst = '\0';
+
+            for( i=0; i<ItemCount; i++ )
+                if( !CaseInsensitiveCompare(item,AdviseMap[i].name) )
+                {   if( flag )
+                    {      IPCConvData[conv].advise |=  AdviseMap[i].bitmask;
+                    } else IPCConvData[conv].advise &= ~AdviseMap[i].bitmask;
+                    break;
                 }
-                *dst = '\0';
-
-                for( i=0; i<ItemCount; i++ )
-                    if( !strcmp(item,AdviseMap[i].upper) )
-                    {   ConvData[conv].advise |= AdviseMap[i].bitmask;
-                        break;
-                    }
 
                 /* Warning: Unknown Advise Item! */
-            } else if( ch != ',' )
-                break;
-        }
-        return( True );
+        } else if( ch != ',' )
+            break;
     }
-    return( False );
+    return True;
 }
 
 
-static void HandleSocketData( conv )
-    int conv;
+static void HandleSocketData( int conv )
 {
     register char *src,*dst;
     register int result;
     register int ch,len;
     char buffer[4097];
 
-    len = read( ConvData[conv].socket, buffer, 4096 );
+    len = recv( IPCConvData[conv].socket, buffer, 4096, 0 );
     if( len > 0 )
     {   buffer[len] = '\0';
         src = dst = buffer;
@@ -457,21 +512,19 @@ static void HandleSocketData( conv )
                 *dst++ = ch;
         *dst = '\0';
 
-        if( !IsAdviseRequest(buffer,conv) )
+        if( !IsIPCAdviseRequest(buffer,conv) )
         {   result = ExecuteIPCCommand(buffer);
             if( result == IPC_Exit )
-            {   CloseConnection( conv );
+            {   CloseIPCConnection( conv );
             } else if( result == IPC_Quit )
                 RasMolExit();
         }
-    } else CloseConnection( conv );
+    } else CloseIPCConnection( conv );
 }
 #endif /* SOCKETS */
 
 
-
-static void InitTerminal(sockets)
-    int sockets;
+static void InitTerminal( int sockets )
 {
 #ifdef TERMIOS
     register int i;
@@ -508,13 +561,13 @@ static void InitTerminal(sockets)
 
 
     if( isatty(FileNo) )
-    {   ioctl(FileNo, TCGETA, &OrigTerm);
-        IntrTerm = OrigTerm;
+    {   tcgetattr(FileNo, &OrigTerm);
 
+        IntrTerm = OrigTerm;
         IntrTerm.c_iflag |= IGNBRK|IGNPAR;
         IntrTerm.c_iflag &= ~(BRKINT|PARMRK|INPCK|IXON|IXOFF);
-        IntrTerm.c_lflag &= ~(ICANON|ECHO|ECHOE|ECHOK|ECHONL|NOFLSH);
-        IntrTerm.c_lflag |= ISIG;
+        IntrTerm.c_lflag &= ~(ICANON|ISIG|ECHO|ECHOE|ECHOK|ECHONL|NOFLSH);
+        /* IntrTerm.c_lflag |= ISIG; */
 
         IntrTerm.c_cc[VMIN] = 1;
         IntrTerm.c_cc[VTIME] = 0;
@@ -523,7 +576,7 @@ static void InitTerminal(sockets)
         IntrTerm.c_cc[VSUSP] = 0;
 #endif
 
-        ioctl(FileNo, TCSETAW, &IntrTerm);
+        tcsetattr(FileNo,TCSANOW,&IntrTerm);
     }
 #endif /* TERMIOS */
 
@@ -562,7 +615,7 @@ static void InitTerminal(sockets)
 }
 
 
-static int FetchCharacter()
+static int FetchCharacter( void )
 {
 #ifdef TERMIOS
     register int status;
@@ -594,17 +647,17 @@ static int FetchCharacter()
             status = select( WaitWidth, (int*)&WaitSet, (int*)NULL, 
                                         (int*)NULL, &TimeOut );
 #else
-            status = select( WaitWidth, &WaitSet, (struct fd_set*)NULL, 
-                                        (struct fd_set*)NULL, &TimeOut );
+            status = select( WaitWidth, &WaitSet, (fd_set*)NULL, 
+                                        (fd_set*)NULL, &TimeOut );
 #endif
 
 #ifdef SOCKETS
             if( UseSockets )
             {   if( FD_ISSET(SocketNo,&WaitSet) )
-                {   OpenConnection( accept(SocketNo,0,0) );
-                } else for( i=0; i<MaxConvNum; i++ )
-                    if( ConvData[i].protocol )
-                        if( FD_ISSET(ConvData[i].socket,&WaitSet) )
+                {   OpenIPCConnection( accept(SocketNo,0,0) );
+                } else for( i=0; i<MaxIPCConvNum; i++ )
+                    if( IPCConvData[i].protocol )
+                        if( FD_ISSET(IPCConvData[i].socket,&WaitSet) )
                             HandleSocketData( i );
             }
 #endif
@@ -623,7 +676,8 @@ static int FetchCharacter()
 #endif
 }
 
-static int ReadCharacter()
+
+static int ReadCharacter( void )
 {
     register int tmp;
     register int ch;
@@ -652,14 +706,15 @@ static int ReadCharacter()
 }
 
 
-void RasMolSignalExit( i )
-    int i;
+void RasMolSignalExit( int arg )
 {
+    UnusedArgument(arg);
+
     RasMolFatalExit("*** Quit ***");
 }
 
 
-static void LoadInitFile()
+static void LoadInitFile( void )
 {
     register char *src,*dst;
     register FILE *initrc;
@@ -672,7 +727,7 @@ static void LoadInitFile()
     fname = ".rasmolrc";
 #endif
 
-    initrc = fopen(fname,"r");
+    initrc = fopen(fname,"rb");
     if( !initrc && (src=(char*)getenv("HOME")) )
     {   dst = fnamebuf; 
         while( *src )
@@ -683,7 +738,7 @@ static void LoadInitFile()
 
         src = fname; fname = fnamebuf;
         while( (*dst++ = *src++) );
-        initrc = fopen(fname,"r");
+        initrc = fopen(fname,"rb");
     }
 
     if( !initrc && (src=(char*)getenv("RASMOLPATH")) )
@@ -696,7 +751,7 @@ static void LoadInitFile()
 
         src = "rasmolrc"; fname = fnamebuf;
         while( (*dst++ = *src++) );
-        initrc = fopen(fname,"r");
+        initrc = fopen(fname,"rb");
     }
 
     if( initrc )
@@ -704,8 +759,7 @@ static void LoadInitFile()
 }
 
 
-static void HandleMenu( hand )
-     int hand;
+static void HandleMenu( int hand )
 {
     register int menu;
     register int item;
@@ -757,15 +811,17 @@ static void HandleMenu( hand )
                       case(3):  /* Sticks */
                                 DisableSpacefill();
                                 if( MainAtomCount<256 )
-                                {   EnableWireframe(CylinderFlag,40);
-                                } else EnableWireframe(CylinderFlag,80);
+                                { EnableWireframe(CylinderFlag,40);
+                                } else {
+                                  EnableWireframe(CylinderFlag,80);
+                                }
                                 SetRibbonStatus(False,0,0);
                                 ReDrawFlag |= RFRefresh;
                                 DisableBackbone();
                                 break;
 
                       case(4):  /* Spheres */
-                                SetVanWaalRadius();
+                                SetVanWaalRadius(SphereFlag);
                                 DisableWireframe();
                                 SetRibbonStatus(False,0,0);
                                 DisableBackbone();
@@ -773,7 +829,7 @@ static void HandleMenu( hand )
                                 break;
 
                       case(5):  /* Ball & Stick */
-                                SetRadiusValue(120);
+                                SetRadiusValue(120, SphereFlag);
                                 EnableWireframe(CylinderFlag,40);
                                 SetRibbonStatus(False,0,0);
                                 DisableBackbone();
@@ -830,6 +886,12 @@ static void HandleMenu( hand )
                                 ReDrawFlag |= RFColour;  break;
                       case(8):  /* User */
                                 UserMaskAttrib(MaskColourFlag);
+                                ReDrawFlag |= RFColour;  break;
+                      case(9):  /* Model */
+                                ScaleColourAttrib( ModelAttr );
+                                ReDrawFlag |= RFColour;  break;
+                      case(10): /* Alt */
+                                ScaleColourAttrib( AltAttr );
                                 ReDrawFlag |= RFColour;  break;
                   }
                   break;
@@ -909,11 +971,11 @@ static void HandleMenu( hand )
 }
 
 
-void RefreshScreen()
+void RefreshScreen( void )
 {
     if( !UseSlabPlane )
-    {   ReDrawFlag &= ~(RFTransZ|RFSlab|RFPoint);
-    } else ReDrawFlag &= ~(RFTransZ|RFPoint);
+    {   ReDrawFlag &= ~RFTransZ|RFSlab;
+    } else ReDrawFlag &= ~RFTransZ;
 
     if( ReDrawFlag )
     {   if( ReDrawFlag & RFReSize )
@@ -945,11 +1007,7 @@ void RefreshScreen()
 
 
 #ifdef SOCKETS
-static char AdviseBuffer[256];
-static int AdviseLen;
-
-static void PrepareAdviseItem( item )
-    int item;
+static void PrepareIPCAdviseItem( int item )
 {
     register char *src, *dst;
     register int i,flag;
@@ -1024,26 +1082,28 @@ static void PrepareAdviseItem( item )
 #endif
 
 
-void AdviseUpdate( item )
-    int item;
+void AdviseUpdate( int item )
 {
 #ifdef SOCKETS
     register int mask;
     register int i;
 
+    if( UseSockets )
+    {   mask = AdviseMap[item].bitmask;
+        if( !mask ) return;
+
     AdviseLen = 0;
-    if( UseSockets && (mask=AdviseMap[item].bitmask) )
-    {   for( i=0; i<MaxConvNum; i++ )
-            if( ConvData[i].protocol && (ConvData[i].advise&mask) )
-            {   if( !AdviseLen ) PrepareAdviseItem(item);
-                write(ConvData[i].socket,AdviseBuffer,AdviseLen);
-            }
+    for( i=0; i<MaxIPCConvNum; i++ )
+        if( IPCConvData[i].protocol && (IPCConvData[i].advise&mask) )
+        {   if( !AdviseLen ) PrepareIPCAdviseItem(item);
+            send(IPCConvData[i].socket,AdviseBuffer,AdviseLen,0);
+        }
     }
 #endif
 }
 
 
-int ProcessCommand()
+int ProcessCommand( void )
 {
     switch(CurState)
     {   case(1):  /* RasMol Prompt */
@@ -1074,33 +1134,18 @@ int ProcessCommand()
                   ResetCommandLine(1);
                   break;
     }
-    return( False );
+    return False;
 }
 
 
-int HandleEvents( wait )
-    int wait;
+static int HandleEvents( int wait )
 {
     register int result;
 
     result = FetchEvent( wait );
     while( ReDrawFlag || result )
     {   if( !result )
-        {   if( ReDrawFlag&RFPoint )
-            {   if( Database )
-                {   if( ReDrawFlag & RFPoint1 )
-                    {      PickAtom(True,PointX,PointY);
-                    } else PickAtom(False,PointX,PointY);
-#ifdef SOCKETS
-                    AdviseUpdate(AdvPickNumber);
-                    AdviseUpdate(AdvPickAtom);
-                    AdviseUpdate(AdvPickCoord);
-#endif
-                }
-                ReDrawFlag &= ~RFPoint;
-            }
-
-            if( ReDrawFlag )
+        {   if( ReDrawFlag )
                 RefreshScreen();
         } else if( !IsPaused )
             HandleMenu( result );
@@ -1110,7 +1155,8 @@ int HandleEvents( wait )
 }
 
 
-static void ProfileExecution()
+#ifdef PROFILE
+static void ProfileExecution( void )
 {
 #ifdef TIME
     register long start,stop;
@@ -1154,30 +1200,34 @@ static void ProfileExecution()
     fprintf(stderr,"Duration = %g seconds\n",secs);
 #endif
 }
+#endif
 
 
-static void InitDefaultValues()
+static void InitDefaultValues( void )
 {
     Interactive = True;
-
-    LabelOptFlag = False;
 
     FileNamePtr = NULL;
     ScriptNamePtr = NULL;
     InitialWide = DefaultWide;
     InitialHigh = DefaultHigh;
-    ServerPort = 21069;
     ProfCount = 0;
 
-    FileFormat = FormatPDB;
     CalcBondsFlag = True;
+    LabelOptFlag = False;
+    FileFormat = FormatPDB;
+    AllowWrite = False;
+
+#ifdef SOCKETS
+    ServerPort = 21069;
+#endif
 }
 
 
-static void DisplayUsage()
+static void DisplayUsage( void )
 {
     fputs("usage: rasmol [-nodisplay] [-script scriptfile] ",OutFp);
-    fputs("[[-format] file]\n    formats: -pdb -nmrpdb ",OutFp);
+    fputs("[[-format] file]\n    formats: -cif -pdb -nmrpdb ",OutFp);
     fputs("-mopac -mdl -mol2 -xyz -alchemy -charmm\n\n",OutFp);
     exit(1);
 }
@@ -1205,8 +1255,7 @@ static struct {
             { "xyz",        FormatXYZ      }
                                 };
     
-static void ProcessOptions(argc,argv)
-    int argc;  char *argv[];
+static void ProcessOptions( int argc, char *argv[] )
 {
     register char *ptr;
     register int i,j;
@@ -1222,13 +1271,19 @@ static void ProcessOptions(argc,argv)
 
             if( !strcmp(ptr,"nodisplay") )
             {   Interactive = False;
+#ifdef PROFILE
             } else if( !strcmp(ptr,"prof") ||
                        !strcmp(ptr,"profile") )
             {   ProfCount = 200;
+#endif
             } else if( !strcmp(ptr,"noconnect") )
             {   CalcBondsFlag = False;
             } else if( !strcmp(ptr,"connect") )
             {   CalcBondsFlag = True;
+            } else if( !strcmp(ptr,"insecure") )
+            {   AllowWrite = True;
+            } else if( !strcmp(ptr,"secure") )
+            {   AllowWrite = False;
 
             } else if( !strcmp(ptr,"script") )
             {   if( i == argc-1 ) DisplayUsage();
@@ -1238,7 +1293,10 @@ static void ProcessOptions(argc,argv)
             {   if( i == argc-1 ) DisplayUsage();
                 InitialWide = atoi(argv[++i]);
                 if( InitialWide < 48 )
-                    InitialWide = 48;
+                {   InitialWide = 48;
+                } else if( j = InitialWide%4 )
+                    InitialWide += 4-j;
+
             } else if( !strcmp(ptr,"height") ||
                        !strcmp(ptr,"high") )
             {   if( i == argc-1 ) DisplayUsage();
@@ -1256,6 +1314,8 @@ static void ProcessOptions(argc,argv)
             {   FileFormat = FormatMol2;
             } else if( !strcmp(ptr,"pdbnmr") )
             {   FileFormat = FormatNMRPDB;
+            } else if( !strcmp(ptr,"cif") )
+	    {  FileFormat = FormatCIF;
 #ifdef CEXIOLIB
             } else if( !strcmp(ptr,"cex") )
             {   FileFormat = FormatCEX;
@@ -1279,13 +1339,20 @@ static void ProcessOptions(argc,argv)
 }
 
 
-int main(argc,argv)
-int argc; char *argv[];
+int main( int argc, char *argv[] )
 {
     register FILE *fp;
     register int temp;
     register int done;
     register char ch;
+    static char VersionStr[255];
+
+    Interactive = False;
+    SwitchLang (English);
+
+    sprintf (VersionStr,"%s\nVersion %s %s\n%s\n", 
+             MAIN_COPYRIGHT, VERSION, 
+             VER_DATE, VER_COPYRIGHT);
 
     InitDefaultValues();
     ProcessOptions(argc,argv);
@@ -1296,20 +1363,23 @@ int argc; char *argv[];
     Interactive = OpenDisplay(InitialWide,InitialHigh);
     InitTerminal(Interactive);
 
+    SwitchLang (English);
+
     signal(SIGINT,RasMolSignalExit);
     signal(SIGPIPE,SIG_IGN);
 
     WriteString("RasMol Molecular Renderer\n");
     WriteString("Roger Sayle, August 1995\n");
-    WriteString("Version 2.6\n");
+    WriteString(VersionStr);
+    WriteString("*** See \"help notice\" for further notices ***\n");
 
 #ifdef EIGHTBIT
-    WriteString("[8bit version]\n\n");
+    WriteString("[8-bit version]\n\n");
 #else
 #ifdef SIXTEENBIT
-    WriteString("[16bit version]\n\n");
+    WriteString("[16-bit version]\n\n");
 #else
-    WriteString("[32bit version]\n\n");
+    WriteString("[32-bit version]\n\n");
 #endif
 #endif
 
@@ -1319,6 +1389,7 @@ int argc; char *argv[];
         } else WriteString("Display window disabled!\n");
     }
 
+    InitialiseCmndLine();
     InitialiseCommand();
     InitialiseTransform();
     InitialiseDatabase();
@@ -1327,7 +1398,9 @@ int argc; char *argv[];
     InitialiseAbstree();
     InitialiseOutFile();
     InitialiseRepres();
+    InitHelpFile();
 
+#ifdef PROFILE
     if( ProfCount )
     {   if( FileNamePtr )
         {   strcpy(DataFileName,FileNamePtr);
@@ -1341,7 +1414,7 @@ int argc; char *argv[];
 
         ReDrawFlag |= RFRefresh | RFColour;
 
-        /* SetVanWaalRadius(); */
+        /* SetVanWaalRadius( SphereFlag); */
         /* CPKColourAttrib();  */
 
         FakeSpecular = True;
@@ -1359,6 +1432,7 @@ int argc; char *argv[];
         ProfileExecution();
         RasMolExit();
     }
+#endif
 
     if( FileNamePtr )
     {   strcpy(DataFileName,FileNamePtr);
@@ -1378,7 +1452,7 @@ int argc; char *argv[];
 
     LoadInitFile();
     if( ScriptNamePtr )
-    {   if( !(fp=fopen(ScriptNamePtr,"r")) )
+    {   if( !(fp=fopen(ScriptNamePtr,"rb")) )
         {   fprintf(OutFp,"Error: File '%s' not found!\n",ScriptNamePtr);
         } else LoadScriptFile(fp,ScriptNamePtr);
     }
@@ -1398,12 +1472,14 @@ int argc; char *argv[];
 
 
 #ifdef TERMIOS
-    while( True )
+    done = False;
+    while( !done )
     {   ch = ReadCharacter();
         if( ProcessCharacter(ch) )
-            if( ProcessCommand() )
-                break;
-        RefreshScreen();
+        {   if( !ProcessCommand() )
+            {   RefreshScreen();
+            } else done = True;
+        }
     }
 #else /* !TERMIOS */
     if( Interactive )
@@ -1411,15 +1487,19 @@ int argc; char *argv[];
         while( HandleEvents(True) )
             if( !CommandActive )
                 ResetCommandLine(0);
-    } else while( True )
-    {   /* Command Line Only! */
-        ch = ReadCharacter();
-        if( ProcessCharacter(ch) )
-            if( ProcessCommand() )
-                break;
-        RefreshScreen();
+    } else 
+    {   done = False;
+        while( !done )
+        {   /* Command Line Only! */
+            ch = ReadCharacter();
+            if( ProcessCharacter(ch) )
+            {   if( !ProcessCommand() )
+                {   RefreshScreen();
+                } else done = True;
+            }
+        }
     }
 #endif
     RasMolExit();
-    return( 0 );
+    return 0;
 }

@@ -1,9 +1,55 @@
+/***************************************************************************
+ *                              RasMol 2.7.1                               *  
+ *                                                                         *
+ *                                 RasMol                                  *
+ *                 Molecular Graphics Visualisation Tool                   *
+ *                              22 June 1999                               *
+ *                                                                         *
+ *                   Based on RasMol 2.6 by Roger Sayle                    *
+ * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
+ *                      Stevenage, Hertfordshire, UK                       *
+ *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
+ *                   Copyright (C) Roger Sayle 1992-1999                   *
+ *                                                                         *
+ *                  and Based on Mods by Arne Mueller                      *
+ *                      Version 2.6x1, May 1998                            *
+ *                   Copyright (C) Arne Mueller 1998                       *
+ *                                                                         *
+ *           Version 2.7.0, 2.7.1 Mods by Herbert J. Bernstein             *
+ *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *                      yaya@bernstein-plus-sons.com                       *
+ *                    2.7.0 March 1999, 2.7.1 June 1999                    *
+ *              Copyright (C) Herbert J. Bernstein 1998-1999               *
+ *                                                                         *
+ * Please read the file NOTICE for important notices which apply to this   *
+ * package. If you are not going to make changes to RasMol, you are not    * 
+ * only permitted to freely make copies and distribute them, you are       * 
+ * encouraged to do so, provided you do the following:                     *
+ *   * 1. Either include the complete documentation, especially the file   *
+ *     NOTICE, with what you distribute or provide a clear indication      *
+ *     where people can get a copy of the documentation; and               *
+ *   * 2. Please give credit where credit is due citing the version and    * 
+ *     original authors properly; and                                      *  
+ *   * 3. Please do not give anyone the impression that the original       *
+ *     authors are providing a warranty of any kind.                       *
+ *                                                                         *
+ * If you would like to use major pieces of RasMol in some other program,  *
+ * make modifications to RasMol, or in some other way make what a lawyer   *
+ * would call a "derived work", you are not only permitted to do so, you   *
+ * are encouraged to do so. In addition to the things we discussed above,  *
+ * please do the following:                                                *
+ *   * 4. Please explain in your documentation how what you did differs    *
+ *     from this version of RasMol; and                                    *
+ *   * 5. Please make your modified source code available.                 *
+ *                                                                         *
+ * This version of RasMol is not in the public domain, but it is given     *
+ * freely to the community in the hopes of advancing science. If you make  *
+ * changes, please make them in a responsible manner, and please offer us  *
+ * the opportunity to include those changes in future versions of RasMol.  *
+ ***************************************************************************/
+
 /* script.c
- * RasMol2 Molecular Graphics
- * Roger Sayle, August 1995
- * Version 2.6
  */
-#define SCRIPT
 #include "rasmol.h"
 
 #ifdef IBMPC
@@ -28,15 +74,18 @@
 #include <ctype.h>
 #include <math.h>
 
+#define SCRIPTS
 #include "script.h"
 #include "molecule.h"
 #include "command.h"
+#include "cmndline.h"
 #include "abstree.h"
 #include "transfor.h"
 #include "render.h"
 #include "repres.h"
 #include "graphics.h"
 #include "pixutils.h"
+
 
 #ifdef INVERT
 #define InvertY(y) (y)
@@ -45,9 +94,15 @@
 #endif
 
 #define Round(x)       ((int)(x))
-#define DatWirFlag  (Long)0x10000
-#define DatDasFlag  (Long)0x20000
-#define DatCylFlag  (Long)0x40000
+
+/* Macros for commonly used loops */
+#define ForEachAtom  for(chain=Database->clist;chain;chain=chain->cnext) \
+                     for(group=chain->glist;group;group=group->gnext)    \
+                     for(aptr=group->alist;aptr;aptr=aptr->anext)
+#define ForEachBond  for(bptr=Database->blist;bptr;bptr=bptr->bnext)
+#define ForEachBack  for(chain=Database->clist;chain;chain=chain->cnext) \
+                     for(bptr=chain->blist;bptr;bptr=bptr->bnext)
+
 
 /* Special thanks to Profs Jane and David Richardson
  * for the following Kinemage colour lookup table */
@@ -58,7 +113,7 @@ static struct {
         char *name;
         } KinemageCol[MAXMAGECOL] = {
     { 255,   0,   0, "red"        },  /*  1 */
-    {  23, 256,   0, "green"      },  /*  2 */
+    {  23, 255,   0, "green"      },  /*  2 */
     {  62,  62, 255, "blue"       },  /*  3 */
     {   0, 242, 226, "cyan"       },  /*  4 */
     { 255, 246,   0, "yellow"     },  /*  5 */
@@ -80,6 +135,10 @@ static struct {
         };
 
 
+#define DatWirFlag  (Long)0x10000
+#define DatDasFlag  (Long)0x20000
+#define DatCylFlag  (Long)0x40000
+
 typedef struct {
         Long datum;
         Long count;
@@ -88,38 +147,45 @@ typedef struct {
 #define FREQSIZE  8
 static FreqEntry Freq[FREQSIZE];
 
-
 static Atom __far *MagePrev;
 static char *MageCol;
 static FILE *OutFile;
 static int SelectAll;
 
-/* Macros for commonly used loops */
-#define ForEachAtom  for(chain=Database->clist;chain;chain=chain->cnext) \
-                     for(group=chain->glist;group;group=group->gnext)    \
-                     for(aptr=group->alist;aptr;aptr=aptr->anext)
-#define ForEachBond  for(bptr=Database->blist;bptr;bptr=bptr->bnext)
-#define ForEachBack  for(chain=Database->clist;chain;chain=chain->cnext) \
-                     for(bptr=chain->blist;bptr;bptr=bptr->bnext)
 
 
-static void FatalScriptError( ptr )
-    char *ptr;
-{
-    if( CommandActive ) WriteChar('\n');
-    WriteString("Script Error: Unable to create file `");
-    WriteString( ptr );  WriteString("'!\n");
-    CommandActive = False;
-}
+/*=======================*/
+/*  Function Prototypes  */
+/*=======================*/
 
-
-#ifdef FUNCPROTO
 static void IncFreqTable( Long );
 static Long GetBondDatum( Bond __far* );
 static Long GetHBondDatum( HBond __far* );
-#endif
+static int FetchBondInfo( Atom __far*, Atom __far* );
 
-static void ResetFreqTable()
+static void WriteMolScriptAtomSel( Chain __far*, Group __far*, Atom __far* );
+
+static void WriteScriptDatum( char*, Long );
+static void WriteScriptSelectBond( Atom __far*, Atom __far* );
+static void WriteScriptHBonds( char*, HBond __far* );
+
+static int CheckKinemageChain( Atom __far*, Atom __far*, Chain __far* );
+static void OutputKinemageVector( Atom __far*, Atom __far*, int );
+static void WriteKinemageBonds( Chain __far* );
+static void WriteKinemageSpheres( Chain __far* );
+static void WriteKinemageLabels( Chain __far* );
+
+
+
+static void FatalScriptError( char *ptr )
+{
+    InvalidateCmndLine();
+    WriteString("Script Error: Unable to create file `");
+    WriteString( ptr );  WriteString("'!\n");
+}
+
+
+static void ResetFreqTable( void )
 {
     register int i;
 
@@ -127,8 +193,8 @@ static void ResetFreqTable()
         Freq[i].count = 0;
 }
 
-static void IncFreqTable( datum )
-    Long datum;
+
+static void IncFreqTable( Long datum )
 {
     register Long count;
     register int i;
@@ -155,44 +221,79 @@ static void IncFreqTable( datum )
 }
 
 
-static Long GetBondDatum( bptr )
-    Bond __far *bptr;
+static Long GetBondDatum( Bond __far *bptr )
 {
     if( bptr->flag & CylinderFlag )
     {   return( DatCylFlag | bptr->radius );
     } else if( bptr->flag & WireFlag )
-    {   return( DatWirFlag );
+    {   return DatWirFlag;
     } else if( bptr->flag & DashFlag )
-    {   return( DatDasFlag );
-    } else return( (Long)0 );
+    {   return DatDasFlag;
+    } else return (Long)0;
 }
 
-static Long GetHBondDatum( bptr )
-    HBond __far *bptr;
+static Long GetHBondDatum( HBond __far *bptr )
 {
     if( bptr->flag & CylinderFlag )
     {   return( DatCylFlag | bptr->radius );
     } else if( bptr->flag & WireFlag )
-    {   return( DatWirFlag );
-    } else return( (Long)0 );
+    {   return DatWirFlag;
+    } else return (Long)0;
 }
 
- 
-#ifndef SCRIPT
-#ifdef FUNCPROTO
-static void WriteMolScriptAtomSel( Chain __far*, Group __far*, Atom __far* );
-#endif
 
-static void WriteMolScriptColour( r, g, b )
-    int r, g, b;
+/* Used by FetchBondInfo! */
+static Chain __far *schn;
+static Chain __far *dchn;
+static Group __far *sgrp;
+static Group __far *dgrp;
+
+static int FetchBondInfo( Atom __far *src, Atom __far *dst )
+{
+    register Chain __far *chain;
+    register Group __far *group;
+    register Atom __far *aptr;
+
+    /* Determine Chain and Groups */
+    schn = dchn = (Chain __far*)0;
+    sgrp = dgrp = (Group __far*)0;
+
+    for( chain=Database->clist; chain; chain=chain->cnext )
+    {   for( group=chain->glist; group; group=group->gnext )
+        {   for( aptr=group->alist; aptr; aptr=aptr->anext )
+            {   if( aptr == src )
+                {   schn = chain;
+                    sgrp = group;
+                }
+                if( aptr == dst ) 
+                {   dchn = chain;
+                    dgrp = group;
+                }
+            }
+            if( sgrp && dgrp ) 
+                return True;
+        }
+    }
+    return False;
+}
+
+
+
+/*==============================*/
+/*  Molscript Input Generation  */
+/*==============================*/
+
+#ifdef UNUSED
+static void WriteMolScriptColour( int r, int g, int b )
 {
     fprintf(OutFile," rgb %#g %#g %#g",r/255.0,g/255.0,b/255.0);
 }
+#endif
 
-static void WriteMolScriptAtomSel( chain, group, aptr )
-    Chain __far *chain;
-    Group __far *group;
-    Atom __far *aptr;
+
+static void WriteMolScriptAtomSel( Chain __far *chain,
+                                   Group __far *group,
+                                   Atom __far *aptr )
 {
     register char *ptr;
     register int i;
@@ -211,36 +312,97 @@ static void WriteMolScriptAtomSel( chain, group, aptr )
     fprintf(OutFile,"%d",group->serno);
 }
 
-static void WriteMolScriptAtoms()
+
+static void WriteMolScriptAtoms( void )
 {
+
     register Chain __far *chain;
     register Group __far *group;
     register Atom __far *aptr;
+    register int count,vdw;
+    register long total;
+
+#ifdef UNUSED
     register ShadeDesc *shade;
-    register Label *label;
-    register char *ptr;
-
-    char buffer[80];
-
 
     ForEachAtom
-    {   if( aptr->flag & SphereFlag )
-        {   /* Atom Colour */
-            fputs("set atomcolour ",OutFile);
+        if( aptr->flag &SphereFlag )
+        {   fputs("set atomcolour ",OutFile);
             WriteMolScriptAtomSel(chain,group,aptr);
             shade = Shade + Colour2Shade(aptr->col);
             WriteMolScriptColour(shade->r,shade->g,shade->b);
             fputs(";\n",OutFile);
 
-            /* CPK Sphere */
             fputs("set atomradius ",OutFile);
             WriteMolScriptAtomSel(chain,group,aptr);
-            fprintf(OutFile," %#g;\ncpk ",aptr->radius/250.0);
+            fprintf(OutFile," %#g",aptr->radius/250.0);
+            fputs(";\n",OutFile);
+        }
+#endif
+
+    vdw = True;
+    total = 0;
+    count = 0;
+    ForEachAtom
+        if( aptr->flag & SphereFlag )
+        {   if( vdw ) vdw = IsVDWRadius(aptr);
+            total += aptr->radius;
+            count++;
+        }
+
+    if( !count )
+        return;
+
+    if( !vdw )
+    {   /* Average sphere radius! */
+        fprintf(OutFile,"set atomradius atom * %#g;\n",
+                (double)total/(250.0*count));
+    }
+
+    ForEachAtom
+        if( aptr->flag & SphereFlag )
+        {   fputs("cpk ",OutFile);
             WriteMolScriptAtomSel(chain,group,aptr);
             fputs(";\n",OutFile);
         }
+}
 
-        if( aptr->label )
+
+static void WriteMolScriptBonds( void )
+{
+    register Bond __far *bptr;
+
+    ForEachBond
+    {    if( bptr->flag & WireFlag )
+         {   FetchBondInfo(bptr->srcatom,bptr->dstatom);
+             fputs("bonds ",OutFile);
+             WriteMolScriptAtomSel(schn,sgrp,bptr->srcatom);
+             fputs("\n      ",OutFile);
+             WriteMolScriptAtomSel(dchn,dgrp,bptr->dstatom);
+             fputs(";\n",OutFile);
+         } else if( bptr->flag & CylinderFlag )
+         {   FetchBondInfo(bptr->srcatom,bptr->dstatom);
+             fputs("ball-and-stick ",OutFile);
+             WriteMolScriptAtomSel(schn,sgrp,bptr->srcatom);
+             fputs("\n               ",OutFile);
+             WriteMolScriptAtomSel(dchn,dgrp,bptr->dstatom);
+             fputs(";\n",OutFile);
+         }
+    }
+}
+
+
+static void WriteMolScriptLabels( void )
+{
+    register Chain __far *chain;
+    register Group __far *group;
+    register Atom __far *aptr;
+    register Label *label;
+    register char *ptr;
+    char buffer[80];
+
+    ForEachAtom
+    {   if( aptr->label )
         {   /* Atom Label */
             label = (Label*)aptr->label;
             FormatLabel(chain,group,aptr,label->label,buffer);
@@ -254,10 +416,9 @@ static void WriteMolScriptAtoms()
         }
     }
 }
-#endif
 
-static void MolScriptSegment( ptr, src, dst, chain )
-    char *ptr;  int src, dst;  char chain;
+
+static void MolScriptSegment( char *ptr, int src, int dst, int chain )
 {   
     if( (chain!=' ') && !isdigit(chain) ) 
     {   fprintf(OutFile,"  %s from %c%d to %c%d;\n",ptr,chain,src,chain,dst);
@@ -265,8 +426,7 @@ static void MolScriptSegment( ptr, src, dst, chain )
 }
 
 
-int WriteMolScriptFile( name )
-    char *name;
+int WriteMolScriptFile( char *name )
 {
     register Real temp;
     register Real psi, phi, theta;
@@ -286,7 +446,7 @@ int WriteMolScriptFile( name )
         return(False);
     }
     fprintf(OutFile,"! File: %s\n",name);
-    fputs("! Creator: RasMol Version 2.6\n",OutFile);
+    fprintf(OutFile,"! Creator: RasMol Version %s\n", VERSION);
     fputs("! Version: MolScript v1.3\n\n",OutFile);
 
     fputs("plot\n",OutFile);
@@ -392,29 +552,26 @@ int WriteMolScriptFile( name )
         }
     }
 
-#ifndef SCRIPT
+
     WriteMolScriptAtoms();
-#endif
+    WriteMolScriptBonds();
+    WriteMolScriptLabels();
 
     fputs("end_plot\n",OutFile);
     fclose(OutFile);
 #ifdef APPLEMAC
     SetFileInfo(name,'ttxt','TEXT',133);
 #endif
-    return( True );
+    return True;
 }
 
 
 
-
-#ifdef FUNCPROTO
-static void WriteScriptDatum( char*, Long );
-static void WriteScriptSelectBond( Atom __far*, Atom __far* );
-static void WriteScriptHBonds( char*, HBond __far* );
-#endif
-
-
-static void WriteScriptAll()
+/*============================*/
+/*  RasMol Script Generation  */
+/*============================*/
+  
+static void WriteScriptAll( void )
 {
     if( !SelectAll )
     {   fputs("select all\n",OutFile);
@@ -422,8 +579,7 @@ static void WriteScriptAll()
     }
 }
 
-static void WriteScriptColour( ptr, col )
-    char *ptr;  int col;
+static void WriteScriptColour( char *ptr, int col )
 {
     register ShadeDesc *shade;
     
@@ -435,8 +591,7 @@ static void WriteScriptColour( ptr, col )
 }
 
 
-static void WriteScriptBetween( lo, hi )
-    int lo, hi;
+static void WriteScriptBetween( int lo, int hi )
 {
     if( lo != hi )
     {   fprintf(OutFile,"select (atomno>=%d) and (atomno<=%d)\n",lo,hi);
@@ -444,8 +599,8 @@ static void WriteScriptBetween( lo, hi )
     SelectAll = False;
 }
 
-static void WriteScriptSelectBond( src, dst )
-    Atom __far *src, __far *dst;
+
+static void WriteScriptSelectBond( Atom __far *src, Atom __far *dst )
 {
     fprintf(OutFile,"select (atomno=%d) or (atomno==%d)\n",
                     src->serno, dst->serno);
@@ -453,7 +608,7 @@ static void WriteScriptSelectBond( src, dst )
 }
 
 
-static void WriteScriptAtoms()
+static void WriteScriptAtoms( void )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -462,11 +617,13 @@ static void WriteScriptAtoms()
     register int same,init;
     register int cpk,vdw;
     register int col,rad;
+    register int prevflag,staron;
 
     fputs("\n# Atoms\n",OutFile);
 
     same = True;
     init = False;
+
     ForEachAtom
         if( !init )
         {   first = last = aptr->serno;
@@ -502,44 +659,81 @@ static void WriteScriptAtoms()
         } else WriteScriptColour("atoms",col);
     }
 
-    if( DrawAtoms )
+    staron = False;
+    if( DrawAtoms || DrawStars )
     {   same = True;
         init = False;
+        prevflag = 0;
         ForEachAtom
+	{
             if( !init )
-            {   rad = aptr->flag&SphereFlag? aptr->radius : 0;
+            {   rad = (aptr->flag&(SphereFlag | StarFlag)) ? aptr->radius : 0;
                 first = last = aptr->serno;
                 vdw = IsVDWRadius( aptr );
+                if (vdw) rad = -1;
                 init = True;
-            } else if( rad == ((aptr->flag&SphereFlag)? aptr->radius : 0) )
-            {   if( vdw ) vdw = IsVDWRadius( aptr );
-                last = aptr->serno;
-            } else if( vdw && IsVDWRadius(aptr) )
-            {   last = aptr->serno;
-                rad = -1;
+                prevflag = aptr->flag&(SphereFlag | StarFlag);
             } else 
-            {   WriteScriptBetween(first,last);
-                if( rad == -1 )
-                {   fputs("spacefill on\n",OutFile);
-                } else if( rad )
-                {   fprintf(OutFile,"spacefill %d\n",rad);
-                } else fputs("spacefill off\n",OutFile); 
-
-                rad = aptr->flag&SphereFlag? aptr->radius : 0;
+            { if( (prevflag == (aptr->flag&(SphereFlag | StarFlag))) &&
+                ((vdw && IsVDWRadius(aptr)) ||
+                (rad == prevflag ? aptr->radius : 0)))
+              { last = aptr->serno;
+              } else
+              { if( prevflag )
+                { WriteScriptBetween(first,last);
+                  if( rad == -1 )
+                  { if(aptr->flag&SphereFlag)  
+                      fputs("spacefill on\n",OutFile);
+                    if( aptr->flag&StarFlag ) 
+		    { staron = True;
+                      fputs("star on\n",OutFile);
+                    }
+                  } else 
+                  { if( rad )
+                    { if( aptr->flag&SphereFlag )
+                        fprintf(OutFile,"spacefill %d\n",rad);
+                      if(aptr->flag&StarFlag)
+		      { staron = True;
+                        fprintf(OutFile,"star %d\n",rad);
+                      }
+                    } else 
+                    { if( aptr->flag&SphereFlag )
+                        fputs("spacefill off\n",OutFile); 
+                      if((aptr->flag&StarFlag) && staron)
+		      { staron = False;
+                        fputs("star off\n",OutFile);
+                      }
+                    }
+                  }
+	        }
+                prevflag = aptr->flag&(SphereFlag | StarFlag);
+                rad = prevflag? aptr->radius : 0;
                 first = last = aptr->serno;
                 vdw = IsVDWRadius( aptr );
+                if( vdw ) rad = -1;
                 same = False;
+              }
             }
+        }
 
         if( !same )
         {   WriteScriptBetween(first,last);
         } else WriteScriptAll();
 
         if( rad == -1 )
-        {   fputs("spacefill on\n",OutFile);
+        {   if( prevflag&SphereFlag )
+              fputs("spacefill on\n",OutFile);
+            if( prevflag&StarFlag )
+              fputs("star on\n",OutFile);
         } else if( rad )
-        {   fprintf(OutFile,"spacefill %d\n",rad);
-        } else fputs("spacefill off\n",OutFile); 
+        {   if( prevflag&SphereFlag )
+              fprintf(OutFile,"spacefill %d\n",rad);
+            if( prevflag&StarFlag )
+              fprintf(OutFile,"star %d\n",rad);
+        } else {
+          fputs("spacefill off\n",OutFile); 
+          if (staron) fputs("star off\n",OutFile);
+        }
 
         if( UseShadow )
         {   fputs("set shadow on\n",OutFile);
@@ -553,8 +747,7 @@ static void WriteScriptAtoms()
 }
 
 
-static void WriteScriptDatum( ptr, datum )
-    char *ptr;  Long datum;
+static void WriteScriptDatum( char *ptr, Long datum )
 {
     if( datum & DatCylFlag )
     {   fprintf(OutFile,"%s %d\n",ptr,(int)(datum-DatCylFlag));
@@ -566,7 +759,7 @@ static void WriteScriptDatum( ptr, datum )
 }
 
 
-static void WriteScriptBonds()
+static void WriteScriptBonds( void )
 {
     register Bond __far *bptr;
     register Long defdat;
@@ -612,7 +805,8 @@ static void WriteScriptBonds()
             }
 }
 
-static void WriteScriptBackbone()
+
+static void WriteScriptBackbone( void )
 {
     register Chain __far *chain;
     register Bond __far *bptr;
@@ -660,7 +854,8 @@ static void WriteScriptBackbone()
             }
 }
 
-static void WriteScriptRibbons()
+
+static void WriteScriptRibbons( void )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -669,7 +864,9 @@ static void WriteScriptRibbons()
     fputs("\n# Ribbons\n",OutFile);
 
     if( DrawRibbon )
-    {   fprintf(OutFile,"set strands %d\n",SplineCount);
+    {   if( Info.structsource == SourceCalc )
+            fputs("structure\n",OutFile);
+        fprintf(OutFile,"set strands %d\n",SplineCount);
         fprintf(OutFile,"set cartoon %s\n",DrawBetaArrows?"on":"off");
         fprintf(OutFile,"set cartoon %d\n",CartoonHeight);
 
@@ -710,8 +907,7 @@ static void WriteScriptRibbons()
 }
 
 
-static void WriteScriptHBonds( obj, list )
-    char *obj;  HBond __far *list;
+static void WriteScriptHBonds( char *obj, HBond __far *list )
 {
     register HBond __far *ptr;
     register Long defdat;
@@ -755,23 +951,30 @@ static void WriteScriptHBonds( obj, list )
             }
 }
 
-static void WriteScriptLabels()
+
+static void WriteScriptLabels( void )
 {
     register Chain __far *chain;
     register Group __far *group;
     register Atom __far *aptr;
-    register Long first,last;
+    register Long first = 0,last = 0;
     register Label *label;
 
     fputs("\n# Labels\n",OutFile);
     WriteScriptAll();
     fputs("labels off\n",OutFile);
-    if( !DrawLabels ) return;
+    if( !LabelList ) return;
 
     if( UseLabelCol )
     {   fprintf(OutFile,"colour labels [%d,%d,%d]\n",LabR,LabG,LabB);
     } else fputs("colour labels none\n",OutFile);
-    fprintf(OutFile,"set fontsize %d\n",FontSize);
+
+    if ( FontPS )
+    { fprintf(OutFile,"set fontsize %d PS\n",FontSize);
+    } else fprintf(OutFile,"set fontsize %d\n",FontSize);
+
+    if ( FontStroke )
+      fprintf(OutFile,"set fontstroke %d\n",FontStroke);
 
     label = (Label*)0;
     ForEachAtom
@@ -791,7 +994,7 @@ static void WriteScriptLabels()
 }
 
 
-static void WriteScriptMonitors()
+static void WriteScriptMonitors( void )
 {
     register Monitor *ptr;
     register int col;
@@ -825,8 +1028,7 @@ static void WriteScriptMonitors()
 }
 
 
-int WriteScriptFile( name )
-    char *name;
+int WriteScriptFile( char *name )
 {
     register int theta,phi,psi;
     register char *ptr;
@@ -839,9 +1041,8 @@ int WriteScriptFile( name )
     }
 
     fprintf(OutFile,"#!rasmol -script\n# File: %s\n",name);
-    fputs("# Creator: RasMol Version 2.6\n\n",OutFile);
+    fprintf(OutFile,"# Creator: RasMol Version %s\n\n", VERSION);
     fputs("zap\n",OutFile);
-    fprintf(OutFile,"background [%d,%d,%d]\n",BackR,BackG,BackB);
 
     if( !Database )
     {   /* No Molecule! */
@@ -849,7 +1050,7 @@ int WriteScriptFile( name )
 #ifdef APPLEMAC
         SetFileInfo(name,'RSML','RSML',133);
 #endif
-        return(True);
+        return True;
     }
 
     /* Molecule File Name */
@@ -861,10 +1062,18 @@ int WriteScriptFile( name )
         case(FormatMol2):     ptr = "mol2";     break;
         case(FormatMDL):      ptr = "mdl";      break;
         case(FormatXYZ):      ptr = "xyz";      break;
+        case(FormatCIF):      ptr = "cif";      break;
     }
-    fprintf(OutFile,"load %s \"%s\"\n",ptr,Info.filename);
+    if ( !strcmp(Info.filename,"inline") ) 
+    { fprintf(OutFile,
+       "\n#*** WARNING Data loaded inline not included in this script\n");
+        fprintf(OutFile,"load %s %s\n",ptr,Info.filename);
+    } else {
+      fprintf(OutFile,"load %s \"%s\"\n",ptr,Info.filename);
+    }
 
     /* Colour Details */
+    fprintf(OutFile,"background [%d,%d,%d]\n",BackR,BackG,BackB);
     fprintf(OutFile,"set ambient %d\n", (int)(100*Ambient) );
     fputs("set specular ",OutFile);
     if( FakeSpecular )
@@ -922,6 +1131,14 @@ int WriteScriptFile( name )
     }
     putc('\n',OutFile);
 
+    if ( CenX || CenY || CenZ ) {
+#ifdef INVERT
+       fprintf(OutFile,"centre [%ld,%ld,%ld]\n", CenX, -CenY, -CenZ);
+#else
+       fprintf(OutFile,"centre [%ld,%ld,%ld]\n", CenX, CenY, -CenZ);
+#endif
+    }
+
     /* Rendering */
     if( DrawAxes || DrawBoundBox || DrawUnitCell )
         fprintf(OutFile,"colour axes [%d,%d,%d]\n",BoxR,BoxG,BoxB);
@@ -958,7 +1175,7 @@ int WriteScriptFile( name )
 #ifdef APPLEMAC
         SetFileInfo(name,'RSML','RSML',133);
 #endif
-        return(True);
+        return True;
     }
 
     WriteScriptBonds();
@@ -976,23 +1193,16 @@ int WriteScriptFile( name )
 #ifdef APPLEMAC
     SetFileInfo(name,'RSML','RSML',133);
 #endif
-    return( True );
+    return True;
 }
 
 
 
-#ifdef FUNCPROTO
-static int CheckKinemageChain( Atom __far*, Atom __far*, Chain __far* );
-static void OutputKinemageVector( Atom __far*, Atom __far*, int );
-static void WriteKinemageBonds( Chain __far* );
-static void WriteKinemageSpheres( Chain __far* );
-static void WriteKinemageRibbons( Chain __far* );
-static void WriteKinemageLabels( Chain __far* );
-#endif
+/*=======================*/
+/*  Kinemage Generation  */
+/*=======================*/
 
-
-static char *FindKinemageCol( r, g, b )
-    int r, g, b;
+static char *FindKinemageCol( int r, int g, int b )
 {
     register Long dist,best;
     register int dr,dg,db;
@@ -1019,8 +1229,7 @@ static char *FindKinemageCol( r, g, b )
 }
 
 
-static char *GetKinemageCol( col )
-    int col;
+static char *GetKinemageCol( int col )
 {
     register ShadeDesc *ptr;
 
@@ -1029,18 +1238,14 @@ static char *GetKinemageCol( col )
 }
 
 
-/* Used by CheckKinemageChain! */
-static Group __far *sgrp;
-static Group __far *dgrp;
-
-static int CheckKinemageChain( src, dst, chain )
-    Atom __far *src, __far *dst;  
-    Chain __far *chain;
+static int CheckKinemageChain( Atom __far *src,  Atom __far *dst, 
+                               Chain __far *chain )
 {
     register Group __far *group;
     register Atom __far *aptr;
 
     /* Determine Chain and Groups */
+    schn = dchn = (Chain __far*)0;
     sgrp = dgrp = (Group __far*)0;
 
     if( chain )
@@ -1050,24 +1255,14 @@ static int CheckKinemageChain( src, dst, chain )
                 if( aptr == dst ) dgrp = group;
             }
             if( sgrp && dgrp ) 
-                return( True );
-        }
-    } else for( chain=Database->clist; chain; chain=chain->cnext )
-    {   for( group=chain->glist; group; group=group->gnext )
-        {   for( aptr=group->alist; aptr; aptr=aptr->anext )
-            {   if( aptr == src ) sgrp = group;
-                if( aptr == dst ) dgrp = group;
-            }
-            if( sgrp && dgrp ) 
-                return( True );
+                return True;
         }
     }
-    return( False );
+    return False;
 }
 
-static void OutputKinemageVector( src, dst, col )
-    Atom __far *src, __far *dst;  
-    int col;
+
+static void OutputKinemageVector( Atom __far *src,  Atom __far *dst, int col )
 {
     register Atom __far *aptr;
     register Real x, y, z;
@@ -1084,7 +1279,6 @@ static void OutputKinemageVector( src, dst, col )
         col2 = col1;  col1 = MageCol;
     }
 
-
     if( col1 != MageCol )
     {   fprintf(OutFile,"@vectorlist {} color= %s\n",col1);
         MagePrev = (Atom __far*)0;
@@ -1095,34 +1289,33 @@ static void OutputKinemageVector( src, dst, col )
         {   fprintf(OutFile,"{%.4s %.3s %d}", ElemDesc[src->refno], 
                     Residue[sgrp->refno], sgrp->serno );
         } else fprintf(OutFile,"{%.4s %d}",ElemDesc[src->refno],src->serno);
-        fprintf(OutFile," P %g %g %g\n", src->xorg/250.0, 
-                InvertY(src->yorg)/250.0, src->zorg/250.0 );
+        fprintf(OutFile," P %g %g %g\n", (src->xorg + OrigCX)/250.0, 
+                InvertY((src->yorg + OrigCY))/250.0, -(src->zorg + OrigCZ)/250.0 );
     }
 
     if( col1 != col2 )
-    {   x = (src->xorg+dst->xorg)/500.0;
-        y = (src->yorg+dst->yorg)/500.0;
-        z = (src->zorg+dst->zorg)/500.0;
+    {   x = (src->xorg+dst->xorg+OrigCX+OrigCX)/500.0;
+        y = (src->yorg+dst->yorg+OrigCY+OrigCY)/500.0;
+        z = (src->zorg+dst->zorg+OrigCZ+OrigCZ)/500.0;
 
-        fprintf(OutFile,"{} L %g %g %g\n", x, InvertY(y), z );
+        fprintf(OutFile,"{} L %g %g %g\n", x, InvertY(y), -z );
         fprintf(OutFile,"@vectorlist {} color= %s\n",col2);
-        fprintf(OutFile,"{} P %g %g %g\n", x, InvertY(y), z );
+        fprintf(OutFile,"{} P %g %g %g\n", x, InvertY(y), -z );
     }
 
     if( MainGroupCount>1 )
     {   fprintf(OutFile,"{%.4s %.3s %d}", ElemDesc[dst->refno],
                 Residue[dgrp->refno], dgrp->serno );
     } else fprintf(OutFile,"{%.4s %d}",ElemDesc[dst->refno],dst->serno);
-    fprintf(OutFile," L %g %g %g\n", dst->xorg/250.0,
-            InvertY(dst->yorg)/250.0, dst->zorg/250.0 );
+    fprintf(OutFile," L %g %g %g\n", (dst->xorg + OrigCX)/250.0,
+            InvertY((dst->yorg + OrigCY))/250.0, -(dst->zorg + OrigCZ)/250.0 );
 
     MagePrev = dst;
     MageCol = col2;
 }
 
 
-static void WriteKinemageBonds( chain )
-    Chain __far *chain;
+static void WriteKinemageBonds( Chain __far *chain )
 {
     register Bond __far *bptr;
     register Bond __far *flag;
@@ -1163,13 +1356,12 @@ static void WriteKinemageBonds( chain )
 }
 
 
-static void WriteKinemageSpheres( chain )
-    Chain __far *chain;
+static void WriteKinemageSpheres( Chain __far *chain )
 {
     register Group __far *group;
     register Atom __far *aptr;
     register char *col;
-    register int radius;
+    register int radius = 0;
 
     MageCol = (char*)0;
     for( group=chain->glist; group; group=group->gnext )
@@ -1191,21 +1383,15 @@ static void WriteKinemageSpheres( chain )
                                     Residue[group->refno], group->serno );
                 } else fprintf(OutFile,"{%.4s %d}",ElemDesc[aptr->refno],
                                     aptr->serno);
-                fprintf(OutFile," %g %g %g\n", aptr->xorg/250.0,
-                       InvertY(aptr->yorg)/250.0, aptr->zorg/250.0 );
+                fprintf(OutFile," %g %g %g\n", (aptr->xorg + OrigCX)/250.0,
+                       InvertY((aptr->yorg + OrigCY))/250.0, 
+                       -(aptr->zorg + OrigCZ)/250.0 );
             }
 }
 
 
-static void WriteKinemageRibbons( chain )
-    Chain __far *chain;
-{
-}
 
-
-
-static void WriteKinemageLabels( chain )
-    Chain __far *chain;
+static void WriteKinemageLabels( Chain __far *chain )
 {
     register Group __far *group;
     register Atom __far *aptr;
@@ -1228,19 +1414,23 @@ static void WriteKinemageLabels( chain )
                     fprintf(OutFile,"@labellist {} color= %s\n",col);
                 label = (Label*)aptr->label;
                 FormatLabel(chain,group,aptr,label->label,buffer);
-                fprintf(OutFile,"{%s} %g %g %g\n", buffer, aptr->xorg/250.0, 
-                        InvertY(aptr->yorg)/250.0, aptr->zorg/250.0);
+                fprintf(OutFile,"{%s} %g %g %g\n", buffer, 
+                        (aptr->xorg + OrigCX)/250.0, 
+                        InvertY((aptr->yorg + OrigCY))/250.0, 
+                        -(aptr->zorg + OrigCZ)/250.0);
                 MageCol = col;
             }
 }
 
 
-static void WriteKinemageUnitCell()
+#ifdef UNUSED
+static void WriteKinemageUnitCell( void )
 {
 }
+#endif
 
 
-static void WriteKinemageDots()
+static void WriteKinemageDots( void )
 {
     auto int status[LastShade];
     register DotStruct __far *ptr;
@@ -1277,8 +1467,10 @@ static void WriteKinemageDots()
                         {   fprintf(OutFile,"@dotlist {} color= %s\n",MageCol);
                             flag = True;
                         }
-                        fprintf(OutFile, "{} %g %g %g\n", ptr->xpos[j]/250.0,
-                             InvertY(ptr->ypos[j])/250.0, ptr->zpos[j]/250.0 );
+                        fprintf(OutFile, "{} %g %g %g\n", 
+                             (ptr->xpos[j] + OrigCX)/250.0,
+                             InvertY((ptr->ypos[j] + OrigCY))/250.0, 
+                             (ptr->zpos[j] + OrigCZ)/250.0 );
                     }
 
             for( j=i; j<LastShade; j++ )
@@ -1288,12 +1480,12 @@ static void WriteKinemageDots()
 }
 
 
-static void WriteKinemageData()
+static void WriteKinemageData( void )
 {
     register HBond __far *hptr;
     register Atom __far *src;
     register Atom __far *dst;
-    register Real dx, dy, dz;
+    register Real dx, dy, dz, cx, cy, cz;
 
     /* Hydrogen Bonds */
     for( hptr=Database->hlist; hptr; hptr=hptr->hnext )
@@ -1313,10 +1505,9 @@ static void WriteKinemageData()
         fputs("@subgroup {mainchain} dominant",OutFile);
         fputs( HBondMode? "\n" : " off\n", OutFile);
         for( hptr=Database->hlist; hptr; hptr=hptr->hnext )
-            if( hptr->srcCA && hptr->dstCA )
-            {   CheckKinemageChain(hptr->srcCA,hptr->dstCA,(Chain __far*)0);
-                OutputKinemageVector( hptr->srcCA, hptr->dstCA, hptr->col);
-            }
+        {   FetchBondInfo( hptr->src, hptr->dst );
+            OutputKinemageVector( hptr->srcCA, hptr->dstCA, hptr->col);
+        }
     } else if( hptr )
     {   fputs("@group {h-bonds} dominant\n",OutFile);
         for( hptr=Database->hlist; hptr; hptr=hptr->hnext )
@@ -1325,7 +1516,7 @@ static void WriteKinemageData()
                 dst = HBondMode? hptr->dstCA : hptr->dst;
 
                 if( src && dst )
-                {   CheckKinemageChain( src, dst, (Chain __far*)0 );
+                {   FetchBondInfo( src, dst );
                     OutputKinemageVector( src, dst, hptr->col);
                 }
             }
@@ -1343,21 +1534,21 @@ static void WriteKinemageData()
         fputs("@subgroup {sidechain} dominant",OutFile);
         fputs( SSBondMode? " off\n" : "\n", OutFile);
         for( hptr=Database->slist; hptr; hptr=hptr->hnext )
-        {   CheckKinemageChain( hptr->src, hptr->dst, (Chain __far*)0 );
+        {   FetchBondInfo( hptr->src, hptr->dst );
             OutputKinemageVector(hptr->src,hptr->dst,hptr->col);
         }
 
         fputs("@subgroup {mainchain} dominant",OutFile);
         fputs( SSBondMode? "\n" : " off\n", OutFile);
         for( hptr=Database->slist; hptr; hptr=hptr->hnext )
-        {   CheckKinemageChain( hptr->srcCA, hptr->dstCA, (Chain __far*)0 );
+        {   FetchBondInfo( hptr->srcCA, hptr->dstCA );
             OutputKinemageVector( hptr->srcCA, hptr->dstCA, hptr->col );
         }
     } else if( hptr )
     {   fputs("@group {S-S bridges} dominant\n",OutFile);
         for( hptr=Database->slist; hptr; hptr=hptr->hnext )
             if( hptr->flag&DrawBondFlag )
-            {   CheckKinemageChain( hptr->src, hptr->dst, (Chain __far*)0 );
+            {   FetchBondInfo( hptr->src, hptr->dst );
                 OutputKinemageVector( SSBondMode?hptr->srcCA:hptr->src,
                                       SSBondMode?hptr->dstCA:hptr->dst,
                                       hptr->col );
@@ -1366,7 +1557,7 @@ static void WriteKinemageData()
 
 
     /* Dot Surfaces */
-    if( DrawDots )
+    if( DotPtr )
         WriteKinemageDots();
 
     /* Draw `Background' Objects */
@@ -1375,6 +1566,7 @@ static void WriteKinemageData()
         return;
 
     dx = MaxX/250.0;  dy = MaxY/250.0;  dz = MaxZ/250.0;
+    cx = OrigCX/250.0; cy = OrigCY/250.0; cz = OrigCZ/250.0;
     MageCol = FindKinemageCol( BoxR, BoxG, BoxB );
 
     if( DrawAxes || KinemageFlag )
@@ -1382,9 +1574,9 @@ static void WriteKinemageData()
         fputs( (DrawAxes?"\n":" off\n"), OutFile );
         fprintf(OutFile,"@vectorlist {} color= %s\n",MageCol);
 
-        fprintf(OutFile,"{} P %g 0 0\n{} L %g 0 0\n",-dx,dx);
-        fprintf(OutFile,"{} P 0 %g 0\n{} L 0 %g 0\n",-dy,dy);
-        fprintf(OutFile,"{} P 0 0 %g\n{} L 0 0 %g\n",-dz,dz);
+        fprintf(OutFile,"{} P %g 0 0\n{} L %g 0 0\n",-dx+cx,dx+cx);
+        fprintf(OutFile,"{} P 0 %g 0\n{} L 0 %g 0\n",-dy+cy,dy+cy);
+        fprintf(OutFile,"{} P 0 0 %g\n{} L 0 0 %g\n",-dz+cz,dz+cz);
     }
 
     if( DrawBoundBox || KinemageFlag )
@@ -1392,36 +1584,35 @@ static void WriteKinemageData()
         fputs( (DrawAxes?"\n":" off\n"), OutFile );
         fprintf(OutFile,"@vectorlist {} color= %s\n",MageCol);
 
-        fprintf(OutFile,"{} P %g %g %g\n",-dx,-dy,-dz);
-        fprintf(OutFile,"{} L %g %g %g\n", dx,-dy,-dz);
-        fprintf(OutFile,"{} L %g %g %g\n", dx, dy,-dz);
-        fprintf(OutFile,"{} L %g %g %g\n",-dx, dy,-dz);
-        fprintf(OutFile,"{} L %g %g %g\n",-dx,-dy,-dz);
-        fprintf(OutFile,"{} L %g %g %g\n",-dx,-dy, dz);
-        fprintf(OutFile,"{} L %g %g %g\n", dx,-dy, dz);
-        fprintf(OutFile,"{} L %g %g %g\n", dx, dy, dz);
-        fprintf(OutFile,"{} L %g %g %g\n",-dx, dy, dz);
-        fprintf(OutFile,"{} L %g %g %g\n",-dx,-dy, dz);
+        fprintf(OutFile,"{} P %g %g %g\n",-dx+cx,-dy+cy,-dz+cz);
+        fprintf(OutFile,"{} L %g %g %g\n", dx+cx,-dy+cy,-dz+cz);
+        fprintf(OutFile,"{} L %g %g %g\n", dx+cx, dy+cy,-dz+cz);
+        fprintf(OutFile,"{} L %g %g %g\n",-dx+cx, dy+cy,-dz+cz);
+        fprintf(OutFile,"{} L %g %g %g\n",-dx+cx,-dy+cy,-dz+cz);
+        fprintf(OutFile,"{} L %g %g %g\n",-dx+cx,-dy+cy, dz+cz);
+        fprintf(OutFile,"{} L %g %g %g\n", dx+cx,-dy+cy, dz+cz);
+        fprintf(OutFile,"{} L %g %g %g\n", dx+cx, dy+cy, dz+cz);
+        fprintf(OutFile,"{} L %g %g %g\n",-dx+cx, dy+cy, dz+cz);
+        fprintf(OutFile,"{} L %g %g %g\n",-dx+cx,-dy+cy, dz+cz);
 
-        fprintf(OutFile,"{} P %g %g %g\n", dx,-dy,-dz);
-        fprintf(OutFile,"{} L %g %g %g\n", dx,-dy, dz);
-        fprintf(OutFile,"{} P %g %g %g\n", dx, dy,-dz);
-        fprintf(OutFile,"{} L %g %g %g\n", dx, dy, dz);
-        fprintf(OutFile,"{} P %g %g %g\n",-dx, dy,-dz);
-        fprintf(OutFile,"{} L %g %g %g\n",-dx, dy, dz);
+        fprintf(OutFile,"{} P %g %g %g\n", dx+cx,-dy+cy,-dz+cz);
+        fprintf(OutFile,"{} L %g %g %g\n", dx+cx,-dy+cy, dz+cz);
+        fprintf(OutFile,"{} P %g %g %g\n", dx+cx, dy+cy,-dz+cz);
+        fprintf(OutFile,"{} L %g %g %g\n", dx+cx, dy+cy, dz+cz);
+        fprintf(OutFile,"{} P %g %g %g\n",-dx+cx, dy+cy,-dz+cz);
+        fprintf(OutFile,"{} L %g %g %g\n",-dx+cx, dy+cy, dz+cz);
     }
 
     if( *Info.spacegroup && (DrawUnitCell || KinemageFlag) )
     {   fputs("@group {unit cell} dominant",OutFile);
         fputs( (DrawAxes?"\n":" off\n"), OutFile );
         fprintf(OutFile,"@vectorlist {} color= %s\n",MageCol);
-        WriteKinemageUnitCell();
+        /* WriteKinemageUnitCell(); */
     }
 }
 
 
-int WriteKinemageFile( name )
-    char *name;
+int WriteKinemageFile( char *name )
 {
     register Chain __far *chain;
     register Real zoom;
@@ -1435,15 +1626,16 @@ int WriteKinemageFile( name )
         return(False);
     }
 
-    fputs("@text\nRasMol v2.6 generated Kinemage\n \n",OutFile);
+    fprintf(OutFile,"@text\nRasMol v%s generated Kinemage\n \n", VERSION);
     if( *Info.moleculename )
         fprintf(OutFile,"Molecule name ....... %s\n",Info.moleculename);
     if( *Info.classification )
         fprintf(OutFile,"Classification ...... %s\n",Info.classification);
     if( *Info.identcode )
-        fprintf(OutFile,"Brookhaven Code ..... %s\n",Info.identcode);
+        fprintf(OutFile,"Database Code ....... %s\n",Info.identcode);
 
-    fputs("@kinemage 1\n@caption RasMol v2.6 generated Kinemage\n",OutFile);
+    fprintf(OutFile,
+      "@kinemage 1\n@caption RasMol v%s generated Kinemage\n", VERSION);
     fputs("@onewidth\n",OutFile);
 
     if( DialValue[3] != 0.0 )
@@ -1458,7 +1650,6 @@ int WriteKinemageFile( name )
         {   fprintf(OutFile,"@group {chain %c}\n",chain->ident);
             WriteKinemageSpheres( chain );
             WriteKinemageBonds( chain );
-            WriteKinemageRibbons( chain );
             WriteKinemageLabels( chain );
         }
     } else
@@ -1466,7 +1657,6 @@ int WriteKinemageFile( name )
         chain = Database->clist;
         WriteKinemageSpheres( chain );
         WriteKinemageBonds( chain );
-        WriteKinemageRibbons( chain );
         WriteKinemageLabels( chain );
     }
 
@@ -1475,11 +1665,15 @@ int WriteKinemageFile( name )
 #ifdef APPLEMAC
     SetFileInfo(name,'MAGE','TEXT',135);
 #endif
-    return( True );
+    return True;
 }
 
-int WritePOVRayFile( name )
-    char *name;
+
+/*================================*/
+/*  POVRay Ray Tracer Generation  */
+/*================================*/
+
+int WritePOVRayFile( char *name )
 {
     register ShadeDesc *shade;
     register Chain __far *chain;
@@ -1497,7 +1691,7 @@ int WritePOVRayFile( name )
     }
 
     fprintf(OutFile,"// File: %s\n",name);
-    fputs("// Creator: RasMol Version 2.6\n",OutFile);
+    fprintf(OutFile,"// Creator: RasMol Version %s\n", VERSION);
     fputs("// Version: POV-Ray Version 2.2\n\n",OutFile);
 
     fputs("#include \"shapes.inc\"\n",OutFile);
@@ -1552,12 +1746,16 @@ int WritePOVRayFile( name )
 #ifdef APPLEMAC
     SetFileInfo(name,'ttxt','TEXT',133);
 #endif
-    return( True );
+    return True;
 }
 
 
-static void WriteVRMLTriple( x, y, z )
-    double x, y, z;
+
+/*===========================================*/
+/*  VRML Virtual Reality Modelling Language  */
+/*===========================================*/
+
+static void WriteVRMLTriple( double x, double y, double z )
 {
 #ifdef __STDC__
     fprintf(OutFile,"%.3f %.3f %.3f",x,y,z);
@@ -1567,8 +1765,7 @@ static void WriteVRMLTriple( x, y, z )
 }
 
 
-static void WriteVRMLColour( indent, shade )
-    int indent, shade;
+static void WriteVRMLColour( int indent, int shade )
 {
     register int i;
 
@@ -1581,7 +1778,8 @@ static void WriteVRMLColour( indent, shade )
     fputs(" }\n",OutFile);
 }
 
-static void WriteVRMLAtoms()
+
+static void WriteVRMLAtoms( void )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -1604,7 +1802,7 @@ static void WriteVRMLAtoms()
 
                     x = (double)aptr->xorg/250.0;
                     y = (double)aptr->yorg/250.0;
-                    z = (double)aptr->zorg/250.0;
+                    z = -(double)aptr->zorg/250.0;
 
                     fputs("    Translation { translation ",OutFile);
                     WriteVRMLTriple(x-ox,InvertY(y-oy),z-oz);
@@ -1625,60 +1823,7 @@ static void WriteVRMLAtoms()
 }
                             
 
-static int HaveCommonAtom( bnd1, bnd2 )
-    Bond __far *bnd1;  Bond __far *bnd2;
-{
-    return( (bnd1->srcatom==bnd2->srcatom) || 
-            (bnd1->srcatom==bnd2->dstatom) ||
-            (bnd1->dstatom==bnd2->srcatom) ||
-            (bnd1->dstatom==bnd2->dstatom) );
-}
-
-static void BondPlane( bnd, dx, dy, dz )
-    Bond __far *bnd;  double *dx, *dy, *dz;
-{
-    register Bond __far *bptr;
-    register double fx,fy,fz;
-    register double sx,sy,sz;
-    register double rx,ry,rz;
-    register double flen,slen;
-    register double dot,len;
-
-    fx = (double)(bnd->srcatom->xorg-bnd->dstatom->xorg);
-    fy = (double)(bnd->srcatom->yorg-bnd->dstatom->yorg);
-    fz = (double)(bnd->srcatom->zorg-bnd->dstatom->zorg);
-    flen = sqrt(fx*fx + fy*fy + fz*fz);
-
-    ForEachBond
-        if( (bptr!=bnd) && HaveCommonAtom(bptr,bnd) )
-        {   sx = (double)(bptr->srcatom->xorg-bptr->dstatom->xorg);
-            sy = (double)(bptr->srcatom->yorg-bptr->dstatom->yorg);
-            sz = (double)(bptr->srcatom->zorg-bptr->dstatom->zorg);
-            slen = sqrt(sx*sx + sy*sy + sz*sz);
-
-            dot = (fx*sx + fy*sy + fz*sz)/(flen*slen);
-            if( fabs(dot) < 0.95 )
-            {   rx = flen*sx - dot*slen*fx;
-                ry = flen*sy - dot*slen*fy;
-                rz = flen*sz - dot*slen*fz;
-                len = sqrt(rx*rx + ry*ry + rz*rz);
-                *dx = rx/len;  *dy = ry/len;  *dz = rz/len;
-                return;
-            }
-        }
-
-    if( fabs(fx) >= fabs(fz) )
-    {   len = sqrt(fx*fx+fy*fy);
-        *dx = fy/len; *dy = -fx/len; *dz = 0.0;
-    } else
-    {   flen = sqrt(fy*fy+fz*fz);
-        *dx = 0.0; *dy = -fz/len; *dz = fy/len;
-    }
-}
-
-
-static void WriteVRMLLine( src, dst, shade, flag )
-    int src, dst, shade;  int *flag;
+static void WriteVRMLLine( int src, int dst, int shade, int *flag )
 {
     if( !*flag )
     {   WriteVRMLColour(4,shade);
@@ -1689,7 +1834,8 @@ static void WriteVRMLLine( src, dst, shade, flag )
     fprintf(OutFile,"        %5d, %5d, -1,\n",src-1,dst-1);
 }
 
-static void WriteVRMLWireframe()
+
+static void WriteVRMLWireframe( void )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -1718,7 +1864,7 @@ static void WriteVRMLWireframe()
             if( !src->mbox )
             {   x = (double)src->xorg/250.0;
                 y = (double)src->yorg/250.0;
-                z = (double)src->zorg/250.0;
+                z = -(double)src->zorg/250.0;
 
                 fputs("        ",OutFile);
                 WriteVRMLTriple(x,InvertY(y),z);
@@ -1729,7 +1875,7 @@ static void WriteVRMLWireframe()
             if( !dst->mbox )
             {   x = (double)dst->xorg/250.0;
                 y = (double)dst->yorg/250.0;
-                z = (double)dst->zorg/250.0;
+                z = -(double)dst->zorg/250.0;
 
                 fputs("        ",OutFile);
                 WriteVRMLTriple(x,InvertY(y),z);
@@ -1740,7 +1886,7 @@ static void WriteVRMLWireframe()
             if( !bptr->col && (src->col!=dst->col) )
             {   x = (double)(src->xorg+dst->xorg)/500.0;
                 y = (double)(src->yorg+dst->yorg)/500.0;
-                z = (double)(src->zorg+dst->zorg)/500.0;
+                z = -(double)(src->zorg+dst->zorg)/500.0;
                 
                 fputs("        ",OutFile);
                 WriteVRMLTriple(x,InvertY(y),z);
@@ -1791,7 +1937,7 @@ static void WriteVRMLWireframe()
 }
 
 
-static void WriteVRMLDots()
+static void WriteVRMLDots( void )
 {
     auto int hist[LastShade];
     register DotStruct __far *ptr;
@@ -1817,7 +1963,7 @@ static void WriteVRMLDots()
 
                         x = (double)ptr->xpos[j]/250.0;
                         y = (double)ptr->ypos[j]/250.0;
-                        z = (double)ptr->zpos[j]/250.0;
+                        z = -(double)ptr->zpos[j]/250.0;
 
                         fputs("        ",OutFile);
                         WriteVRMLTriple(x,InvertY(y),z);
@@ -1847,25 +1993,25 @@ static void WriteVRMLDots()
 }
 
 
-int WriteVRMLFile( name )
-    char *name;
+int WriteVRMLFile( char *name )
 {
     if( !Database )
-        return(True);
+        return True;
 
     OutFile = fopen(name,"w");
     if( !OutFile )
     {   FatalScriptError(name);
-        return(False);
+        return False;
     }
 
     fputs("#VRML V1.0 ascii\n",OutFile);
-    fputs("#Created by RasMol v2.6\n\n",OutFile);
+    fprintf(OutFile,"#Created by RasMol v%s\n\n",VERSION);
 
     fputs("DEF Viewer Info { string \"examiner\" }\n",OutFile);
     fprintf(OutFile,"DEF Title Info { string \"%s\" }\n",Info.moleculename);
-    fputs("DEF Creator Info { string \"Created by RasMol v2.6\" }\n",OutFile);
-    fputs("DEF Background Info { string \"",OutFile);
+    fprintf(OutFile,
+      "DEF Creator Info { string \"Created by RasMol v%s\" }\n",VERSION);
+    fputs("DEF BackgroundColor Info { string \"",OutFile);
     WriteVRMLTriple(BackR/255.0,BackG/255.0,BackB/255.0);
     fputs("\" }\n\n",OutFile);
     
@@ -1879,7 +2025,7 @@ int WriteVRMLFile( name )
 
     WriteVRMLAtoms();
     WriteVRMLWireframe();
-    if( DrawDots )
+    if( DotPtr )
         WriteVRMLDots();
 
     fputs("}\n",OutFile);
@@ -1887,7 +2033,722 @@ int WriteVRMLFile( name )
 #ifdef APPLEMAC
     SetFileInfo(name,'ttxt','TEXT',133);
 #endif
-    return( True );
+    return True;
 }
 
+static void WriteBuffer ( char* buffer )
+{
+   if ( OutFile ) {
+     fputs(buffer, OutFile);
+   } else {
+     WriteString ( buffer );
+   }
+ }
+
+int WritePhiPsiAngles ( char *name, int ramachan )
+{
+
+  register Chain __far *chain;
+  register Group __far *group;
+  register Atom __far *aptr;
+  register Group __far *prev;
+  register char c;
+  char pplot[73][73];
+  char buffer[130];
+  AtomRef current;
+  double phi, psi, omega;
+  int i,j,iphi,jphi,ipsi,jpsi,model;
+
+  if (ramachan < 0 )
+    for (i = 0; i<73; i++)
+      for (j = 0; j < 73; j++)
+        pplot[i][j] = ' ';
+
+  model = -1;
+
+  if( !Database )
+    return(True);
+
+  if (name && !(name[0] == '-' && name[1] == '\0')) {
+    OutFile = fopen(name,"w");
+    if( !OutFile ){
+      FatalScriptError(name);
+      return(False);
+    }
+  } else {
+    OutFile = (FILE *)0;
+  }   
+  /* Note: '#' is comment-sign in gnuplot */ 
+  if (OutFile) {
+    sprintf(buffer,"# File: %s\n",name);  
+    WriteBuffer(buffer);
+    sprintf(buffer,"# Creator: RasMol Version %s\n", VERSION);
+    WriteBuffer(buffer);
+    sprintf(buffer, "# from Molecule: %s\n", 
+      Info.moleculename);
+    WriteBuffer(buffer);
+    sprintf(buffer, "# Database Code: %s\n", 
+      Info.identcode);
+    WriteBuffer(buffer);
+  }
+  if(ramachan > 0 ){
+    WriteBuffer("# phi/psi-angles for Ramachandran-Plot\n");
+    WriteBuffer("#\n#\t\tPhi \t Psi\n");
+  } else {
+    if (ramachan < 0 ) {
+    WriteBuffer("# Ramachandran Printer Plot\n");
+    } else {
+      WriteBuffer("# Combinations of backbone-angles\n");
+    }
+  }
+
+  for(chain=Database->clist;chain;chain=chain->cnext){ 
+    prev = (Group __far *)0;
+    for(group=chain->glist;group;group=group->gnext){
+      for(aptr=group->alist;aptr;aptr=aptr->anext){
+	if( !(aptr->flag&SelectFlag) || !IsAmino(group->refno)){
+	  prev = group;
+	  break;	  
+	} 
+	if(!aptr->anext){ 
+	  /* save reference to current group for later information */
+	  current.chn = chain;
+	  current.grp = group;
+	  current.atm = aptr;
+
+	  /* calculation of angles (-180.0 <= angle >= 180.0) */
+	  if(prev && IsAmino(prev->refno)){
+	     phi   = CalcPhiAngle(prev, group);
+ 	     omega =  CalcOmegaAngle(prev, group);
+	  } else {
+	    phi   = 360.0;
+	    omega = 360.0;
+	  }
+	 
+	  if(group->gnext && IsAmino(group->gnext->refno))
+	    psi   = CalcPsiAngle(group, group->gnext);
+	  else
+	    psi   = 360.0;
+
+      if ( !(group->model == model) ) {
+        if (model > 0 || group->model > 0 ) {
+          sprintf(buffer, "Model: %d\n", group->model);
+          WriteBuffer(buffer);
+          if ( ( ramachan < 0)  && (model > 0) ) {
+            WriteBuffer(
+              "    ...........................................................................\n");
+            for ( i = 0; i < 73 ; i++ ) {
+              sprintf(buffer,"%5d.",180-5*i);
+              for ( j = 0; j < 73; j++ ) buffer[5+j] = pplot[i][j];
+              buffer[5+73] = '.'; buffer[5+74] = '\n'; buffer[5+75] = '\0';
+              WriteBuffer(buffer);
+            }
+            WriteBuffer(
+              "    ...........................................................................\n\n");
+            WriteBuffer(
+              "P    - - - - - - - - -                                       + + + + + + + + +\n");
+            WriteBuffer(
+              "s    1 1 1 1 1 1 1 1 1 - - - - - - - - -   + + + + + + + + + 1 1 1 1 1 1 1 1 1\n");
+            WriteBuffer(
+              "i    8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1   1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8\n");
+            WriteBuffer(
+              "Phi   0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0   0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n");
+          }
+          for (i = 0; i<73; i++)
+            for (j = 0; j < 73; j++)
+              pplot[i][j] = ' ';
+          model = group->model;
+        }
+      }
+
+	  /* writing (current group and) angles */
+	  if(ramachan){     /* data for Ramachandran-plot */
+	    if(fabs(phi) <= 180.0 && 180.0 >= fabs(psi)) {
+          if (ramachan > 0) {
+	        sprintf(buffer, "%3s\t%c%d\t%#.1f\t%#.1f\n", 
+		      Residue[group->refno], 
+		      chain->ident, 
+		      group->serno, 
+		      phi, psi);
+		    WriteBuffer(buffer);
+          }
+          iphi = (phi+182.5)/5.;
+          ipsi = (psi+182.5)/5.;
+          ipsi = 72-ipsi;
+          if (iphi < 0 ) iphi = 0;
+          if (iphi > 72) iphi = 72;
+          if (ipsi < 0 ) ipsi = 0;
+          if (ipsi > 72) ipsi = 72;
+          jphi = iphi;
+          jpsi = ipsi;
+          if (iphi == 0 || iphi == 72) {
+            iphi = 0;
+            jphi = 72;
+          }
+          if (ipsi == 0 || ipsi == 72) {
+            ipsi = 0;
+            jpsi = 72;
+          }
+          for ( i = iphi; i <= jphi; i+= 72 ) {
+            for ( j = ipsi; j <= jpsi; j+=72 ) {
+              c = pplot[j][i];
+              if ( c == ' ' ) {
+                c = '1';
+              } else if ( c == '9' || c == '+' ) {
+                c = '+';
+              } else c++;
+              pplot[j][i] = c;
+            }
+          }
+        }  
+	  }
+	  else{ 
+	    WriteBuffer( DescribeObj(&current, GRP) ); 
+	    if(phi != 360.0) {
+	      sprintf(buffer, "\tPhi = %#.1f", phi);
+	      WriteBuffer(buffer);
+	    }
+	    if(psi != 360.0) {
+	      sprintf(buffer, "\tPsi = %#.1f", psi);
+	      WriteBuffer(buffer);
+	    }
+	    /*  only omega-angles of cis-peptidbonds are listed, */
+	    /*  see 'molecule.h' for definition of 'CIS'          */
+	    if(fabs(omega) < CisBondCutOff)  {
+	      sprintf(buffer, "\tOmega = %#.1f", omega);
+	      WriteBuffer(buffer);
+	    }
+	    WriteBuffer("\n");
+	  }
+	  prev = group;
+	}
+      } /* for atom ... */
+    } /* for group ... */ 
+  } /* for chain ... */
+ 
+  if (ramachan < 0) {
+    WriteBuffer(
+      "    ...........................................................................\n");
+    for ( i = 0; i < 73 ; i++ ) {
+      sprintf(buffer,"%4d.",180-5*i);
+      for ( j = 0; j < 73; j++ ) buffer[5+j] = pplot[i][j];
+        buffer[5+73] = '.'; buffer[5+74] = '\n'; buffer[5+75] = '\0';
+      WriteBuffer(buffer);
+    }
+    WriteBuffer(
+      "    ...........................................................................\n\n");
+    WriteBuffer(
+      "P    - - - - - - - - -                                       + + + + + + + + +\n");
+    WriteBuffer(
+      "s    1 1 1 1 1 1 1 1 1 - - - - - - - - -   + + + + + + + + + 1 1 1 1 1 1 1 1 1\n");
+    WriteBuffer(
+      "i    8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1   1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8\n");
+    WriteBuffer(
+      "Phi  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0   0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n");
+  }
+
+  if(OutFile) {
+    fclose(OutFile);
+#ifdef APPLEMAC
+    SetFileInfo(name,'ttxt','TEXT',133);
+#endif
+  }
+  return True;
+}
+
+
+/****************************************************************************\
+ * POV-Ray version 3:
+ * ==================
+ *
+ * Below you find all you need for the transformation of a RasMol-Image to a 
+ * POV-script. Note, you need POV-Ray 3 or higher to render the created
+ * POV-scriptfile.
+ *
+ * 'WritePOVRay3File' is the main function that writes the scriptfile, it's
+ * an external function, all other functions used by WritePOVRay3File' are
+ * internal (static).
+\****************************************************************************/
+
+
+/*==========================================================================*\
+ * datatypes, variables and definitions for POV-work
+\*==========================================================================*/
+
+typedef struct _Coord {
+  double x;
+  double y;
+  double z;
+} Coord;
+
+
+/* storing RGB-values */
+typedef struct _Color{
+  double r;
+  double g;
+  double b;
+} Color;
+
+
+/*==========================================================================*\
+ * Prototypes of internal functions
+\*==========================================================================*/
+static Coord POVGetMidCoord(Atom __far *src, Atom __far *dst);
+static Color POVGetColor(int col);
+static void  POVWriteTexture(Color color);
+static void  POVWriteHeader(void);
+static void  POVWriteAtoms(void);
+static void  POVWriteLine(Atom __far *src,Atom __far *dst,int rad,Byte flag);
+static void  POVWriteBonds(void);
+static void  POVWriteBackBone(void);
+static void  POVWriteHSBonds(void);
+static void  POVWriteDots(void);
+
+/*=========================================================================*\
+ * Definitions for the finish of the POV-scene, may me changed by user
+ *
+ * SPECPOWER: a high value makes a shiny surface, value from 0..1
+ * ROUGHNESS: 1..0.005, low values for a small highlight (= very smooth),
+ *            bigger values for a rough surface
+ * DIFFUSE  : high value causes sharp shadows, objects in a shadow are
+ *            very dark, LOW value means that less light comes directly
+ *            from the lightsource, most light comes from everywhere. 
+ *            Values from 0..1.
+ * AMBIENT  : "ambient" together with "diffuse" controlls the scattered 
+ *            light, higher values for ambient means that there are many
+ *            lightsources everywhere in space. Values from 0..1
+ * TRANSMIT : determines the transparence of a surface, values from 0..1,
+ *            1.0 is completely transparent
+ * DOTFACTOR: bigger values for bigger dots (spheres) of dots surfaces
+ * MINWIRE  : because a cylinder in POVRay is not allowed to have radius 0
+ *            you have to define a minimal value for this, default is 10,
+ *            this creates a very thin cylinder
+ * MINDASH  : the same as above only for a dashed wireframe
+\*=========================================================================*/
+#define SPECPOWER 0.4  
+#define ROUGHNESS 0.005
+#define DIFFUSE   0.8 
+#define AMBIENT   0.2 
+#define TRANSMIT  0.0
+
+#define MAXNAME 80  /* maximal length of a filename */
+
+/* to convert the world coordinates into original pdb coordinates */
+#define Trans 250.0
+#define INVTrans 0.004
+#define TransO(o) ((double)(o)*INVTrans)
+#define TransX(x) ((double)((x)+OrigCX)*INVTrans)
+#define TransY(y) ((double)(InvertY((y)+OrigCY)*INVTrans))
+#define TransZ(z) (-((double)((z)+OrigCZ)*INVTrans))
+
+#define DOTFACTOR (500.0) 
+#define MINWIRE   (15)
+#define MINDASH   (MINWIRE)
+
+#define NOSHADEDOTS /* define this to avoid shade each dot of dottes surfaces */
+
+
+/*==========================================================================*\
+ * Internal macro "POVWriteSphere" writes a sphere with in the atom colour
+ * but with an explicit given radius, so you can also use it for rounded
+ * cylinder caps. 
+\*==========================================================================*/
+#define POVWriteSphere(atom, rad)  \
+        fprintf(OutFile_inc, "object {\n"\
+		"   sphere { < %g , %g , %g > %g }\n",\
+		TransX(atom->xorg),\
+		TransY(atom->yorg),\
+		TransZ(atom->zorg),\
+		TransO(rad)),\
+                POVWriteTexture(POVGetColor((int)(atom)->col)), \
+        Slab(), \
+        fputs("}\n", OutFile_inc)
+
+/*==========================================================================*\
+ * These internal but global variables are shared by internal POV-functions.
+ * Because no function should change the values for file handling expect
+ * the main function 'WritePOVRay3File' there's no need to use function 
+ * parameters instead.
+\*==========================================================================*/
+
+static FILE *OutFile_inc = NULL; 
+static char INCname[MAXNAME]   ; 
+static char POVname[MAXNAME]   ; 
+
+
+/*==========================================================================*\
+ * Below you find all function definitions ...
+\*==========================================================================*/
+/****************************************************************************/
+
+/*==========================================================================*\
+ * returns the coordinate that is exact between two given coordinates
+\*==========================================================================*/
+static Coord POVGetMidCoord( Atom __far *src, Atom __far *dst )
+{
+  
+  Coord d;
+
+  d.x = (double)(labs(src->xorg - dst->xorg));
+  d.y = (double)(labs(src->yorg - dst->yorg));
+  d.z = (double)(labs(src->zorg - dst->zorg));
+  if ( src->xorg > dst->xorg )
+    d.x*= -1;
+  if ( src->yorg > dst->yorg )
+    d.y*= -1;
+  if ( src->zorg > dst->zorg )
+    d.z*= -1;
+     
+  d.x = TransX(d.x * 0.5 + src->xorg);
+  d.y = TransY(d.y * 0.5 + src->yorg);
+  d.z = TransZ(d.z * 0.5 + src->zorg); 
+
+  return d;
+}
+
+
+/*===========================================================================*\
+ * returns a POVRAY-Color
+\*===========================================================================*/
+static Color POVGetColor( int col )
+{
+
+  ShadeDesc *shade;
+  Color POVcol;
+
+  shade = Shade+Colour2Shade(col);
+  POVcol.r = (double)shade->r/255.0;
+  POVcol.g = (double)shade->g/255.0;
+  POVcol.b = (double)shade->b/255.0;
+  
+  return POVcol;
+}
+
+
+/*===========================================================================*\
+ * writes the color of an object including finish
+\*===========================================================================*/
+static void POVWriteTexture( Color color )
+{
+        fputs("    texture {\n",OutFile_inc);
+        fprintf(OutFile_inc,"      pigment {color rgbt <%g, %g, %g, T>}\n",
+	  (color).r, (color).g, (color).b),
+        fputs("      finish {F}\n", OutFile_inc);
+	fputs("    }\n", OutFile_inc);
+}
+
+
+/*===========================================================================*\
+ * internal function "POVWriteHeader"
+\*===========================================================================*/
+static void POVWriteHeader( void )
+{
+
+  double  dx, dy, dz;
+  double  sdx, sdy, sdz;
+
+  fprintf(OutFile,"// Original image size: H = %d, W = %d\n\n", 
+	  YRange, XRange);   
+  
+  fprintf(OutFile,"// OrigCX = %ld, OrigCY = %ld, OrigCZ = %ld, Scale = %g\n\n", 
+	  OrigCX, OrigCY, OrigCZ, Scale);   
+
+
+  dx =   MatX[0]*TransX(0)+MatX[1]*TransY(0)-MatX[2]*TransZ(0);
+  dy =   MatY[0]*TransX(0)+MatY[1]*TransY(0)-MatY[2]*TransZ(0);
+  dz =  -MatZ[0]*TransX(0)-MatZ[1]*TransY(0)+MatZ[2]*TransZ(0);
+
+  fputs("// Camera\ncamera {\n    orthographic\n", OutFile);
+  fprintf(OutFile,"    location <%g, %g, %g>\n", 
+	  dx-TransO((XOffset-XRange*0.5)), 
+	  dy-TransO((YOffset-YRange*0.5)), 
+	  TransO(-ZOffset));
+  fprintf(OutFile,"    look_at <%g, %g, %g>\n", 
+	  dx-TransO((XOffset-XRange*0.5)), 
+	  dy-TransO((YOffset-YRange*0.5)), 
+	  /*dz-TransO(-ZOffset));*/
+          dz);
+
+  fprintf(OutFile,"    up <0, %g, 0>\n",    TransO(-YRange));
+  fprintf(OutFile,"    right <%g, 0, 0>\n", TransO(XRange));
+  fputs("}\n\n",OutFile);
+
+  /*-------------------------------------------------------------------------*\
+   * The light source is 2 units on the right and two untis above the origin.
+   * The Y-value is negative because Y-axis is inverted. The camera is 
+   * between light and object (see above)!
+  \*-------------------------------------------------------------------------*/
+  fprintf(OutFile, "// Light\nlight_source {<%g, %g, %g>", 
+	  2.0*ZOffset, -2.0*ZOffset, -4.0*ZOffset);       
+  fputs(" color rgb <1.0, 1.0, 1.0>}\n\n",OutFile);           
+  fprintf(OutFile,"background { color rgb <%g, %g, %g> }\n\n", 
+          (double)BackR/255.0, (double)BackG/255.0, (double)BackB/255.0);
+ 
+  fputs("union {   \n// Objects\n",OutFile);
+  fprintf(OutFile,"   // union finish\n"
+	  "   // change \"T\" to a higher value (up to 1.0, e.g. 0.8) and\n"
+	  "   // uncomment \"hollow\" to make your object transparent\n"
+	  "   #declare F = finish { specular %g roughness %g\n"
+	  "                         diffuse %g\n"
+	  "                         ambient %g }\n"
+	  "   #declare T = %g\n",
+	  SPECPOWER, ROUGHNESS, DIFFUSE, AMBIENT, TRANSMIT);  
+  
+#ifdef SLABING
+  /* supports hollow slabbing only at the moment! */
+  if( UseSlabPlane ) {    
+     /*fprintf(stderr,"SlabValue: %d\n", SlabValue);
+     fprintf(stderr,"ZOffset: %d\n", ZOffset);
+     fprintf(stderr,"MinZ: %d, MaxZ: %d\n", MinZ, MaxZ);
+     fprintf(stderr,"DialValue[7]: %f\n", DialValue[7]);*/
+     fprintf(stderr,"Scale: %f\n", Scale);
+     fprintf(stderr,"%f, %f, %f\n"
+                    "%f, %f, %f\n"
+	            "%f, %f, %f\n", 
+	     MatX[0], MatY[0], MatZ[0],
+	     MatX[1], MatY[1], MatZ[1],
+	     MatX[2], MatY[2], MatZ[2]);
+     /* MaxZ+OrigCZ       = absolute outer z-coordinate (most far one)
+      * DialValue[7]*MaxZ = where to put the slab plane (relative to)
+      * DialValue[7] is 0 for slab 50, -0.5 for slab 25 and 0.5 for 
+      * slab 75 
+      */
+     fprintf(OutFile,"   #declare C = difference{\n"
+	     "      plane{ z, %d }\n"
+	     "      plane{ z, %f }\n"
+	     "   }\n",
+	     ZOffset+ZOffset, 
+	     INVTrans * ( (MaxZ+OrigCZ) - (DialValue[7]*MaxZ) ) );
+  }
+#endif
+
+  fprintf(OutFile,"   #include \"%s\"\n",INCname);   
+
+  /*if( !UseShadow )*/
+  fputs("   // no_shadow\n",OutFile);
+  fputs("   // hollow\n",OutFile);  
+
+  fprintf(OutFile,"   matrix \n"
+                  "        < %g,\t%g,\t%g,\n"
+                  "          %g,\t%g,\t%g,\n"
+                  "          %g,\t%g,\t%g,\n"
+	          "          %g,\t%g,\t%g >\n",
+          MatX[0],MatY[0],-MatZ[0],
+          MatX[1],MatY[1],-MatZ[1],
+          -MatX[2],-MatY[2],MatZ[2],
+          0.0, 0.0, 0.0);   
+
+  fputs("}\n", OutFile);
+		  
+}
+
+static void Slab( void )
+{   
+   if( UseSlabPlane ) 
+      fputs("   clipped_by{C}\n", OutFile_inc);
+}
+
+static void POVWriteAtoms( void )
+{
+  
+  register Chain __far *chain;
+  register Group __far *group;
+  register Atom  __far *aptr;
+  
+  ForEachAtom {
+    if( !(aptr->flag&SphereFlag) )
+      continue;
+    POVWriteSphere(aptr, aptr->radius);
+    /*fputs("sphere\n", stderr);*/
+  }
+
+}
+
+static void POVWriteLine( Atom __far *src, Atom __far *dst,
+                           int rad, Byte flag )
+{
+
+  Coord middle;
+
+  if( !(flag&(CylinderFlag|WireFlag|DashFlag) ) ) 
+      return;
+
+  middle = POVGetMidCoord(src, dst);
+  if( flag&WireFlag)
+    rad = MINWIRE;
+  else if( flag&DashFlag)
+    rad = MINDASH;
+  
+  fprintf(OutFile_inc,"object {\n"
+	  "   cylinder {<%g, %g, %g> <%g, %g, %g> %g}\n",
+	  TransX(src->xorg), 
+	  TransY(src->yorg),
+	  TransZ(src->zorg),
+	  middle.x,
+	  middle.y,
+	  middle.z,
+	  TransO(rad));
+  POVWriteTexture(POVGetColor((int)src->col));
+  Slab();
+  fputs("}\n", OutFile_inc);
+  
+  fprintf(OutFile_inc,"object {\n"
+	  "   cylinder {<%g, %g, %g> <%g, %g, %g> %g}\n",
+	  middle.x,
+	  middle.y,
+	  middle.z,
+	  TransX(dst->xorg), 
+	  TransY(dst->yorg),
+	  TransZ(dst->zorg),	    
+	  TransO(rad));
+  POVWriteTexture(POVGetColor((int)dst->col));
+  Slab();
+  fputs("}\n", OutFile_inc);
+  
+  /* add cylinder caps */
+  if( !(src->flag&SphereFlag) || (src->flag&SphereFlag && rad > src->radius) )
+    POVWriteSphere(src, rad);
+  if( !(dst->flag&SphereFlag) || (dst->flag&SphereFlag && rad > dst->radius) )
+    POVWriteSphere(dst, rad); 
+
+}
+	    
+
+static void POVWriteBonds( void )
+{
+
+  register Bond __far *bptr;
+
+  ForEachBond {   
+    if( (bptr->flag&DrawBondFlag) )
+      POVWriteLine(bptr->srcatom, bptr->dstatom, bptr->radius, bptr->flag);
+    /* fprintf(stderr,"zorg: %d\n", bptr->srcatom->zorg); */
+  }  
+}
+
+
+static void POVWriteBackBone( void )
+{
+  register Bond  __far *bptr;
+  register Chain __far *chain;
+
+  ForEachBack {
+    if( (bptr->flag&DrawBondFlag) )
+      POVWriteLine(bptr->srcatom, bptr->dstatom, bptr->radius, bptr->flag);
+  }  
+ 
+}
+  
+
+static void POVWriteHSBonds( void )
+{
+
+  register HBond __far *bptr;
+
+  for( bptr=CurMolecule->hlist; bptr; bptr=bptr->hnext ) {
+    if( (bptr->flag&DrawBondFlag) )
+      POVWriteLine(bptr->src, bptr->dst, bptr->radius, bptr->flag);
+  }
+
+  for( bptr=CurMolecule->slist; bptr; bptr=bptr->hnext ) {
+    if( (bptr->flag&DrawBondFlag) )
+      POVWriteLine(bptr->src, bptr->dst, bptr->radius, bptr->flag);
+  }
+
+}
+
+
+static void POVWriteDots( void )
+{
+
+  register DotStruct __far *ptr;
+  register int i;
+  Atom tmp;
+  Atom *atom = &tmp;
+
+  ptr = DotPtr;
+
+#ifdef NOSHADEDOTS
+  if( UseShadow && ptr )
+    fputs("union {\n",OutFile_inc);  
+#endif   
+  for( ptr=DotPtr; ptr; ptr=ptr->next ) {
+    for( i=0; i<ptr->count; i++ ){ 
+      tmp.xorg = ptr->xpos[i] ;
+      tmp.yorg = ptr->ypos[i] ;
+      tmp.zorg = ptr->zpos[i] ;
+      tmp.col  = ptr->col[i]  ;
+      atom     = &tmp         ;
+      POVWriteSphere(atom, DOTFACTOR/(double)DotPtr->count);    
+    }
+  }
+#ifdef NOSHADEDOTS
+  if( UseShadow && ptr ) {
+    fputs("no_shadow\n",OutFile_inc);
+    fputs("}\n",OutFile_inc);
+  }
+#endif  
+
+}
+
+
+int WritePOVRay3File( char *name )
+{
+
+  if( strlen(name) > (MAXNAME-5) ) {
+     FatalScriptError(name);
+     return(False);
+  }
+  
+  strcpy(POVname, name);
+  strcpy(INCname, name);
+  strcat(POVname, ".pov");
+  strcat(INCname, ".inc");
+  
+  if( !Database )
+    return True;
+  
+  OutFile = fopen(POVname,"w");
+  if( !OutFile ){
+    FatalScriptError(POVname);
+    return False;
+  }
+
+  OutFile_inc = fopen(INCname,"w");
+  if( !OutFile ){
+    FatalScriptError(INCname);
+    return False;
+  }
+  
+  fprintf(OutFile,"// File: %s\n",POVname);
+  fprintf(OutFile,"// Creator: RasMol Version %s\n", VERSION);
+  fputs("// Version: POV-Ray Version 3\n",OutFile);
+  fprintf(OutFile,"// Needs objectfile \"%s\"\n\n",INCname);
+  
+  fprintf(OutFile_inc,"// File: %s\n",INCname);
+  fprintf(OutFile_inc,"// Creator: RasMol Version %s\n", VERSION);
+  fputs("// Version: POV-Ray Version 3\n",OutFile_inc);
+  fputs("// Objects for POV-Ray Version 3\n\n",OutFile_inc);
+              
+  POVWriteHeader();
+  POVWriteAtoms();
+  POVWriteBonds();
+  POVWriteBackBone();
+  POVWriteHSBonds();
+  POVWriteDots();
+
+  /*
+  printf("XOffset = %g\t WRange = %g\t YOffset = %g\t HRange = %g\n"
+	 "XRange  = %g\t YRange = %g\t\n",
+	 (double)XOffset, (double)WRange, (double)YOffset, (double)HRange,
+	 (double)XRange, (double)YRange);
+    */
+
+  fclose(OutFile);
+  fclose(OutFile_inc);
+#ifdef APPLEMAC
+  SetFileInfo(name,'ttxt','TEXT',133);
+#endif
+  return True;
+}
 

@@ -1,8 +1,56 @@
+/***************************************************************************
+ *                              RasMol 2.7.1                               *
+ *                                                                         *
+ *                                 RasMol                                  *
+ *                 Molecular Graphics Visualisation Tool                   *
+ *                              22 June 1999                               *
+ *                                                                         *
+ *                   Based on RasMol 2.6 by Roger Sayle                    *
+ * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
+ *                      Stevenage, Hertfordshire, UK                       *
+ *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
+ *                   Copyright (C) Roger Sayle 1992-1999                   *
+ *                                                                         *
+ *                  and Based on Mods by Arne Mueller                      *
+ *                      Version 2.6x1, May 1998                            *
+ *                   Copyright (C) Arne Mueller 1998                       *
+ *                                                                         *
+ *           Version 2.7.0, 2.7.1 Mods by Herbert J. Bernstein             *
+ *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *                      yaya@bernstein-plus-sons.com                       *
+ *                    2.7.0 March 1999, 2.7.1 June 1999                    *
+ *              Copyright (C) Herbert J. Bernstein 1998-1999               *
+ *                                                                         *
+ * Please read the file NOTICE for important notices which apply to this   *
+ * package. If you are not going to make changes to RasMol, you are not    *
+ * only permitted to freely make copies and distribute them, you are       *
+ * encouraged to do so, provided you do the following:                     *
+ *   * 1. Either include the complete documentation, especially the file   *
+ *     NOTICE, with what you distribute or provide a clear indication      *
+ *     where people can get a copy of the documentation; and               *
+ *   * 2. Please give credit where credit is due citing the version and    *
+ *     original authors properly; and                                      *
+ *   * 3. Please do not give anyone the impression that the original       *
+ *     authors are providing a warranty of any kind.                       *
+ *                                                                         *
+ * If you would like to use major pieces of RasMol in some other program,  *
+ * make modifications to RasMol, or in some other way make what a lawyer   *
+ * would call a "derived work", you are not only permitted to do so, you   *
+ * are encouraged to do so. In addition to the things we discussed above,  *
+ * please do the following:                                                *
+ *   * 4. Please explain in your documentation how what you did differs    *
+ *     from this version of RasMol; and                                    *
+ *   * 5. Please make your modified source code available.                 *
+ *                                                                         *
+ * This version of RasMol is not in the public domain, but it is given     *
+ * freely to the community in the hopes of advancing science. If you make  *
+ * changes, please make them in a responsible manner, and please offer us  *
+ * the opportunity to include those changes in future versions of RasMol.  *
+ ***************************************************************************/
+
 /* abstree.c
- * RasMol2 Molecular Graphics
- * Roger Sayle, August 1995
- * Version 2.6
  */
+
 #include "rasmol.h"
 
 #ifdef IBMPC
@@ -12,6 +60,11 @@
 #include <stdlib.h>
 #endif
 #include <string.h>
+#if defined(IBMPC) || defined(VMS) || defined(APPLEMAC)
+#include "string_case.h"
+#else
+#include <strings.h>
+#endif
 #include <ctype.h>
 #include <stdio.h>
 #include <math.h>
@@ -19,24 +72,8 @@
 #define ABSTREE
 #include "molecule.h"
 #include "abstree.h"
+#include "transfor.h"
 
-
-#define ExprPool    16
-#define SetPool     4
-
-typedef struct _SymEntry {
-                struct _SymEntry __far *lft;
-                struct _SymEntry __far *rgt;
-                AtomSet __far *defn;
-                char *ident;
-                } SymEntry;
-
-static SymEntry __far *SymbolTable;
-static SymEntry __far *FreeEntry;
-static AtomSet __far *FreeSet;
-static Expr *FreeExpr;
-static Expr FalseExpr;
-static Expr TrueExpr;
 
 /* Macros for commonly used loops */
 #define ForEachAtom  for(chain=Database->clist;chain;chain=chain->cnext) \
@@ -64,9 +101,6 @@ static Expr TrueExpr;
 /* Surface = !Buried         */
 
 
-#define AminoCodeMax  28
-static char *AminoCode = "AGLSVTKDINEPRFQYHCMWBZPPACGTX";
-
 static int AminoProp[] = {
         /*ALA*/  BitAliphatic | BitBuried | BitHydrophobic | BitNeutral |
                  BitSmall,
@@ -92,7 +126,6 @@ static int AminoProp[] = {
         /*MET*/  BitBuried | BitHydrophobic | BitNeutral,
         /*TRP*/  BitAromatic | BitBuried | BitCyclic | BitHydrophobic |
                  BitNeutral,
-
         /*ASX*/  BitMedium | BitNeutral,
         /*GLX*/  BitNeutral,
         /*PCA*/  BitCyclic | BitHydrophobic | BitMedium | BitNeutral,
@@ -100,8 +133,41 @@ static int AminoProp[] = {
         };
 
 
-static void FatalExprError(ptr)
-    char *ptr;
+#define AminoCodeMax  28
+static char *AminoCode = "AGLSVTKDINEPRFQYHCMWBZPPACGTX";
+
+
+#define ExprPool    16
+#define SetPool     4
+
+typedef struct _SymEntry {
+                struct _SymEntry __far *lft;
+                struct _SymEntry __far *rgt;
+                AtomSet __far *defn;
+                char *ident;
+                } SymEntry;
+
+static SymEntry __far *SymbolTable;
+static SymEntry __far *FreeEntry;
+static AtomSet __far *FreeSet;
+static Expr *FreeExpr;
+static Expr FalseExpr;
+static Expr TrueExpr;
+
+
+
+/*=======================*/
+/*  Function Prototypes  */
+/*=======================*/
+
+static AtomSet __far *SetInsert( AtomSet __far*, Atom __far* );
+static int IsWithinRadius( AtomSet __far*, Long );
+static int IsSetMember( AtomSet __far* );
+static void DeleteSymEntry( SymEntry __far* );
+
+
+
+static void FatalExprError( char *ptr )
 {
     char buffer[80];
 
@@ -110,16 +176,7 @@ static void FatalExprError(ptr)
 }
 
 
-#ifdef FUNCPROTO
-/* Function Prototypes */
-static AtomSet __far *SetInsert( AtomSet __far*, Atom __far* );
-static int IsWithinRadius( AtomSet __far*, Long );
-static int IsSetMember( AtomSet __far* );
-#endif
-
-
-static AtomSet __far *SetInsert( ptr, item )
-    AtomSet __far *ptr;  Atom __far *item;
+static AtomSet __far *SetInsert( AtomSet __far *ptr,  Atom __far *item )
 {
     register AtomSet __far *temp;
     register int i;
@@ -127,7 +184,7 @@ static AtomSet __far *SetInsert( ptr, item )
     if( ptr && (ptr->count<SetSize) )
     {   ptr->data[ptr->count] = item;
         ptr->count++;
-        return( ptr );
+        return ptr;
     }
 
     if( !FreeSet )
@@ -145,13 +202,11 @@ static AtomSet __far *SetInsert( ptr, item )
     temp->data[0] = item;
     temp->next = ptr;
     temp->count = 1;
-    return( temp );
+    return temp;
 }
 
 
-static int IsWithinRadius( ptr, limit )
-    AtomSet __far *ptr;
-    Long limit;
+static int IsWithinRadius( AtomSet __far *ptr, Long limit )
 {
     register Atom __far *aptr;
     register Long dx,dy,dz;
@@ -167,31 +222,29 @@ static int IsWithinRadius( ptr, limit )
              if( (dist+=dy*dy)>limit ) continue;
              dz = QAtom->zorg-aptr->zorg; 
              if( (dist+=dz*dz)>limit ) continue;
-             return( True );
+             return True;
         }
         ptr = ptr->next;
     }
-    return( False );
+    return False;
 }
 
 
-static int IsSetMember( ptr )
-    AtomSet __far *ptr;
+static int IsSetMember( AtomSet __far *ptr )
 {
     register int i;
 
     while( ptr )
     {   for( i=0; i<ptr->count; i++ )
             if( ptr->data[i] == QAtom )
-                return( True );
+                return True;
         ptr = ptr->next;
     }
-    return( False );
+    return False;
 }
 
 
-void DeleteAtomSet( ptr )
-    AtomSet __far *ptr;
+void DeleteAtomSet( AtomSet __far *ptr )
 {
     register AtomSet __far *temp;
 
@@ -205,7 +258,7 @@ void DeleteAtomSet( ptr )
 }
 
 
-Expr *AllocateNode()
+Expr *AllocateNode( void )
 {
     register Expr *ptr;
     register int i;
@@ -223,12 +276,11 @@ Expr *AllocateNode()
     }
     ptr->rgt.ptr = NULL;
     ptr->lft.ptr = NULL;
-    return( ptr );
+    return ptr;
 }
 
 
-void DeAllocateExpr( expr )
-    Expr *expr;
+void DeAllocateExpr( Expr *expr )
 {
     if( !expr ) return;
     if( (expr == &FalseExpr) ||
@@ -247,25 +299,22 @@ void DeAllocateExpr( expr )
 }
 
 
-int GetElemNumber( group, aptr )
-    Group __far *group;
-    Atom __far *aptr;
+int GetElemNumber( Group __far *group, Atom __far *aptr )
 {
     register char ch1,ch2;
     register char *ptr;
 
     ptr = ElemDesc[aptr->refno];
     if( IsCoenzyme(group->refno) )
-    {   /* Exceptions to Brookhaven Atom Naming! */
+    {   /* Exceptions to PDB Atom Naming! */
         ch1 = ' ';
     } else 
-    {   ch1 = ptr[0];
+    {   ch1 = ToUpper(ptr[0]);
         /* Handle HG, HD etc.. in Amino Acids! */
         if( (ch1=='H') && IsProtein(group->refno) )
-            return( 1 );
+            return 1;
     }
-    ch2 = ptr[1];
-
+    ch2 = ToUpper(ptr[1]);
 
     switch( ch1 )
     {   case(' '):  switch( ch2 )
@@ -328,7 +377,9 @@ int GetElemNumber( group, aptr )
         case('D'):  if( ch2==' ' )
                     {   return(  1 );
                     } else if( ch2=='Y' )
-                        return( 66 );
+                    {   return( 66 );
+                    } else if( ch2=='U' )
+                        return(  0 );
                     break;
 
         case('E'):  if( ch2=='R' )
@@ -383,16 +434,14 @@ int GetElemNumber( group, aptr )
                         return( 36 );
                     break;
 
-        case('L'):  if( ch2==' ' )
-                    {   return(   1 );
-                    } else if( ch2=='A' )
-                    {   return(  57 );
-                    } else if( ch2=='I' )
-                    {   return(   3 );
-                    } else if( (ch2=='R') || (ch2=='W') )
-                    {   return( 103 );
-                    } else if( ch2=='U' )
-                        return(  71 );
+        case('L'):  switch( ch2 )
+                    {   case('A'):  return(  57 );
+                        case('I'):  return(   3 );
+                        case('P'):  return(   0 );
+                        case('R'):  return( 103 );
+                        case('W'):  return( 103 );
+                        case('U'):  return(  71 );
+                    }
                     break;
 
         case('M'):  if( ch2=='D' )
@@ -459,7 +508,8 @@ int GetElemNumber( group, aptr )
                     break;
 
         case('T'):  switch( ch2 )
-                    {   case('A'):  return( 73 );
+                    {   case(' '):  return(  1 );
+                        case('A'):  return( 73 );
                         case('B'):  return( 65 );
                         case('C'):  return( 43 );
                         case('E'):  return( 52 );
@@ -499,9 +549,9 @@ int GetElemNumber( group, aptr )
                     break;
     }
 
+    /* Numeric Prefix! */
     if( (ch1>='0') && (ch1<='9') )
-        if( (ch2=='H') || (ch2=='D') )
-            return( 1 ); /* Hydrogen */
+        ch1 = ch2;
 
     /* If all else fails! */
     switch( ch1 )
@@ -522,27 +572,24 @@ int GetElemNumber( group, aptr )
         case('W'):  return( 74 );
         case('Y'):  return( 39 );
     }
-
-    return( 0 );
+    return 0;
 }
 
 
-int ElemVDWRadius( elem )
-    int elem;
+int ElemVDWRadius( int elem )
 {
     if( !HasHydrogen )
         switch( elem )
-        {   case(  6 ):  return( VDWCarbon );
-            case(  7 ):  return( VDWNitrogen );
-            case(  8 ):  return( VDWOxygen );    
-            case( 16 ):  return( VDWSulphur );
+        {   case  6:  return VDWCarbon;
+            case  7:  return VDWNitrogen;
+            case  8:  return VDWOxygen;    
+            case 16:  return VDWSulphur;
         }
-    return( Element[elem].vdwrad );
+    return Element[elem].vdwrad;
 }
 
 
-static int EvaluateProperty( prop )
-    int prop;
+static int EvaluateProperty( int prop )
 {
     switch( prop )
     {   case( PropIdent ):    return( (int)QAtom->serno );
@@ -556,11 +603,11 @@ static int EvaluateProperty( prop )
         case( PropChain ):    return( QChain->ident );
         case( PropSelect ):   return( QAtom->flag&SelectFlag );
         case( PropElemNo ):   return( QAtom->elemno );
-        case( PropModel ):    return( QChain->model );
+        case( PropModel ):    return( (int)QChain->model );
+        case( PropAltl ):     return( (int)QAtom->altl );
         case( PropRad ):      if( QAtom->flag&SphereFlag )
                               {   return( QAtom->radius );
                               } else return( 0 );
-
         
         /* Predicates stored in flags */
         case( PredBonded ):       return( !(QAtom->flag&NonBondFlag) );
@@ -570,6 +617,7 @@ static int EvaluateProperty( prop )
         case( PredHelix ):        return( QGroup->struc&HelixFlag );
         case( PredSheet ):        return( QGroup->struc&SheetFlag );
         case( PredTurn ):         return( QGroup->struc&TurnFlag );
+        case( PredCisBond ):      return( QGroup->flag&CisBondFlag );
 
         /* Residue type predicates */
         case( PredDNA ):          return( IsDNA(QGroup->refno) );
@@ -649,17 +697,16 @@ static int EvaluateProperty( prop )
                                   !(AminoProp[QGroup->refno]&BitBuried) );
 
     }
-    return( True );
+    return True;
 }
 
 
-int EvaluateExpr( expr )
-    Expr *expr;
+int EvaluateExpr( Expr *expr )
 {
     register int lft, rgt;
 
     if( !expr )
-        return( True );
+        return True;
 
     if( expr->type==OpWithin )
     {   if( expr->lft.limit )
@@ -675,8 +722,8 @@ int EvaluateExpr( expr )
     } else lft = EvaluateExpr( expr->lft.ptr );
 
     if( OpCode(expr)==OpConst ) return( lft );
-    if( (OpCode(expr)==OpAnd) && !lft ) return( False );
-    if( (OpCode(expr)==OpOr) && lft ) return( True );
+    if( (OpCode(expr)==OpAnd) && !lft ) return False;
+    if( (OpCode(expr)==OpOr) && lft ) return True;
     if( OpCode(expr)==OpNot ) return( !lft );
 
     if( expr->type & OpRgtVal )
@@ -695,12 +742,11 @@ int EvaluateExpr( expr )
         case(OpLessEq):  return( lft<=rgt );
         case(OpMoreEq):  return( lft>=rgt );
     }
-    return( True );
+    return True;
 }
 
 
-AtomSet __far *BuildAtomSet( expr )
-    Expr *expr;
+AtomSet __far *BuildAtomSet( Expr *expr )
 {
     register AtomSet __far *ptr;
 
@@ -712,19 +758,20 @@ AtomSet __far *BuildAtomSet( expr )
                 for( QAtom=QGroup->alist; QAtom; QAtom=QAtom->anext )
                     if( EvaluateExpr(expr) )
                         ptr = SetInsert( ptr, QAtom );
-
-    return( ptr );
+    return ptr;
 }
 
 
 
-int DefineSetExpr( ident, expr )
-    char *ident;  Expr *expr;
+int DefineSetExpr( char *ident, Expr *expr )
 {
     register SymEntry __far * __far *prev;
     register SymEntry __far *ptr;
     register AtomSet __far *set;
     register int result;
+  
+    /* Avoid Compiler Warning! */
+    ptr = (SymEntry __far*)0;
 
     result = True;
     prev = &SymbolTable;
@@ -740,9 +787,8 @@ int DefineSetExpr( ident, expr )
         {   ptr = FreeEntry;
             FreeEntry = ptr->rgt;
         } else /* Allocate SymEntry! */
-        {
-            ptr = (SymEntry __far*)_fmalloc(sizeof(SymEntry));
-            if( !ptr ) return( False );
+        {   ptr = (SymEntry __far*)_fmalloc(sizeof(SymEntry));
+            if( !ptr ) return False;
         }
 
         *prev = ptr;
@@ -759,12 +805,11 @@ int DefineSetExpr( ident, expr )
         DeAllocateExpr(expr);
         ptr->defn = set;
     } else ptr->defn = (void __far*)0;
-    return( True );
+    return True;
 }
 
 
-Expr *LookUpSetExpr( ident )
-    char *ident;
+Expr *LookUpSetExpr( char *ident )
 {
     register SymEntry __far *ptr;
     register Expr *expr;
@@ -783,26 +828,24 @@ Expr *LookUpSetExpr( ident )
         expr->type = OpMember;
         expr->rgt.set = ptr->defn;
     } else expr = (Expr*)0;
-    return( expr );
+    return expr;
 }
 
 
-static int ElemCompare( ident, elem )
-    char *ident, *elem;
+static int ElemCompare( char *ident, char *elem )
 {
     while( *elem )
         if( *elem++ != *ident++ )
-            return( False );
+            return False;
 
     /* Handle Plurals */
     if( (ident[0]=='S') && !ident[1] )
         return( (elem[-1]!='S') && (elem[-1]!='Y') );
-    return( !*ident );
+    return !*ident;
 }
 
 
-Expr *LookUpElement( ident )
-    char *ident;
+Expr *LookUpElement( char *ident )
 {
     register Expr *expr;
     register int elem;
@@ -839,13 +882,11 @@ Expr *LookUpElement( ident )
         expr->lft.val = PropElemNo;
         expr->rgt.val = elem;
     } else expr = (Expr*)0;
-    return( expr );
+    return expr;
 }
 
 
-
-static int MatchWildName( src, dst, size, len )
-    char *src, *dst; int size, len;
+static int MatchWildName( char *src, char *dst, int size, int len )
 {
     register int i, left;
 
@@ -856,24 +897,23 @@ static int MatchWildName( src, dst, size, len )
 
     for( i=0; i<len; i++ )
     {   if( left )
-        {   if( (*dst==*src) || (*src=='?') )
+        {   if( (*dst == *src) || (*src=='?') )
             {   dst++;  src++;  left--;
-            } else return( False );
+            } else return False;
         } else if( *src++ != '?' )
-            return( False );
+            return False;
     }
 
     while( left )
          if( *dst++!=' ' )
-         {   return( False );
+         {   return False;
          } else left--;
-    return( True );
+    return True;
 }
 
 
 
-int ParsePrimitiveExpr( orig )
-    char **orig;
+int ParsePrimitiveExpr( char **orig )
 {
     static char NameBuf[4];
     register Expr *tmp1,*tmp2;
@@ -896,7 +936,7 @@ int ParsePrimitiveExpr( orig )
                 while( (ch = *ptr++) != ']' )
                     if( ch && (i<3) )
                     {   NameBuf[i++] = ToUpper(ch);
-                    } else return( False );
+                    } else return False;
                 ch = *ptr++;
             } else
                 for( i=0; i<3; i++ )
@@ -907,7 +947,7 @@ int ParsePrimitiveExpr( orig )
                     {   NameBuf[i] = '?';
                         ch = *ptr++;
                     } else break;
-            if( !i ) return( False );
+            if( !i ) return False;
 
             wild = &FalseExpr;
             for( j=0; j<ResNo; j++ )
@@ -951,7 +991,7 @@ int ParsePrimitiveExpr( orig )
                 } else QueryExpr = tmp1;
                 ch = *ptr++;
             } else if( neg )
-                return( False );
+                return False;
         } else ch = *ptr++;
     }
 
@@ -978,7 +1018,7 @@ int ParsePrimitiveExpr( orig )
         ch = *ptr++;
 
     /* Parse Model Number */
-    if( ch == ':' )
+    if( ch == ':' || ch =='/' )
     {   ch = *ptr++;
         if( isdigit(ch) )
         {   i = ch-'0';
@@ -997,7 +1037,7 @@ int ParsePrimitiveExpr( orig )
                 QueryExpr = tmp2;
             } else QueryExpr = tmp1;
             ch = *ptr++;
-        } else return( False );
+        } else return False;
     }
 
     /* Parse Atom Name */
@@ -1012,7 +1052,7 @@ int ParsePrimitiveExpr( orig )
                 {   NameBuf[i] = '?';
                     ch = *ptr++;
                 } else break;
-            if( !i ) return( False );
+            if( !i ) return False;
 
 
             wild = &FalseExpr;
@@ -1042,13 +1082,58 @@ int ParsePrimitiveExpr( orig )
             }
         } else ch = *ptr++;
     }
+
+    /* Parse Trailing Alternate Conformation Identifier */
+    if( ch ==';' )
+    {   ch = *ptr++;
+        if( isalnum(ch) || ch=='\'' || ch=='*' )
+        {   NameBuf[0] = ToUpper(ch);
+             ch = *ptr++;
+        } else if( (ch=='?') || (ch=='%') || (ch=='#') )
+        {   NameBuf[0] = '?';
+            ch = *ptr++;
+        } else  return False;
+        tmp1 = AllocateNode();
+        tmp1->type = OpEqual | OpLftProp | OpRgtVal;
+        tmp1->lft.val = PropAltl;
+        tmp1->rgt.val = NameBuf[0];
+        if( QueryExpr != &TrueExpr )
+        {   tmp2 = AllocateNode();
+            tmp2->type = OpAnd;
+            tmp2->rgt.ptr = QueryExpr;
+            tmp2->lft.ptr = tmp1;
+            QueryExpr = tmp2;
+        } else QueryExpr = tmp1;
+    }
+
+    /* Parse Trailing Model Number */
+    if( ch =='/' )
+    {   ch = *ptr++;
+        if( isdigit(ch) )
+        {   i = ch-'0';
+            while( isdigit(*ptr) )
+                i = 10*i + (*ptr++)-'0';
+
+            tmp1 = AllocateNode();
+            tmp1->type = OpEqual | OpLftProp | OpRgtVal;
+            tmp1->lft.val = PropModel;
+            tmp1->rgt.val = i;
+            if( QueryExpr != &TrueExpr )
+            {   tmp2 = AllocateNode();
+                tmp2->type = OpAnd;
+                tmp2->rgt.ptr = QueryExpr;
+                tmp2->lft.ptr = tmp1;
+                QueryExpr = tmp2;
+            } else QueryExpr = tmp1;
+            ch = *ptr++;
+        } else return False;
+    }
     *orig = --ptr;
     return( !ch || isspace(ch) || ispunct(ch) );
 }
 
 
-static char *FormatInteger( ptr, value )
-    char *ptr; Long value;
+static char *FormatInteger( char *ptr, Long value )
 {
     auto char buffer[10];
     register char *tmp;
@@ -1070,15 +1155,12 @@ static char *FormatInteger( ptr, value )
             *ptr++ = *tmp;
         } while( tmp != buffer );
     } else *ptr++ = (char)value + '0';
-    return( ptr );
+    return ptr;
 }
 
 
-void FormatLabel( chain, group, aptr, label, ptr )
-    Chain __far *chain;
-    Group __far *group;
-    Atom __far *aptr;
-    char *label, *ptr;
+void FormatLabel( Chain __far *chain, Group __far *group, Atom __far *aptr,
+                  char *label, char *ptr )
 {
     register char ch;
     register int i,j;
@@ -1087,8 +1169,6 @@ void FormatLabel( chain, group, aptr, label, ptr )
     {  ch = *label++;
        if( ch=='%' )
        {   ch = *label++;
-           if( isupper(ch) )
-             ch = tolower(ch);
 
            switch( ch )
            {   case('a'):  /* Atom Name */
@@ -1099,21 +1179,27 @@ void FormatLabel( chain, group, aptr, label, ptr )
                            break;
 
                case('b'):  /* Temperature/B-factor */
-               case('t'):  ptr = FormatInteger(ptr,aptr->temp);
+               case('B'):
+               case('t'):
+               case('T'):  ptr = FormatInteger(ptr,aptr->temp);
                            break;
 
                case('c'):  /* Chain Identifier */
-               case('s'):  *ptr++ = chain->ident;
+               case('C'):
+               case('s'):
+               case('S'):  *ptr++ = chain->ident;
                            break;
 
-               case('e'):  /* Element Type */
+               case('e'):
+               case('E'):  /* Element Type */
                            i = aptr->elemno;
                            *ptr++ = Element[i].symbol[0];
                            if( Element[i].symbol[1]!=' ' )
                                *ptr++ = Element[i].symbol[1];
                            break;
 
-               case('i'):  /* Atom Number */
+               case('i'):
+               case('I'):  /* Atom Number */
                            ptr = FormatInteger(ptr,(int)aptr->serno);
                            break;
 
@@ -1123,15 +1209,32 @@ void FormatLabel( chain, group, aptr, label, ptr )
                            } else *ptr++ = '?';
                            break;
 
-               case('n'):  /* Residue Name   */
+               case('n'):
+               case('N'):  /* Residue Name   */
                            i = group->refno;
                            for( j=0; j<3; j++ )
                                if( Residue[i][j]!=' ' )
                                    *ptr++ = Residue[i][j];
                            break;
 
-               case('r'):  /* Residue Number */
+               case('r'):
+               case('R'):  /* Residue Number */
                            ptr = FormatInteger(ptr,group->serno);
+                           break;
+
+               case('A'):  /* Alternate Conformation ID */
+                           if( !(aptr->altl == ' ') && 
+                               !(aptr->altl == '\0')) {
+                             *ptr++ = ';';
+                             *ptr++ = aptr->altl;
+                           }
+                           break;
+
+               case('M'):  /* NMR Model Number */
+                           if ( aptr->model ) {
+                             *ptr++ = '/';
+                             ptr = FormatInteger(ptr,(int)aptr->model);
+                           } 
                            break;
 
                case('%'):  *ptr++ = '%';
@@ -1144,14 +1247,7 @@ void FormatLabel( chain, group, aptr, label, ptr )
 }
 
 
-#ifdef FUNCPROTO
-/* Function Prototypes */
-static void DeleteSymEntry( SymEntry __far* );
-#endif
-
-
-static void DeleteSymEntry( ptr )
-    SymEntry __far *ptr;
+static void DeleteSymEntry( SymEntry __far *ptr )
 {
     if( ptr->lft )
         DeleteSymEntry( ptr->lft );
@@ -1167,7 +1263,7 @@ static void DeleteSymEntry( ptr )
 }
 
 
-void ResetSymbolTable()
+void ResetSymbolTable( void )
 {
     if( SymbolTable )
     {   DeleteSymEntry(SymbolTable);
@@ -1176,9 +1272,7 @@ void ResetSymbolTable()
 }
 
 
-double CalcDistance( atm1, atm2 )
-    Atom __far *atm1;
-    Atom __far *atm2;
+double CalcDistance( Atom __far *atm1, Atom __far *atm2 )
 {
     register Long dx,dy,dz;
     register double dist2;
@@ -1189,14 +1283,11 @@ double CalcDistance( atm1, atm2 )
     if( dx || dy || dz )
     {   dist2 = dx*dx + dy*dy + dz*dz;
         return( sqrt(dist2)/250.0 );
-    } else return( 0.0 );
+    } else return 0.0;
 }
 
 
-double CalcAngle( atm1, atm2, atm3 )
-    Atom __far *atm1;
-    Atom __far *atm2;
-    Atom __far *atm3;
+double CalcAngle(  Atom __far *atm1, Atom __far *atm2,  Atom __far *atm3 )
 {
     register double ulen2,vlen2;
     register double ux,uy,uz;
@@ -1207,52 +1298,50 @@ double CalcAngle( atm1, atm2, atm3 )
     uy = atm1->yorg - atm2->yorg;
     uz = atm1->zorg - atm2->zorg;
     if( !ux && !uy && !uz )
-        return( 0.0 );
+        return 0.0;
     ulen2 = ux*ux + uy*uy + uz*uz;
 
     vx = atm3->xorg - atm2->xorg;
     vy = atm3->yorg - atm2->yorg;
     vz = atm3->zorg - atm2->zorg;
     if( !vx && !vy && !vz )
-        return( 0.0 );
+        return 0.0;
     vlen2 = vx*vx + vy*vy + vz*vz;
 
     temp = (ux*vx + uy*vy + uz*vz)/sqrt(ulen2*vlen2);
-    return( Rad2Deg*acos(temp) );
+    return Rad2Deg*acos(temp);
 }
 
 
-double CalcTorsion( atm1, atm2, atm3, atm4 )
-    Atom __far *atm1;  Atom __far *atm2;
-    Atom __far *atm3;  Atom __far *atm4;
+double CalcTorsion( Atom __far *atm1, Atom __far *atm2,
+                    Atom __far *atm3, Atom __far *atm4 )
 {
     register double ax, ay, az;
     register double bx, by, bz;
     register double cx, cy, cz;
-    register double c12,c13,c23;
-    register double s12,s23;
-
-    register double cossq,sgn,om;
-    register double cosom,sinom;
-    register double len;
+    register double px, py, pz;
+    register double qx, qy, qz;
+    register double cosom,sgn,om;
+    register double rx, ry, rz;
+    register double plen,qlen;
 
     ax = atm2->xorg - atm1->xorg;
     ay = atm2->yorg - atm1->yorg;
     az = atm2->zorg - atm1->zorg;
     if( !ax && !ay && !az )
-        return( 0.0 );
+        return 0.0;
 
     bx = atm3->xorg - atm2->xorg;
     by = atm3->yorg - atm2->yorg;
     bz = atm3->zorg - atm2->zorg;
     if( !bx && !by && !bz )
-        return( 0.0 );
+        return 0.0;
 
     cx = atm4->xorg - atm3->xorg;
     cy = atm4->yorg - atm3->yorg;
     cz = atm4->zorg - atm3->zorg;
     if( !cx && !cy && !cz )
-        return( 0.0 );
+        return 0.0;
 
 #ifdef INVERT
     ay = -ay;  by = -by;  cy = -cy;
@@ -1261,89 +1350,94 @@ double CalcTorsion( atm1, atm2, atm3, atm4 )
     az = -az;  bz = -bz;  cz = -cz;
 #endif
 
-    len = sqrt(ax*ax + ay*ay + az*az);
-    ax /= len;  ay /= len;  az /= len;
-    len = sqrt(bx*bx + by*by + bz*bz);
-    bx /= len;  by /= len;  bz /= len;
-    len = sqrt(cx*cx + cy*cy + cz*cz);
-    cx /= len;  cy /= len;  cz /= len;
+    px = ay*bz - az*by;
+    py = az*bx - ax*bz;
+    pz = ax*by - ay*bx;
 
-    c12 = ax*bx + ay*by + az*bz;
-    c13 = ax*cx + ay*cy + az*cz;
-    c23 = bx*cx + by*cy + bz*cz;
+    qx = by*cz - bz*cy;
+    qy = bz*cx - bx*cz;
+    qz = bx*cy - by*cx;
 
-    s12 = sqrt(1.0-c12*c12);
-    s23 = sqrt(1.0-c23*c23);
+    plen = px*px + py*py + pz*pz;
+    qlen = qx*qx + qy*qy + qz*qz;
 
-    cosom = (c12*c23-c13)/(s12*s23);
-    cossq = cosom*cosom;
+    cosom = (px*qx+py*qy+pz*qz)/sqrt(plen*qlen);
 
-    if( cossq >= 1.0 )
-    {   if( cosom < 0.0 )
-        {    return( 180.0 );
-        } else return( 0.0 );
-    }
+    if( cosom > 1.0 )
+    {   return 0.0;
+    } else if( cosom < -1.0 )
+         return 180.0;
 
-    sinom = sqrt(1.0-cossq);
-    om = Rad2Deg*atan2(sinom,cosom);
+    om = -Rad2Deg*acos(cosom);
 
-    sgn =  ax*((by*cz)-(bz*cy));
-    sgn += ay*((bz*cx)-(bx*cz));
-    sgn += az*((bx*cy)-(by*cx));
+    rx = py*qz - pz*qy;
+    ry = pz*qx - px*qz;
+    rz = px*qy - py*qx;
 
-    return( (sgn<0)? -om : om );
+    if (ax*rx+ay*ry+az*rz > 0.) return -om;
+
+    return om;
 }
 
 
-#ifndef ABSTREE
-double CalcDihedral( atm1, atm2, atm3, atm4 )
-    Atom __far *atm1;  Atom __far *atm2;
-    Atom __far *atm3;  Atom __far *atm4;
+double CalcDihedral( Atom __far *atm1, Atom __far *atm2,
+                     Atom __far *atm3, Atom __far *atm4 )
 {
     return( 180.0 - CalcTorsion(atm1,atm2,atm3,atm4) );
 }
 
 
 /* Note: curr == prev->gnext! */
-double CalcPhiAngle( prev, curr )
-    Group __far *prev;
-    Group __far *curr;
+double CalcPhiAngle( Group __far *prev, Group __far *curr )
 {
     Atom __far *prevc;
     Atom __far *currca;
     Atom __far *currc;
     Atom __far *currn;
 
-    if( !(prevc  = FindGroupAtom(prev,2)) ) return( 360.0 );
-    if( !(currca = FindGroupAtom(curr,1)) ) return( 360.0 );
-    if( !(currc  = FindGroupAtom(curr,2)) ) return( 360.0 );
-    if( !(currn  = FindGroupAtom(curr,0)) ) return( 360.0 );
+    if( !(prevc  = FindGroupAtom(prev,2)) ) return 360.0;
+    if( !(currca = FindGroupAtom(curr,1)) ) return 360.0;
+    if( !(currc  = FindGroupAtom(curr,2)) ) return 360.0;
+    if( !(currn  = FindGroupAtom(curr,0)) ) return 360.0;
 
-    return( CalcDihedral(prevc,currn,currca,currc) );
+    return CalcTorsion(prevc,currn,currca,currc);
 }
 
 
 /* Note: next == curr->gnext! */
-double CalcPsiAngle( curr, next )
-    Group __far *curr;
-    Group __far *next;
+double CalcPsiAngle( Group __far *curr, Group __far *next )
 {
     Atom __far *nextn;
     Atom __far *currca;
     Atom __far *currc;
     Atom __far *currn;
 
-    if( !(nextn  = FindGroupAtom(next,0)) ) return( 360.0 );
-    if( !(currca = FindGroupAtom(curr,1)) ) return( 360.0 );
-    if( !(currc  = FindGroupAtom(curr,2)) ) return( 360.0 );
-    if( !(currn  = FindGroupAtom(curr,0)) ) return( 360.0 );
+    if( !(nextn  = FindGroupAtom(next,0)) ) return 360.0;
+    if( !(currca = FindGroupAtom(curr,1)) ) return 360.0;
+    if( !(currc  = FindGroupAtom(curr,2)) ) return 360.0;
+    if( !(currn  = FindGroupAtom(curr,0)) ) return 360.0;
 
-    return( CalcDihedral(currn,currca,currc,nextn) );
+    return CalcTorsion(currn,currca,currc,nextn);
 }
-#endif
+
+/* Note: prev == prev->gnext! */
+double CalcOmegaAngle( Group __far *prev, Group __far *curr )
+{
+    Atom __far *prevc;
+    Atom __far *prevca;
+    Atom __far *currn;
+    Atom __far *currca;
+
+    if( !(prevca = FindGroupAtom(prev,1)) ) return 360.0;
+    if( !(prevc  = FindGroupAtom(prev,2)) ) return 360.0;
+    if( !(currn  = FindGroupAtom(curr,0)) ) return 360.0;
+    if( !(currca = FindGroupAtom(curr,1)) ) return 360.0;
+
+    return( CalcTorsion(prevca,prevc,currn,currca) );
+}
 
 
-void InitialiseAbstree()
+void InitialiseAbstree( void )
 {
     FalseExpr.type = OpConst | OpLftVal | OpRgtVal;
     FalseExpr.rgt.val = FalseExpr.lft.val = 0;
@@ -1360,4 +1454,96 @@ void InitialiseAbstree()
     FreeEntry = (void __far*)0;
     FreeSet = (void __far*)0;
     FreeExpr = NULL;
+}
+
+
+/* returns a string with a description of the current object (atom)   */
+/* example: "Chain: A  Group:  T 20  Atom: N3   404" for select == ATM */
+char *DescribeObj( AtomRef *ptr, Selection select )
+{
+  
+#define BS 110
+#define bs 109
+
+  register char *str;
+  static char buffer[BS];
+  int strucflag=' ';
+  
+  /* needs to be initialised with withespaces, expect the last one */
+  memset(buffer, ' ', bs * sizeof (char));
+
+  /* identification of 'chain' */
+  if( select == CHN || select == GRP || select == ATM || select == CRD){
+    if( ptr->chn->ident!=' ' ){
+      sprintf(&buffer[0], "Chain: %c", ptr->chn->ident);
+    }
+    buffer[8] = '\0';
+  }
+
+  /* identification of 'group' */
+  if( select == GRP || select == ATM || select == CRD){
+    str = Residue[ptr->grp->refno];
+    if( ptr->atm->flag&HeteroFlag ){
+      strcpy(&buffer[8], "  Hetero: ");
+    }
+    else{ 
+      strcpy(&buffer[8], "  Group:  ");
+    }
+    sprintf(&buffer[18], "%c%c%c %3d", str[0],str[1],str[2],ptr->grp->serno);
+    if( IsAmino(ptr->grp->refno) ){
+       strucflag = Helix3Flag|Helix4Flag|Helix5Flag;
+       if( ptr->grp->struc&strucflag )
+	  strucflag = 'H';
+       else if( ptr->grp->struc&SheetFlag )
+	  strucflag = 'S';
+       else if( ptr->grp->struc&TurnFlag )
+	  strucflag = 'T';
+       else
+	  strucflag = 'C';
+       sprintf(&buffer[25], " (%c)", (char)strucflag);
+    }
+    else{
+       sprintf(&buffer[25], "     ", (char)strucflag);
+    }
+  }
+
+  /* identification of 'atom' */
+  if( select == ATM || select == CRD ){
+    char *eptr;
+    str = ElemDesc[ptr->atm->refno];
+    strcpy(&buffer[29],"  Atom: ");
+    if ( (ptr->atm->altl == ' ') || (ptr->atm->altl == '\0') ) {
+      sprintf(&buffer[37], "%c%c%c%c   %5d ", 
+	    str[0], str[1], str[2], str[3], ptr->atm->serno );
+    } else {
+      sprintf(&buffer[37], "%c%c%c%c;%c %5d ",
+	    str[0], str[1], str[2], str[3] ,ptr->atm->altl, ptr->atm->serno );
+    }
+    if ( ptr->atm->model ) {
+      buffer[49] = '/';
+      FormatInteger(&buffer[50],(int)ptr->atm->model);
+    } else {
+      buffer[49] = '\0';
+    }
+    eptr = buffer+strlen(buffer);
+    if( select == CRD ){
+      register double x, y, z;
+
+      x = (double)(ptr->atm->xorg + OrigCX)/250.0
+         +(double)(ptr->atm->xtrl)/10000.0;
+      y = (double)(ptr->atm->yorg + OrigCY)/250.0
+         +(double)(ptr->atm->ytrl)/10000.0;
+      z = (double)(ptr->atm->zorg + OrigCZ)/250.0
+         +(double)(ptr->atm->ztrl)/10000.0;
+
+#ifdef INVERT
+      sprintf(eptr, "\n  Coordinates: %9.3f %9.3f %9.3f\n",x,-y,-z);
+#else
+      sprintf(eptr, "\n  Coordinates: %9.3f %9.3f %9.3f\n",x,y,-z);
+#endif
+    }
+  }
+  buffer[bs] = '\0'; /* to be sure to terminate the string */
+
+  return buffer;
 }

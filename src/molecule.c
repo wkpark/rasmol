@@ -1,8 +1,56 @@
+/***************************************************************************
+ *                            RasMol 2.7.1.1                               *
+ *                                                                         *
+ *                                RasMol                                   *
+ *                 Molecular Graphics Visualisation Tool                   *
+ *                            17 January 2001                              *
+ *                                                                         *
+ *                   Based on RasMol 2.6 by Roger Sayle                    *
+ * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
+ *                      Stevenage, Hertfordshire, UK                       *
+ *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
+ *                   Copyright (C) Roger Sayle 1992-1999                   *
+ *                                                                         *
+ *                  and Based on Mods by Arne Mueller                      *
+ *                      Version 2.6x1, May 1998                            *
+ *                   Copyright (C) Arne Mueller 1998                       *
+ *                                                                         *
+ *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
+ *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *                      yaya@bernstein-plus-sons.com                       *
+ *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
+ *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *                                                                         *
+ * Please read the file NOTICE for important notices which apply to this   *
+ * package. If you are not going to make changes to RasMol, you are not    *
+ * only permitted to freely make copies and distribute them, you are       *
+ * encouraged to do so, provided you do the following:                     *
+ *   * 1. Either include the complete documentation, especially the file   *
+ *     NOTICE, with what you distribute or provide a clear indication      *
+ *     where people can get a copy of the documentation; and               *
+ *   * 2. Please give credit where credit is due citing the version and    *
+ *     original authors properly; and                                      *
+ *   * 3. Please do not give anyone the impression that the original       *
+ *     authors are providing a warranty of any kind.                       *
+ *                                                                         *
+ * If you would like to use major pieces of RasMol in some other program,  *
+ * make modifications to RasMol, or in some other way make what a lawyer   *
+ * would call a "derived work", you are not only permitted to do so, you   *
+ * are encouraged to do so. In addition to the things we discussed above,  *
+ * please do the following:                                                *
+ *   * 4. Please explain in your documentation how what you did differs    *
+ *     from this version of RasMol; and                                    *
+ *   * 5. Please make your modified source code available.                 *
+ *                                                                         *
+ * This version of RasMol is not in the public domain, but it is given     *
+ * freely to the community in the hopes of advancing science. If you make  *
+ * changes, please make them in a responsible manner, and please offer us  *
+ * the opportunity to include those changes in future versions of RasMol.  *
+ ***************************************************************************/
+
 /* molecule.c
- * RasMol2 Molecular Graphics
- * Roger Sayle, August 1995
- * Version 2.6
  */
+
 #include "rasmol.h"
 
 #ifdef IBMPC
@@ -17,16 +65,23 @@
 #endif
 
 #include <string.h>
+#if defined(IBMPC) || defined(VMS) || defined(APPLEMAC)
+#include "string_case.h"
+#else
+#include <strings.h>
+#endif
 #include <ctype.h>
 #include <stdio.h>
 #include <math.h>
 
 #define MOLECULE
 #include "molecule.h"
+#include "cmndline.h"
 #include "command.h"
 #include "abstree.h"
 #include "transfor.h"
 #include "render.h"
+#include "langsel.h"
 
 #define HBondPool   32
 #define BondPool    32
@@ -54,32 +109,6 @@ static AllocRef *AllocList;
 #endif
 
 
-typedef struct {
-          char name[4];
-          int code;
-      } SynonymTable;
-
-#define RESSYNMAX 16
-static SynonymTable ResSynonym[RESSYNMAX] = {
-    { "ADE", 24 },  /*   A : Adenosine   */
-    { "CPR", 11 },  /* PRO : Cis-proline */
-    { "CSH", 17 },  /* CYS : Cystine     */
-    { "CSM", 17 },  /* CYS : Cystine     */
-    { "CYH", 17 },  /* CYS : Cystine     */
-    { "CYT", 25 },  /*   C : Cytosine    */
-    { "D2O", 47 },  /* DOD : Heavy Water */
-    { "GUA", 26 },  /*   G : Guanosine   */
-    { "H2O", 46 },  /* HOH : Solvent     */
-    { "SOL", 46 },  /* HOH : Solvent     */
-    { "SUL", 48 },  /* SO4 : Sulphate    */
-    { "THY", 27 },  /*   T : Thymidine   */
-    { "TIP", 46 },  /* HOH : Water       */
-    { "TRY", 20 },  /* TRP : Tryptophan  */
-    { "URI", 28 },  /*   U : Uridine     */
-    { "WAT", 46 }   /* HOH : Water       */
-        };
-
-
 static Molecule __far *FreeMolecule;
 static HBond __far *FreeHBond;
 static Chain __far *FreeChain;
@@ -87,6 +116,9 @@ static Group __far *FreeGroup;
 static Atom __far *FreeAtom;
 static Bond __far *FreeBond;
 
+
+static Group __far *Cache;
+static Atom __far *ACache;
 static IntCoord __far *IntPrev;
 static HBond __far * __far *CurHBond;
 static int MemSize;
@@ -99,8 +131,20 @@ static int MemSize;
 #define ForEachBond  for(bptr=Database->blist;bptr;bptr=bptr->bnext)
 
 
-/* Forward Reference */
-void DestroyDatabase();
+/*=======================*/
+/*  Function Prototypes  */
+/*=======================*/
+
+Atom __far *FindCysSulphur(  Group __far* );
+static IntCoord __far* GetInternalCoord( int );
+Bond __far *ProcessBond( Atom __far*, Atom __far*, int );
+static void CreateHydrogenBond( Atom __far*, Atom __far*,
+                                Atom __far*, Atom __far*, int, int );
+static int CalculateBondEnergy( Group __far* );
+static void CalcProteinHBonds( Chain __far* );
+static void CalcNucleicHBonds( Chain __far* );
+static int IsHBonded( Atom __far*, Atom __far*, HBond __far* );
+static void TestLadder( Chain __far* );
 
 
 #ifdef APPLEMAC
@@ -109,8 +153,8 @@ void SetFileInfo( char*, OSType, OSType, short );
 #endif
 
 
-static void FatalDataError(ptr)
-    char *ptr;
+
+static void FatalDataError( char *ptr )
 {
     char buffer[80];
 
@@ -119,56 +163,83 @@ static void FatalDataError(ptr)
 }
 
 
+void ReviseTitle( void )
+{
+    char buffer[60];
 
-void DescribeMolecule()
+    buffer[0] = 0;
+    buffer[58] = 0;
+    buffer[59] = 0;
+    
+    if( *Info.identcode ) {
+      strncpy(buffer,Info.identcode, 10);
+      buffer[10] = 0;
+      strncat(buffer," ",1);
+    }
+
+    if( *Info.technique ) {
+      strncat(buffer,Info.technique, 58-strlen(Info.identcode));
+    }
+
+    SetCanvasTitle( buffer );
+}
+
+void DescribeMolecule( void )
 {
     char buffer[40];
 
-    if( CommandActive )
-        WriteChar('\n');
-    CommandActive=False;
+    InvalidateCmndLine();
 
     if( *Info.moleculename )
-    {   WriteString("Molecule name ....... ");
+    {   WriteString(MsgStrs[StrMolNam]); /* "Molecule name ......... " */
         WriteString(Info.moleculename);
         WriteChar('\n');
     }
 
     if( *Info.classification )
-    {   WriteString("Classification ...... ");
+    {   WriteString(MsgStrs[StrClass]); /* "Classification ........ " */
         WriteString(Info.classification);
         WriteChar('\n');
     }
 
     if( Database && (MainGroupCount>1) )
-    {   WriteString("Secondary Structure . ");
+    {   WriteString(MsgStrs[StrSecSt]); /* "Secondary Structure ... " */
         if( Info.structsource == SourceNone )
-        {   WriteString("No Assignment\n");
+        {   WriteString(MsgStrs[StrNoAsmt]); /* "No Assignment\n" */
         } else if( Info.structsource == SourcePDB )
-        {   WriteString("PDB Data Records\n");
-        } else WriteString("Calculated\n");
+        {   WriteString(MsgStrs[StrPDBRec]); /* "PDB Data Records\n" */
+        } else WriteString(MsgStrs[StrCalc]); /* "Calculated\n" */
     }
 
 
     if( *Info.identcode )
-    {   WriteString("Brookhaven Code ..... ");
+    {   WriteString(MsgStrs[StrDBCode]); /* "Database Code ......... " */
         WriteString(Info.identcode);
         WriteChar('\n');
     }
 
+    if( *Info.technique )
+    {   WriteString(MsgStrs[StrExpTec]); /* "Experiment Technique .. " */
+        WriteString(Info.technique);
+        WriteChar('\n');
+    }
+
     if( Info.chaincount > 1 )
-    {   sprintf(buffer,"Number of Chains .... %d\n",Info.chaincount);
+    {   sprintf(buffer,"%s%d\n",MsgStrs[StrNumChn],Info.chaincount);
+                                         /* "Number of Chains ...... " */
         WriteString(buffer);
     }
 
-    sprintf(buffer,"Number of Groups .... %d",MainGroupCount);
+    sprintf(buffer,"%s%d",MsgStrs[StrNumGrp],MainGroupCount);
+                                         /* "Number of Groups ...... " */
     WriteString(buffer);
     if( HetaAtomCount )
     {   sprintf(buffer," (%d)\n",HetaGroupCount);
         WriteString(buffer);
     } else WriteChar('\n');
 
-    sprintf(buffer,"Number of Atoms ..... %ld",(long)MainAtomCount);
+    sprintf(buffer,"%s%ld",MsgStrs[StrNumAtm],(long)MainAtomCount);
+                                         /* "Number of Atoms ....... " */
     WriteString(buffer);
     if( HetaAtomCount )
     {   sprintf(buffer," (%d)\n",HetaAtomCount);
@@ -176,32 +247,33 @@ void DescribeMolecule()
     } else WriteChar('\n');
 
     if( Info.bondcount )
-    {   sprintf(buffer,"Number of Bonds ..... %ld\n",(long)Info.bondcount);
+    {   sprintf(buffer,"%s%ld\n",MsgStrs[StrNumBnd],(long)Info.bondcount);
+                                         /* "Number of Bonds ....... " */
         WriteString(buffer);
     }
 
     if( Info.ssbondcount != -1 )
-    {   WriteString("Number of Bridges ... ");
+    {   WriteString(MsgStrs[StrNumBrg]); /* "Number of Bridges ..... " */
         sprintf(buffer,"%d\n\n",Info.ssbondcount);
         WriteString(buffer);
     }
 
     if( Info.hbondcount != -1 )
-    {   WriteString("Number of H-Bonds ... ");
+    {   WriteString(MsgStrs[StrNumHbd]); /* "Number of H-Bonds ..... " */
         sprintf(buffer,"%d\n",Info.hbondcount);
         WriteString(buffer);
     }
 
     if( Info.helixcount != -1 )
-    {   WriteString("Number of Helices ... ");
+    {   WriteString(MsgStrs[StrNumHel]); /* "Number of Helices ..... " */
         sprintf(buffer,"%d\n",Info.helixcount);
         WriteString(buffer);
 
-        WriteString("Number of Strands ... ");
+        WriteString(MsgStrs[StrNumStrnd]); /* "Number of Strands ..... " */
         sprintf(buffer,"%d\n",Info.laddercount);
         WriteString(buffer);
 
-        WriteString("Number of Turns ..... ");
+        WriteString(MsgStrs[StrNumTrn]); /* "Number of Turns ....... " */
         sprintf(buffer,"%d\n",Info.turncount);
         WriteString(buffer);
     }
@@ -210,14 +282,13 @@ void DescribeMolecule()
 
 #ifdef APPLEMAC
 /* Avoid System Memory Leaks! */
-static void RegisterAlloc( data )
-    void *data;
+void RegisterAlloc( void *data )
 {
     register AllocRef *ptr;
     
     if( !AllocList || (AllocList->count==AllocSize) )
     {   ptr = (AllocRef *)_fmalloc( sizeof(AllocRef) );
-        if( !ptr ) FatalDataError("Memory allocation failed");
+        if( !ptr ) FatalDataError(MsgStrs[StrMalloc]);
         
         ptr->next = AllocList;
         ptr->data[0] = data;
@@ -230,12 +301,12 @@ static void RegisterAlloc( data )
 #endif
 
 
+
 /*==================================*/
 /* Group & Chain Handling Functions */
 /*==================================*/
 
-void CreateChain( ident )
-    int ident;
+void CreateChain( int ident )
 {
     register Chain __far *prev;
 
@@ -243,7 +314,7 @@ void CreateChain( ident )
     {   if( !(CurMolecule = FreeMolecule) )
         {   MemSize += sizeof(Molecule);
             CurMolecule = (Molecule __far *)_fmalloc(sizeof(Molecule));
-            if( !CurMolecule ) FatalDataError("Memory allocation failed");
+            if( !CurMolecule ) FatalDataError(MsgStrs[StrMalloc]);
             RegisterAlloc( CurMolecule );
         } else FreeMolecule = (void __far*)0;
 
@@ -256,15 +327,18 @@ void CreateChain( ident )
     }
 
     /* Handle chain breaks! */
-    if( !(prev=CurChain) )
-        if( (prev=CurMolecule->clist) )
+    prev = CurChain;
+    if( !prev )
+    {   prev = CurMolecule->clist;
+        if( prev )
             while( prev->cnext )
                 prev = prev->cnext;
+    }
 
     if( !(CurChain = FreeChain) )
     {   MemSize += sizeof(Chain);
         CurChain = (Chain __far *)_fmalloc(sizeof(Chain));
-        if( !CurChain ) FatalDataError("Memory allocation failed");
+        if( !CurChain ) FatalDataError(MsgStrs[StrMalloc]);
         RegisterAlloc( CurChain );
     } else FreeChain = FreeChain->cnext;
 
@@ -279,11 +353,12 @@ void CreateChain( ident )
     CurChain->blist = (void __far*)0;
     CurGroup = (void __far*)0;
     Info.chaincount++;
+
+    Cache = (Group __far*)0;
 }
 
 
-void CreateGroup( pool )
-    int pool;
+void CreateGroup( int pool )
 {
     register Group __far *ptr;
     register int i;
@@ -291,7 +366,7 @@ void CreateGroup( pool )
     if( !(ptr = FreeGroup) )
     {   MemSize += pool*sizeof(Group);
         ptr = (Group __far *)_fmalloc( pool*sizeof(Group) );
-        if( !ptr ) FatalDataError("Memory allocation failed");
+        if( !ptr ) FatalDataError(MsgStrs[StrMalloc]);
         RegisterAlloc( ptr );
         for( i=1; i<pool; i++ )
         {   ptr->gnext = FreeGroup;
@@ -310,50 +385,296 @@ void CreateGroup( pool )
 
     CurAtom = (void __far*)0;
     ptr->alist = (void __far*)0;
+    ptr->serno = -9999;
+    ptr->sserno = -9999;
     ptr->insert = ' ';
+    ptr->sinsert = ' ';
     ptr->struc = 0;
     ptr->flag = 0;
     ptr->col1 = 0;
     ptr->col2 = 0;
+    ptr->model = NMRModel;
 }
 
 
-int FindResNo( ptr )
-    char *ptr;
+int FindResNo( char *ptr )
 {
-    register int hi,lo;
+    register int ch1,ch2,ch3;
     register int refno;
-    register int flag;
-    register int mid;
 
-    for( refno=0; refno<ResNo; refno++ )
-        if( !strncmp(Residue[refno],ptr,3) )
-            return( refno );
+    ch1 = ToUpper(ptr[0]);
+    ch2 = ToUpper(ptr[1]);
+    ch3 = ToUpper(ptr[2]);
 
-    lo = 0;
-    hi = RESSYNMAX;
-    while( lo < hi )
-    {   mid = (hi+lo)>>1;
-        flag = strncmp(ResSynonym[mid].name,ptr,3);
-        if( !flag ) return( ResSynonym[mid].code );
+    switch( ch1 )
+    {   case(' '): if( ch2 == ' ' )
+                   {   switch( ch3 )
+                       {   case('A'):  return( 24 );
+                           case('C'):  return( 25 );
+                           case('G'):  return( 26 );
+                           case('T'):  return( 27 );
+                           case('U'):  return( 28 );
+                           case('I'):  return( 30 );
+                       }
+                   } else if( ch2 == '+' )
+                   {   if( ch3 == 'U' )
+                           return( 29 );
+                   } else if( ch2 == 'Y' )
+                   {   if( ch3 == 'G' )
+                           return( 39 );
+                   }
+                   break;
 
-        /* Binary Search */
-        if( flag<0 )
-        {   lo = mid+1;
-        } else hi = mid;
+        case('0'): if( ch2 == 'M' )
+                   {   if( ch3 == 'C' )
+                       {   return( 33 );
+                       } else if( ch3 == 'G' )
+                           return( 38 );
+                   }
+                   break;
+
+        case('1'): if( ch2 == 'M' )
+                   {   if( ch3 == 'A' )
+                       {   return( 31 );
+                       } else if( ch3 == 'G' )
+                           return( 34 );
+                   }
+                   break;
+
+        case('2'): if( ch2 == 'M' )
+                   {   if( ch3 == 'G' )
+                           return( 35 );
+                   }
+                   break;
+
+        case('5'): if( ch2 == 'M' )
+                   {   if( ch3 == 'C' )
+                       {   return( 32 );
+                       } else if( ch3 == 'U' )
+                           return( 41 );
+                   }
+                   break;
+
+        case('7'): if( ch2 == 'M' )
+                   {   if( ch3 == 'G' )
+                           return( 37 );
+                   }
+                   break;
+
+        case('A'): if( ch2 == 'L' )
+                   {   if( ch3 == 'A' )
+                           return(  0 );
+                   } else if( ch2 == 'S' )
+                   {   if( ch3 == 'P' )
+                       {   return(  7 );
+                       } else if( ch3 == 'N' )
+                       {   return(  9 );
+                       } else if( ch3 == 'X' )
+                           return( 20 );
+                   } else if( ch2 == 'R' )
+                   {   if( ch3 == 'G' )
+                           return( 12 );
+                   } else if( ch2 == 'C' )
+                   {   if( ch3 == 'E' )
+                           return( 44 );
+                   } else if( ch2 == 'D' )
+                   {   if( ch3 == 'E' )
+                           return( 24 );    /* "ADE" -> "  A" */
+                   }
+                   break;
+
+        case('C'): if( ch2 == 'Y' )
+                   {   if( ch3 == 'S' )
+                       {   return( 17 );
+                       } else if( ch3 == 'H' )
+                       {   return( 17 );    /* "CYH" -> "CYS" */
+                       } else if( ch3 == 'T' )
+                           return( 25 );    /* "CYT" -> "  C" */
+                   } else if( ch2 == 'O' )
+                   {   if( ch3 == 'A' )
+                           return( 51 );
+                   } else if( ch2 == 'P' )
+                   {   if( ch3 == 'R' )
+                           return( 11 );    /* "CPR" -> "PRO" */
+                   } else if( ch2 == 'S' )
+                   {   if( ch3 == 'H' )
+                       {   return( 17 );    /* "CSH" -> "CYS" */
+                       } else if( ch3 == 'M' )
+                           return( 17 );    /* "CSM" -> "CYS" */
+                   }
+                   break;
+
+        case('D'): if( ch2 == 'O' )
+                   {   if( ch3 == 'D' )
+                           return( 47 );
+                   } else if( ch2 == '2' )
+                   {   if( ch3 == 'O' )
+                           return( 47 );    /* "D2O" -> "DOD" */
+                   }
+                   break;
+
+        case('F'): if( ch2 == 'O' )
+                   {   if( ch3 == 'R' )
+                           return( 45 );
+                   }
+                   break;
+
+        case('G'): if( ch2 == 'L' )
+                   {   if( ch3 == 'Y' )
+                       {   return(  1 );
+                       } else if( ch3 == 'U' )
+                       {   return( 10 );
+                       } else if( ch3 == 'N' )
+                       {   return( 14 );
+                       } else if( ch3 == 'X' )
+                           return( 21 );
+                   } else if( ch2 == 'U' )
+                   {   if( ch3 == 'A' )
+                           return( 26 );    /* "GUA" -> "  G" */
+                   }
+                   break;
+
+        case('H'): if( ch2 == 'I' )
+                   {   if( ch3 == 'S' )
+                           return( 16 );
+                   } else if( ch2 == 'O' )
+                   {   if( ch3 == 'H' )
+                           return( 46 );
+                   } else if( ch2 == 'Y' )
+                   {   if( ch3 == 'P' )
+                           return( 23 );
+                   } else if( ch2 == '2' )
+                   {   if( ch3 == 'O' )
+                       {   return( 46 );    /* "H20" -> "HOH" */
+                       } else if( ch3 == 'U' )
+                           return( 40 );
+                   }
+                   break;
+
+        case('I'): if( ch2 == 'L' )
+                   {   if( ch3 == 'E' )
+                           return(  8 );
+                   }
+                   break;
+
+        case('L'): if( ch2 == 'E' )
+                   {   if( ch3 == 'U' )
+                           return(  2 );
+                   } else if( ch2 == 'Y' )
+                   {   if( ch3 == 'S' )
+                           return(  6 );
+                   }
+                   break;
+
+        case('M'): if( ch2 == 'E' )
+                   {   if( ch3 == 'T' )
+                           return( 18 );
+                   } else if( ch2 == '2' )
+                   {   if( ch3 == 'G' )
+                           return( 36 );
+                   }
+                   break;
+
+        case('N'): if( ch2 == 'A' )
+                   {   if( ch3 == 'D' )
+                       {   return( 50 );
+                       } else if( ch3 == 'P' )
+                           return( 52 );
+                   } else if( ch2 == 'D' )
+                   {   if( ch3 == 'P' )
+                           return( 53 );
+                   }
+                   break;
+
+        case('P'): if( ch2 == 'R' )
+                   {   if( ch3 == 'O' )
+                           return( 11 );
+                   } else if( ch2 == 'H' )
+                   {   if( ch3 == 'E' )
+                           return( 13 );
+                   } else if( ch2 == 'C' )
+                   {   if( ch3 == 'A' )
+                           return( 22 );
+                   } else if( ch2 == 'O' )
+                   {   if( ch3 == '4' )
+                           return( 49 );
+                   } else if( ch2 == 'S' )
+                   {   if( ch3 == 'U' )
+                           return( 42 );
+                   }
+                   break;
+
+        case('S'): if( ch2 == 'E' )
+                   {   if( ch3 == 'R' )
+                           return(  3 );
+                   } else if( ch2 == 'O' )
+                   {   if( ch3 == '4' )
+                       {   return( 48 );
+                       } else if( ch3 == 'L' )
+                           return( 46 );    /* "SOL" -> "HOH" */
+                   } else if( ch2 == 'U' )
+                   {   if( ch3 == 'L' )
+                           return( 48 );    /* "SUL" -> "SO4" */
+                   }
+                   break;
+
+        case('T'): if( ch2 == 'H' )
+                   {   if( ch3 == 'R' )
+                       {   return(  5 );
+                       } else if( ch3 == 'Y' )
+                           return( 27 );    /* "THY" -> "  T" */
+                   } else if( ch2 == 'Y' )
+                   {   if( ch3 == 'R' )
+                           return( 15 );
+                   } else if( ch2 == 'R' )
+                   {   if( ch3 == 'P' )
+                       {   return( 19 );
+                       } else if( ch3 == 'Y' )
+			 return( 19 );    /* "TRY" -> "TRP" */
+                   } else if( ch2 == 'I' )
+                   {   if( ch3 == 'P' )
+                           return( 46 );    /* "TIP" -> "HOH" */
+                   }
+                   break;
+
+        case('U'): if( ch2 == 'N' )
+                   {   if( ch3 == 'K' )
+                           return( 43 );
+                   } else if( ch2 == 'R' )
+                   {   if( ch3 == 'A' )
+                       {   return( 28 );    /* "URA" -> "  U" */
+                       } else if( ch3 == 'I' )
+                           return( 28 );    /* "URI" -> "  U" */
+                   }
+                   break;
+
+        case('V'): if( ch2 == 'A' )
+                   {   if( ch3 == 'L' )
+                           return(  4 );
+                   }
+                   break;
+
+        case('W'): if( ch2 == 'A' )
+                   {   if( ch3 == 'T' )
+                           return( 46 );    /* "WAT" -> "HOH" */
+                   }
+                   break;
     }
 
+    for( refno=MINRES; refno<ResNo; refno++ )
+        if( !strncasecmp(Residue[refno],ptr,3) )
+            return refno;
+
     if( ResNo++ == MAXRES )
-        FatalDataError("Too many new residues");
-    Residue[refno][0] = *ptr++;
-    Residue[refno][1] = *ptr++;
-    Residue[refno][2] = *ptr;
-    return( refno );
+        FatalDataError(MsgStrs[StrXSRes]); /* "Too many new residues" */
+    Residue[refno][0] = ch1;
+    Residue[refno][1] = ch2;
+    Residue[refno][2] = ch3;
+    return refno;
 }
 
 
-void ProcessGroup( heta )
-    int heta;
+void ProcessGroup( int heta )
 {
     register int serno;
 
@@ -378,10 +699,15 @@ void ProcessGroup( heta )
                 MinMainRes = serno;
         } else MinMainRes = MaxMainRes = serno;
     }
+    if (CurGroup->model && !(MaxModel)){
+      MaxModel = MinModel = CurGroup->model;
+    }
+    if (CurGroup->model > MaxModel) MaxModel = CurGroup->model;
+    if (CurGroup->model < MinModel) MinModel = CurGroup->model;
 }
 
 
-void CreateMolGroup()
+void CreateMolGroup( void )
 {
     strcpy(Info.filename,DataFileName);
 
@@ -397,12 +723,25 @@ void CreateMolGroup()
 }
 
 
+void CreateNextMolGroup( void )
+{
+    if( CurGroup->alist )
+    {   CreateChain(' ');
+        CreateGroup(1);
+        MainGroupCount++;
+        CurGroup->refno = FindResNo( "MOL" );
+        CurGroup->serno = MainGroupCount;
+        MaxMainRes++;
+    }
+}
+
+
+
 /*=========================*/
 /* Atom Handling Functions */
 /*=========================*/
 
-
-Atom __far *CreateAtom()
+Atom __far *CreateAtom( void )
 {
     register Atom __far *ptr;
     register int i;
@@ -410,7 +749,7 @@ Atom __far *CreateAtom()
     if( !(ptr = FreeAtom) )
     {   MemSize += AtomPool*sizeof(Atom);
         ptr = (Atom __far *)_fmalloc( AtomPool*sizeof(Atom) );
-        if( !ptr ) FatalDataError("Memory allocation failed");
+        if( !ptr ) FatalDataError(MsgStrs[StrMalloc]);
         RegisterAlloc( ptr );
         for( i=1; i<AtomPool; i++ )
         {   ptr->anext = FreeAtom;
@@ -434,14 +773,18 @@ Atom __far *CreateAtom()
     ptr->altl = ' ';
     ptr->mbox = 0;
     ptr->col = 0;
-
-    return( ptr );
+    ptr->model = 0;
+    ptr->xtrl = 0;
+    ptr->ytrl = 0;
+    ptr->ztrl = 0;
+    return ptr;
 }
 
 
-void ProcessAtom( ptr )
-    Atom __far *ptr;
+void ProcessAtom( Atom __far *ptr )
 {
+    int altc;
+
     ptr->elemno = GetElemNumber(CurGroup,ptr);
     if( ptr->elemno == 1 )
     {   ptr->flag |= HydrogenFlag;
@@ -455,6 +798,7 @@ void ProcessAtom( ptr )
 
 #ifdef INVERT
     ptr->yorg = -ptr->yorg;
+    ptr->ytrl = -ptr->ytrl;
 #endif
 
     if( HMinMaxFlag || MMinMaxFlag )
@@ -497,11 +841,16 @@ void ProcessAtom( ptr )
         MMinMaxFlag = True;
         MainAtomCount++;
     }
+
+    if ( ptr->altl != '\0' && ptr->altl != ' ')
+    {
+        altc = (((int)ptr->altl)&(AltlDepth-1))+1;
+        if (MaxAltl < altc) MaxAltl = altc;
+    }
 }
 
 
-Atom __far *FindGroupAtom( group, n )
-    Group __far *group;  Byte n;
+Atom __far *FindGroupAtom( Group __far *group, int n )
 {
     register Atom __far *ptr;
 
@@ -511,27 +860,25 @@ Atom __far *FindGroupAtom( group, n )
 }
 
 
-int NewAtomType( ptr )
-    char *ptr;
+int NewAtomType( char *ptr )
 {
     register int refno;
     register int i;
 
     for( refno=0; refno<ElemNo; refno++ )
-        if( !strncmp(ElemDesc[refno],ptr,4) )
-            return(refno);
+        if( !strncasecmp(ElemDesc[refno],ptr,4) )
+            return refno;
 
     if( ElemNo++ == MAXELEM )
-        FatalDataError("Too many new atom types");
+        FatalDataError(MsgStrs[StrXSAtyp]);  /* "Too many new atom types" */
 
     for( i=0; i<4; i++ )
         ElemDesc[refno][i] = ptr[i];
-    return( refno );
+    return refno;
 }
 
 
-int SimpleAtomType( type )
-    char *type;
+int SimpleAtomType( char *type )
 {
     char name[4];
 
@@ -543,12 +890,11 @@ int SimpleAtomType( type )
     {   name[1] = ToUpper(type[0]);
         name[0] = ' ';
     }
-    return( NewAtomType(name) );
+    return NewAtomType(name);
 }
 
 
-int ComplexAtomType( ptr )
-    char *ptr;
+int ComplexAtomType( char *ptr )
 {
     static char name[4];
     register int i;
@@ -567,7 +913,6 @@ int ComplexAtomType( ptr )
         name[3] = ToUpper(ptr[3]);
     } else for( i=0; i<4; i++ )
         name[i] = ToUpper(ptr[i]);
-
 
     /* Handle Unconventional Naming */
     if( IsProtein(CurGroup->refno) )
@@ -588,10 +933,8 @@ int ComplexAtomType( ptr )
                 return( 9 );
         }
     }
-    return( NewAtomType(name) );
+    return NewAtomType(name);
 }
-
-
 
 
 
@@ -599,23 +942,19 @@ int ComplexAtomType( ptr )
 /* Z-Matrix Conversion Functions */
 /*===============================*/
 
-#ifdef FUNCPROTO
-static IntCoord __far* GetInternalCoord( int );
-#endif
-
-void InitInternalCoords()
+void InitInternalCoords( void )
 {
     IntList = (IntCoord __far*)0;
     IntPrev = (IntCoord __far*)0;
 }
 
 
-IntCoord __far* AllocInternalCoord()
+IntCoord __far* AllocInternalCoord( void )
 {
     register IntCoord __far *ptr;
 
     ptr = (IntCoord __far*)_fmalloc(sizeof(IntCoord));
-    if( !ptr ) FatalDataError("Memory allocation failed");
+    if( !ptr ) FatalDataError(MsgStrs[StrMalloc]);
     ptr->inext = (IntCoord __far*)0;
 
     if( IntPrev )
@@ -626,8 +965,7 @@ IntCoord __far* AllocInternalCoord()
 }
 
 
-static IntCoord __far* GetInternalCoord( index )
-    int index;
+static IntCoord __far* GetInternalCoord( int index )
 {
     register IntCoord __far *ptr;
 
@@ -636,29 +974,30 @@ static IntCoord __far* GetInternalCoord( index )
     {   ptr = ptr->inext;
         index--;
     }
-    return( ptr );
+    return ptr;
 }
 
 
-void FreeInternalCoords()
+void FreeInternalCoords( void )
 {
     register IntCoord __far *ptr;
 
-    while( (ptr = IntList) )
-    {    IntList = ptr->inext;
+    while( IntList )
+    {    ptr = IntList;
+         IntList = ptr->inext;
          _ffree( ptr );
     }
 }
 
 
-int ConvertInternal2Cartesian()
+int ConvertInternal2Cartesian( void )
 {
     register IntCoord __far *ptr;
     register IntCoord __far *na;
     register IntCoord __far *nb;
     register IntCoord __far *nc;
     register double cosph,sinph,costh,sinth,coskh,sinkh;
-    register double cosa,sina,cosd,sind;
+    register double cosa,sina,xcosd,xsind;
     register double dist,angle,dihed;
 
     register double xpd,ypd,zpd,xqd,yqd,zqd;
@@ -668,22 +1007,21 @@ int ConvertInternal2Cartesian()
     register double xd,yd,zd;
     register int flag;
 
-
     /* Atom #1 */
     ptr = IntList;
     ptr->dist  = 0.0;
     ptr->angle = 0.0;
     ptr->dihed = 0.0;
 
-    if( !(ptr=ptr->inext) )
-        return( True );
+    ptr = ptr->inext;
+    if( !ptr ) return( True );
 
     /* Atom #2 */
     ptr->angle = 0.0;
     ptr->dihed = 0.0;
 
-    if( !(ptr=ptr->inext) )
-        return( True );
+    ptr = ptr->inext;
+    if( !ptr ) return( True );
 
     /* Atom #3 */
     dist = ptr->dist;
@@ -700,8 +1038,9 @@ int ConvertInternal2Cartesian()
     ptr->angle = sina*dist;
     ptr->dihed = 0.0;
 
-    while( (ptr=ptr->inext) )
-    {   dist = ptr->dist;
+    while( ptr->inext )
+    {   ptr = ptr->inext;
+        dist = ptr->dist;
         angle = Deg2Rad*ptr->angle;
         dihed = Deg2Rad*ptr->dihed;
 
@@ -734,12 +1073,12 @@ int ConvertInternal2Cartesian()
             ya = nc->angle - na->angle;
             za = nc->dihed - na->dihed;
 
-            sind = -sin(dihed);
-            cosd = cos(dihed);
+            xsind = -sin(dihed);
+            xcosd = cos(dihed);
 
             xd = dist*cosa;
-            yd = dist*sina*cosd;
-            zd = dist*sina*sind;
+            yd = dist*sina*xcosd;
+            zd = dist*sina*xsind;
 
             xyb = sqrt(xb*xb + yb*yb);
             if( xyb < 0.1 )
@@ -791,7 +1130,7 @@ int ConvertInternal2Cartesian()
             }
         }
     }
-    return( True );
+    return True;
 }
 
 
@@ -800,16 +1139,7 @@ int ConvertInternal2Cartesian()
 /* Bond Handling Functions */
 /*=========================*/
 
-
-#ifdef FUNCPROTO
-Bond __far *ProcessBond( Atom __far*, Atom __far*, int );
-static void CreateHydrogenBond( Atom __far*, Atom __far*,
-                                Atom __far*, Atom __far*, int, int );
-#endif
-
-Bond __far *ProcessBond( src, dst, flag )
-    Atom __far *src, __far *dst;
-    int flag;
+Bond __far *ProcessBond( Atom __far *src, Atom __far *dst, int flag )
 {
     register Bond __far *ptr;
     register int i;
@@ -820,7 +1150,7 @@ Bond __far *ProcessBond( src, dst, flag )
     if( !(ptr = FreeBond) )
     {   MemSize += BondPool*sizeof(Bond);
         ptr = (Bond __far *)_fmalloc( BondPool*sizeof(Bond) );
-        if( !ptr ) FatalDataError("Memory allocation failed");
+        if( !ptr ) FatalDataError(MsgStrs[StrMalloc]);
         RegisterAlloc( ptr );
         for( i=1; i<BondPool; i++ )
         {   ptr->bnext = FreeBond;
@@ -833,14 +1163,16 @@ Bond __far *ProcessBond( src, dst, flag )
     ptr->dstatom = dst;
     ptr->radius = 0;
     ptr->col = 0;
+    ptr->altl = '\0';
+    if (src && src->altl != '\0' && src->altl != ' ') ptr->altl = src->altl;
+    if (dst && dst->altl != '\0' && dst->altl != ' ') ptr->altl = dst->altl;
 
-    return( ptr );
+    return ptr;
 }
 
-static void CreateHydrogenBond( srcCA, dstCA, src, dst, energy, offset )
-    Atom __far *srcCA, __far *dstCA;
-    Atom __far *src, __far *dst;
-    int energy, offset;
+static void CreateHydrogenBond( Atom __far *srcCA, Atom __far *dstCA,
+                                Atom __far *src, Atom __far *dst,
+                                int energy, int offset )
 {
     register HBond __far *ptr;
     register int i,flag;
@@ -848,7 +1180,7 @@ static void CreateHydrogenBond( srcCA, dstCA, src, dst, energy, offset )
     if( !(ptr = FreeHBond) )
     {   MemSize += HBondPool*sizeof(HBond);
         ptr = (HBond __far *)_fmalloc( HBondPool*sizeof(HBond) );
-        if( !ptr ) FatalDataError("Memory allocation failed");
+        if( !ptr ) FatalDataError(MsgStrs[StrMalloc]);
         RegisterAlloc( ptr );
         for( i=1; i<HBondPool; i++ )
         {   ptr->hnext = FreeHBond;
@@ -869,6 +1201,9 @@ static void CreateHydrogenBond( srcCA, dstCA, src, dst, energy, offset )
     ptr->dstCA = dstCA;
     ptr->energy = energy;
     ptr->col = 0;
+    ptr->altl = '\0';
+    if (src && src->altl != '\0' && src->altl != ' ') ptr->altl = src->altl;
+    if (dst && dst->altl != '\0' && dst->altl != ' ') ptr->altl = dst->altl;
 
     *CurHBond = ptr;
     ptr->hnext = (void __far*)0;
@@ -877,69 +1212,133 @@ static void CreateHydrogenBond( srcCA, dstCA, src, dst, energy, offset )
 }
 
 
-void CreateBond( src, dst, flag )
-    Long src, dst; int flag;
+static Atom __far *LocateAtom( Long serno, int flag )
 {
     register Chain __far *chain;
     register Group __far *group;
     register Atom __far *aptr;
+
+    if( Cache )
+    {   for( aptr=ACache; aptr; aptr=aptr->anext )
+            if( aptr->serno == serno )
+            {   ACache = aptr;
+                return( aptr );
+            }
+
+        for( aptr=Cache->alist; aptr != ACache; aptr=aptr->anext )
+            if( aptr->serno == serno )
+            {   ACache = aptr;
+                return( aptr );
+            }
+
+        if( Cache->gnext )
+            for( aptr=Cache->gnext->alist; aptr; aptr=aptr->anext )
+                if( aptr->serno == serno )
+                {   if( flag )
+                    {   Cache = Cache->gnext;
+                        ACache = aptr;
+                    }
+                    return( aptr );
+                }
+    }
+
+    if( CurChain )
+    {   for( group=CurChain->glist; group; group=group->gnext )
+            for( aptr=group->alist; aptr; aptr=aptr->anext )
+                if( aptr->serno == serno )
+                {   Cache = group;
+                    ACache = aptr;
+                    return( aptr );
+                }
+    }
+
+    for( chain=Database->clist; chain; chain=chain->cnext )
+        if( chain != CurChain )
+            for( group=chain->glist; group; group=group->gnext )
+                for( aptr=group->alist; aptr; aptr=aptr->anext )
+                    if( aptr->serno == serno )
+                    {   Cache = group;
+                        ACache = aptr;
+                        return( aptr );
+                    }
+
+    return (Atom __far*)0;
+}
+
+
+void CreateBond( Long src, Long dst, int flag )
+{
     register Atom __far *sptr;
     register Atom __far *dptr;
     register Bond __far *bptr;
-    register int done;
-
 
     if( src == dst )
         return;
 
-    sptr = (void __far*)0;
-    dptr = (void __far*)0;
+    sptr = LocateAtom(src,False);  if( !sptr ) return;
+    dptr = LocateAtom(dst,False);  if( !dptr ) return;
 
-    done = False;
-    for( chain=Database->clist; chain && !done; chain=chain->cnext )
-        for( group=chain->glist; group && !done; group=group->gnext )
-            for( aptr=group->alist; aptr; aptr=aptr->anext )
-            {   if( aptr->serno == src )
-                {   sptr = aptr;
-                    if( dptr )
-                    {   done = True;
-                        break;
-                    }
-                } else if( aptr->serno == dst )
-                {   dptr = aptr;
-                    if( sptr )
-                    {   done = True;
-                        break;
-                    }
-                }
-            }
+    if( flag != HydrBondFlag )
+    {   /* Reset Non-bonded flags! */
+        sptr->flag &= ~NonBondFlag;
+        dptr->flag &= ~NonBondFlag;
 
+        bptr = ProcessBond( sptr, dptr, flag );
+        bptr->bnext = CurMolecule->blist;
+        CurMolecule->blist = bptr;
+        Info.bondcount++;
 
-    /* Both found! */
-    if( done ) 
-    {   if( flag != HydrBondFlag )
-        {   /* Reset Non-bonded flags! */
-            sptr->flag &= ~NonBondFlag;
-            dptr->flag &= ~NonBondFlag;
-
-            bptr = ProcessBond( sptr, dptr, flag );
-            bptr->bnext = CurMolecule->blist;
-            CurMolecule->blist = bptr;
-            Info.bondcount++;
-
-        } else /* Hydrogen Bond! */
-        {   if( Info.hbondcount < 0 ) 
-            {   CurHBond = &CurMolecule->hlist;
-                Info.hbondcount = 0;
-            }
-            CreateHydrogenBond( NULL, NULL, sptr, dptr, 0, 0 );
+    } else /* Hydrogen Bond! */
+    {   if( Info.hbondcount < 0 ) 
+        {   CurHBond = &CurMolecule->hlist;
+            Info.hbondcount = 0;
         }
+        CreateHydrogenBond( NULL, NULL, sptr, dptr, 0, 0 );
     }
 }
 
 
-void CreateBondOrder( src, dst )
-    Long src, dst;
+void CreateBondOrder( Long src, Long dst )
+{
+    register Atom __far *sptr;
+    register Atom __far *dptr;
+    register Bond __far *bptr;
+
+    if( src == dst )
+        return;
+
+    sptr = LocateAtom(src,True);  if( !sptr ) return;
+    dptr = LocateAtom(dst,False); if( !dptr ) return;
+
+    if( !(sptr->flag&NonBondFlag) && !(dptr->flag&NonBondFlag) )
+    {   ForEachBond
+            if( ((bptr->srcatom==sptr)&&(bptr->dstatom==dptr)) || 
+                ((bptr->srcatom==dptr)&&(bptr->dstatom==sptr)) )
+            {   DrawDoubleBonds = True;
+                if( bptr->flag & NormBondFlag )
+                {  /* Convert Single to Double */
+                   bptr->flag &= ~(NormBondFlag);
+                   bptr->flag |= DoubBondFlag;
+                } else if( bptr->flag & DoubBondFlag )
+                {  /* Convert Double to Triple */
+                   bptr->flag &= ~(DoubBondFlag);
+                   bptr->flag |= TripBondFlag;
+                }
+                return;
+            }
+    }
+
+    /* Reset Non-bonded flags! */
+    sptr->flag &= ~NonBondFlag;
+    dptr->flag &= ~NonBondFlag;
+
+    bptr = ProcessBond( sptr, dptr, NormBondFlag );
+    bptr->bnext = CurMolecule->blist;
+    CurMolecule->blist = bptr;
+    Info.bondcount++;
+}
+
+void CreateNewBond (Long src, Long dst )
 {
     register Bond __far *bptr;
     register Long bs,bd;
@@ -949,31 +1348,22 @@ void CreateBondOrder( src, dst )
         bd = bptr->dstatom->serno;
 
         if( ((bs==src)&&(bd==dst)) || ((bs==dst)&&(bd==src)) )
-        {   DrawDoubleBonds = True;
-            if( bptr->flag & NormBondFlag )
-            {  /* Convert Single to Double */
-               bptr->flag &= ~(NormBondFlag);
-               bptr->flag |= DoubBondFlag;
-            } else if( bptr->flag & DoubBondFlag )
-            {  /* Convert Double to Triple */
-               bptr->flag &= ~(DoubBondFlag);
-               bptr->flag |= TripBondFlag;
-            }
-            return;
-        }
+                   return;
     }
     CreateBond( src, dst, NormBondFlag );
 }
 
 
-static void TestBonded( sptr, dptr, flag )
-    Atom __far *sptr, __far *dptr; 
-    int flag;
+static void TestBonded(  Atom __far *sptr,  Atom __far *dptr, int flag )
 {
     register Bond __far *bptr;
     register Long dx, dy, dz;
     register Long max, dist;
 
+    if ( !(sptr->model == dptr->model) ) return;
+    if ( !(sptr->altl == ' ' || sptr->altl == '\0') &&
+         !(dptr->altl == ' ' || dptr->altl == '\0') &&
+         !(sptr->altl == dptr->altl) ) return;
     if( flag )
     {    /* Sum of covalent radii with 0.56A tolerance */
          dist = Element[sptr->elemno].covalrad + 
@@ -985,7 +1375,7 @@ static void TestBonded( sptr, dptr, flag )
          {      max = MaxHBondDist;
          } else max = MaxBondDist;
     }
-
+    
     dx = sptr->xorg-dptr->xorg;   if( (dist=dx*dx)>max ) return;
     dy = sptr->yorg-dptr->yorg;   if( (dist+=dy*dy)>max ) return;
     dz = sptr->zorg-dptr->zorg;   if( (dist+=dz*dz)>max ) return;
@@ -1003,13 +1393,13 @@ static void TestBonded( sptr, dptr, flag )
 }
 
 
-static void ReclaimHBonds( ptr )
-    HBond __far *ptr;
+static void ReclaimHBonds( HBond __far *ptr )
 {
     register HBond __far *temp;
 
-    if( (temp = ptr) )
-    {   while( temp->hnext )
+    if( ptr )
+    {   temp = ptr;
+        while( temp->hnext )
             temp=temp->hnext;
         temp->hnext = FreeHBond;
         FreeHBond = ptr;
@@ -1017,13 +1407,13 @@ static void ReclaimHBonds( ptr )
 }
 
 
-static void ReclaimBonds( ptr )
-    Bond __far *ptr;
+static void ReclaimBonds( Bond __far *ptr )
 {
     register Bond __far *temp;
 
-    if( (temp = ptr) )
-    {   while( temp->bnext )
+    if( ptr )
+    {   temp = ptr;
+        while( temp->bnext )
             temp=temp->bnext;
         temp->bnext = FreeBond;
         FreeBond = ptr;
@@ -1031,41 +1421,60 @@ static void ReclaimBonds( ptr )
 }
 
 
-static Bond __far *ExtractBonds( ptr )
-    Bond __far *ptr;
+static Bond __far *ExtractBonds( Bond __far *ptr )
 {
+    register Atom __far *src;
+    register Atom __far *dst;
+    register Long dx, dy, dz;
+    register Long max, dist;
     register Bond __far *result;
     register Bond __far *temp;
 
     result = (Bond __far*)0;
 
-    while( (temp = ptr) )
-    {   ptr = temp->bnext;
-        if( temp->flag & NormBondFlag )
+    while( ptr )
+    {   temp = ptr;
+        src = ptr->srcatom;
+        dst = ptr->dstatom;
+
+        ptr = temp->bnext;
+        dist = Element[src->elemno].covalrad + 
+                Element[dst->elemno].covalrad + 140;
+
+        max = dist*dist;  
+        dx = src->xorg-dst->xorg; dist = dx*dx;
+        if (!(dist > max)) {
+          dy = src->yorg-dst->yorg; dist += dy*dy;
+        }
+        if (!(dist > max)) {
+          dz = src->zorg-dst->zorg; dist += dz*dz;
+        }
+
+        if( (temp->flag & NormBondFlag) &&  !(dist > max) )
         {   temp->bnext = FreeBond;
             FreeBond = temp;
-        } else /* Double or Triple! */
+        } else /* Long or Double or Triple! */
         {   temp->bnext = result;
             result = temp;
         }
     }
-    return( result );
+    return result;
 }
 
 
-static void InsertBonds( list, orig )
-    Bond __far **list;  Bond __far *orig;
+static void InsertBonds( Bond __far **list,  Bond __far *orig )
 {
     register Atom __far *src;
     register Atom __far *dst;
     register Bond __far *temp;
     register Bond __far *ptr;
 
-    while( (ptr=orig) )
-    {   orig = ptr->bnext;
+    while( orig )
+    {   ptr = orig;
+        orig = ptr->bnext;
         src = ptr->srcatom;
         dst = ptr->dstatom;
-        for( temp=*list; temp; temp=temp->bnext )
+        for( temp = *list; temp; temp=temp->bnext )
             if( ((temp->srcatom==src)&&(temp->dstatom==dst)) ||
                 ((temp->srcatom==dst)&&(temp->dstatom==src)) )
                 break;
@@ -1082,8 +1491,7 @@ static void InsertBonds( list, orig )
 }
 
 
-void CreateMoleculeBonds( info, flag )
-    int info, flag;
+void CreateMoleculeBonds( int info, int flag, int force )
 {
     register int i, x, y, z;
     register Long tx, ty, tz;
@@ -1096,7 +1504,6 @@ void CreateMoleculeBonds( info, flag )
     register Bond __far *list;
     char buffer[40];
 
-
     if( !Database ) 
         return;
 
@@ -1104,15 +1511,17 @@ void CreateMoleculeBonds( info, flag )
     dy = (MaxY-MinY)+1;
     dz = (MaxZ-MinZ)+1;
 
-    /* Save Explicit Double and Triple Bonds! */
-    list = ExtractBonds( CurMolecule->blist );
+    /* Save Explicit Long, Double and Triple Bonds on File Load */
+    list = (Bond __far*)0;
+    if (!force)
+      list = ExtractBonds( CurMolecule->blist );
     CurMolecule->blist = (Bond __far*)0;
     Info.bondcount = 0;
 
     ResetVoxelData();
 
     for( chain=Database->clist; chain; chain=chain->cnext )
-    {   ResetVoxelData();
+    {   /* ResetVoxelData(); */
         for( group=chain->glist; group; group=group->gnext )
             for( aptr=group->alist; aptr; aptr=aptr->anext )
             {   /* Initially non-bonded! */
@@ -1142,9 +1551,12 @@ void CreateMoleculeBonds( info, flag )
                 {   i = VOXORDER2*x + VOXORDER*ly;
                     for( y=ly; y<=uy; y++ )
                     {   for( z=lz; z<=uz; z++ )
-                            if( (dptr = (Atom __far*)HashTable[i+z]) )
-                                do { TestBonded(aptr,dptr,flag);
-                                } while( (dptr = dptr->next) );
+                        {   dptr = (Atom __far*)HashTable[i+z];
+                            while( dptr )
+                            {   TestBonded(aptr,dptr,flag);
+                                dptr = dptr->next;
+                            }
+                        }
                         i += VOXORDER;
                     }
                 }
@@ -1160,29 +1572,25 @@ void CreateMoleculeBonds( info, flag )
         VoxelsClean = False;
     }
 
-    /* Replace Double & Triple Bonds! */
+    /* Replace Long, Double & Triple Bonds! */
     InsertBonds(&CurMolecule->blist,list);
 
     if( info )
-    {   if( CommandActive )
-            WriteChar('\n');
-        CommandActive=False;
-        sprintf(buffer,"Number of Bonds ..... %ld\n\n",(long)Info.bondcount);
+    {   InvalidateCmndLine();
+        sprintf(buffer,"%s%ld\n\n",MsgStrs[StrNumBnd],(long)Info.bondcount);
+                                       /* "Number of Bonds ....... " */
         WriteString(buffer);
     }
 }
 
 
-/*===============================*/
-/* Disulphide bridging functions */
-/*===============================*/
 
-#ifdef FUNCPROTO
-static Atom __far *FindCysSulphur(  Group __far* );
-#endif
+/*=================================*/
+/*  Disulphide bridging functions  */
+/*=================================*/
 
-static Atom __far *FindCysSulphur( group )
-    Group __far *group;
+
+Atom __far *FindCysSulphur( Group __far *group )
 {
     register Atom __far *ptr;
     register char *elem;
@@ -1192,13 +1600,12 @@ static Atom __far *FindCysSulphur( group )
         if( (elem[1]=='S') && (elem[0]==' ')  )
             return( ptr );
     }
-    return( (Atom __far*)0 );
+    return (Atom __far*)0;
 }
 
 
-static void TestDisulphideBridge( group1, group2, cys1 )
-    Group __far *group1, __far *group2;  
-    Atom __far *cys1;
+void TestDisulphideBridge( Group __far *group1, Group __far *group2,
+                                  Atom __far *cys1 )
 {
     register HBond __far *ptr;
     register Atom __far *cys2;
@@ -1208,6 +1615,9 @@ static void TestDisulphideBridge( group1, group2, cys1 )
     if( !(cys2=FindCysSulphur(group2)) )
         return;
 
+    if ((group1->model) && (group2->model) &&
+      (group1->model != group2->model)) return;
+
     max = (Long)750*750;
     dx = (int)(cys1->xorg-cys2->xorg);   if( (dist=(Long)dx*dx)>max ) return;
     dy = (int)(cys1->yorg-cys2->yorg);   if( (dist+=(Long)dy*dy)>max ) return;
@@ -1216,7 +1626,7 @@ static void TestDisulphideBridge( group1, group2, cys1 )
     if( !(ptr = FreeHBond) )
     {   MemSize += sizeof(HBond);
         ptr = (HBond __far*)_fmalloc(sizeof(HBond));
-        if( !ptr ) FatalDataError("Memory allocation failed");
+        if( !ptr ) FatalDataError(MsgStrs[StrMalloc]);
         RegisterAlloc( ptr );
     } else FreeHBond = ptr->hnext;
 
@@ -1242,7 +1652,7 @@ static void TestDisulphideBridge( group1, group2, cys1 )
 }
 
 
-void FindDisulphideBridges()
+void FindDisulphideBridges( void )
 {
     register Chain __far *chn1;
     register Chain __far *chn2;
@@ -1257,40 +1667,64 @@ void FindDisulphideBridges()
 
     for(chn1=Database->clist;chn1;chn1=chn1->cnext)
         for(group1=chn1->glist;group1;group1=group1->gnext)
-            if( IsCysteine(group1->refno) && (cys=FindCysSulphur(group1)) )
-            {   for(group2=group1->gnext;group2;group2=group2->gnext)
-                    if( IsCysteine(group2->refno) )
-                        TestDisulphideBridge(group1,group2,cys);
-
-                for(chn2=chn1->cnext;chn2;chn2=chn2->cnext)
-                    for(group2=chn2->glist;group2;group2=group2->gnext)
+            if( IsCysteine(group1->refno) )
+            {   cys = FindCysSulphur(group1);
+                if( cys )
+                {   for(group2=group1->gnext;group2;group2=group2->gnext)
                         if( IsCysteine(group2->refno) )
                             TestDisulphideBridge(group1,group2,cys);
+
+                    for(chn2=chn1->cnext;chn2;chn2=chn2->cnext)
+                        for(group2=chn2->glist;group2;group2=group2->gnext)
+                            if( IsCysteine(group2->refno) )
+                                TestDisulphideBridge(group1,group2,cys);
+	        }
             }
 
     if( FileDepth == -1 )
-    {   if( CommandActive )
-            WriteChar('\n');
-        CommandActive=False;
-    
-        sprintf(buffer,"Number of Bridges ... %d\n\n",Info.ssbondcount);
+    {   InvalidateCmndLine();
+        sprintf(buffer,"%s%d\n\n",MsgStrs[StrNumBrg],Info.ssbondcount);
+                                      /* "Number of Bridges ..... " */
         WriteString(buffer);
     }
 }
 
 
-/*=========================================*/
-/* Kabsch & Sander Structure Determination */
-/*=========================================*/
 
-#ifdef FUNCPROTO
-static int CalculateBondEnergy( Group __far* );
-static void CalcProteinHBonds( Chain __far* );
-static void CalcNucleicHBonds( Chain __far* );
-static int IsHBonded( Atom __far*, Atom __far*, HBond __far* );
-static void TestLadder( Chain __far* );
-#endif
+void FindCisBonds( void )
+{
+  register Chain __far *chain;
+  register Group __far *group;
+  register Group __far *prev;
 
+  if( !Database ) return;
+  Info.cisbondcount = 0; /* Number of Bonds not used at the moment ... */
+  
+  for(chain=Database->clist;chain;chain=chain->cnext){
+    prev = (Group __far *)0;
+    for(group=chain->glist;group;group=group->gnext){      
+      if( prev && IsAmino(prev->refno) && IsAmino(group->refno)){
+ /* if( fabs(- (CalcOmegaAngle(prev, group) - 180.0)) < CisBondCutOff ){ */
+	 if( fabs(CalcOmegaAngle(prev, group)) < CisBondCutOff ){
+	    
+	    group->flag |= CisBondFlag;
+	  prev->flag |= CisBondFlag;
+	  Info.cisbondcount++;  
+	}
+	else if( group->flag&CisBondFlag && CisBondFlag&prev->flag ){	  
+ 	  group->flag &= (~CisBondFlag);
+	  prev->flag  &= (~CisBondFlag);
+	}
+      }
+      prev = group;
+    }
+  }   
+}
+
+
+/*================================================*/
+/*  Kabsch & Sander DSSP Structure Determination  */
+/*================================================*/
 
 /* Coupling constant for Electrostatic Energy   */
 /* QConst = -332 * 0.42 * 0.2 * 1000.0 [*250.0] */
@@ -1311,8 +1745,7 @@ static int res1,res2;
 static int off1,off2;
 
 
-static int CalculateBondEnergy( group )
-    Group __far *group;
+static int CalculateBondEnergy( Group __far *group )
 {
     register double dho,dhc;
     register double dnc,dno;
@@ -1360,16 +1793,14 @@ static int CalculateBondEnergy( group )
     result = (int)(QConst/dho - QConst/dhc + QConst/dnc - QConst/dno);
 
     if( result<-9900 ) 
-    {   return( -9900 );
+    {   return -9900;
     } else if( result>-500 ) 
-        return( 0 );
-
-    return( result );
+        return 0;
+    return result;
 }
 
 
-static void CalcProteinHBonds( chn1 )
-    Chain __far *chn1;
+static void CalcProteinHBonds( Chain __far *chn1 )
 {
     register int energy, offset;
     register Chain __far *chn2;
@@ -1416,13 +1847,18 @@ static void CalcProteinHBonds( chn1 )
         nzorg = (int)n1->zorg;   hzorg = nzorg + (int)(dz/dco);
         res1 = res2 = 0;
 
-        /* Only Hydrogen Bond within a single chain!       */
-        /* for(chn2=Database->clist;chn2;chn2=chn2->cnext) */
+        if( HBondChainsFlag )
+        {   /* Hydrogen bond between chains! */
+            chn2=Database->clist;
+        } else chn2 = chn1;
 
-        chn2 = chn1;
-        {   /* Only consider non-empty peptide chains! */
-            /* if( !chn2->glist || !IsProtein(chn2->glist->refno) ) */
-            /*     continue;                                        */
+        
+        do {
+            /* Only consider non-empty peptide chains! */
+            if( !chn2->glist || !IsProtein(chn2->glist->refno) )
+            {   chn2 = chn2->cnext;
+                continue;
+            }
 
             pos2 = 0;
             for(group2=chn2->glist;group2;group2=group2->gnext)
@@ -1447,7 +1883,8 @@ static void CalcProteinHBonds( chn1 )
                 if( (dist+=(Long)dz*dz) > MaxHDist )
                     continue;
 
-                if( (energy = CalculateBondEnergy(group2)) )
+                energy = CalculateBondEnergy(group2);
+                if( energy )
                 {   if( chn1 == chn2 )
                     {   offset = pos1 - pos2;
                     } else offset = 0;
@@ -1465,7 +1902,8 @@ static void CalcProteinHBonds( chn1 )
                     }
                 }
             }  /* group2 */
-        }      /* chn2 */
+            chn2 = chn2->cnext;
+        } while( HBondChainsFlag && chn2 );
 
         if( res1 ) 
         {   if( res2 ) 
@@ -1476,8 +1914,7 @@ static void CalcProteinHBonds( chn1 )
 }
 
 
-static void CalcNucleicHBonds( chn1 )
-    Chain __far *chn1;
+static void CalcNucleicHBonds( Chain __far *chn1 )
 {
     register Chain __far *chn2;
     register Group __far *group1;
@@ -1490,12 +1927,11 @@ static void CalcNucleicHBonds( chn1 )
     register int dx,dy,dz;
     register int refno;
 
-
     for(group1=chn1->glist;group1;group1=group1->gnext)
     {   if( !IsPurine(group1->refno) ) continue;
         /* Find N1 of Purine Group */
-        if( !(n1=FindGroupAtom(group1,21)) )
-            continue;
+        n1 = FindGroupAtom(group1,21);
+        if( !n1 ) continue;
 
         /* Maximum N1-N3 distance 5A */
         refno = NucleicCompl(group1->refno);
@@ -1540,27 +1976,31 @@ static void CalcNucleicHBonds( chn1 )
             CreateHydrogenBond( ca1, ca2, n1, best1, 0, 0 );
             if( IsGuanine(group1->refno) )
             {   /* Guanine-Cytosine */
-                if( (ca1=FindGroupAtom(group1,22)) &&  /* G.N2 */
-                    (ca2=FindGroupAtom(best,26)) )     /* C.O2 */
+                ca1 = FindGroupAtom(group1,22);   /* G.N2 */
+                ca2 = FindGroupAtom(best,26);     /* C.O2 */
+                if( ca1 && ca2 )
                     CreateHydrogenBond( (void __far*)0, (void __far*)0,
                                         ca1, ca2, 0, 0 );
 
-                if( (ca1=FindGroupAtom(group1,28)) &&  /* G.O6 */
-                    (ca2=FindGroupAtom(best,24)) )     /* C.N4 */
+                ca1 = FindGroupAtom(group1,28);   /* G.O6 */
+                ca2 = FindGroupAtom(best,24);     /* C.N4 */
+                if( ca1 && ca2 )
                     CreateHydrogenBond( (void __far*)0, (void __far*)0,
                                         ca1, ca2, 0, 0 );
 
             } else /* Adenine-Thymine */
-                if( (ca1=FindGroupAtom(group1,25)) &&  /* A.N6 */
-                    (ca2=FindGroupAtom(best,27)) )     /* T.O4 */
+            {   ca1 = FindGroupAtom(group1,25);  /* A.N6 */
+                ca2 = FindGroupAtom(best,27);    /* T.O4 */
+                if( ca1 && ca2 )
                     CreateHydrogenBond( (void __far*)0, (void __far*)0,
                                         ca1, ca2, 0, 0 );
+            }
         }
     }
 }
 
 
-void CalcHydrogenBonds()
+void CalcHydrogenBonds( void )
 {
     register Chain __far *chn1;
     char buffer[40];
@@ -1572,10 +2012,8 @@ void CalcHydrogenBonds()
     Info.hbondcount = 0;
 
     if( MainAtomCount > 10000 )
-    {   if( CommandActive )
-            WriteChar('\n');
+    {   InvalidateCmndLine();
         WriteString("Please wait... ");
-        CommandActive=True;
     }
 
     for(chn1=Database->clist; chn1; chn1=chn1->cnext)
@@ -1587,30 +2025,25 @@ void CalcHydrogenBonds()
         }
 
     if( FileDepth == -1 )
-    {   if( CommandActive )
-            WriteChar('\n');
-        CommandActive=False;
-    
-        sprintf(buffer,"Number of H-Bonds ... %d\n",Info.hbondcount);
+    {   InvalidateCmndLine();
+        sprintf(buffer,"%s%d\n",MsgStrs[StrNumHbd],Info.hbondcount);
+                                 /* "Number of H-Bonds ..... " */
         WriteString(buffer);
     }
 }
 
 
-static int IsHBonded( src, dst, ptr )
-    Atom __far *src, __far *dst;
-    HBond __far *ptr;
+static int IsHBonded( Atom __far *src, Atom __far *dst, HBond __far *ptr )
 {
     while( ptr && (ptr->srcCA==src) )
         if( ptr->dstCA == dst )
-        {   return( True );
+        {   return True;
         } else ptr=ptr->hnext;
-    return( False );
+    return False;
 }
 
 
-static void FindAlphaHelix( pitch, flag )
-    int pitch, flag;
+static void FindAlphaHelix( int pitch, int flag )
 {
     register HBond __far *hbond;
     register Chain __far *chain;
@@ -1624,44 +2057,50 @@ static void FindAlphaHelix( pitch, flag )
     /* Protein chains only! */
     hbond = Database->hlist;
     for( chain=Database->clist; chain; chain=chain->cnext )
-    if( (first=chain->glist) && IsProtein(first->refno) )
-    {   prev = False; dist = 0;
-        for( group=chain->glist; hbond && group; group=group->gnext )
-        {   if( IsAmino(group->refno) && (srcCA=FindGroupAtom(group,1)) )
-            {   if( dist==pitch )
-                {   res = False;
-                    dstCA=FindGroupAtom(first,1);
+    {   first = chain->glist;
+        if( first  && IsProtein(first->refno) )
+        {   /* Scan Protein Chain for Helix */
+            prev = False; dist = 0;
+            for( group=chain->glist; hbond && group; group=group->gnext )
+            {   if( IsAmino(group->refno) )
+                {   srcCA = FindGroupAtom(group,1);
+                    if( srcCA )
+                    {   if( dist == pitch )
+                        {   res = False;
+                            dstCA = FindGroupAtom(first,1);
+                            while( hbond && (hbond->srcCA==srcCA) )
+                            {   if( hbond->dstCA==dstCA ) res = True;
+                                hbond = hbond->hnext;
+                            }
 
-                    while( hbond && hbond->srcCA == srcCA )
-                    {   if( hbond->dstCA==dstCA ) res=True;
-                        hbond = hbond->hnext;
-                    }
+                            if( res )
+                            {   if( prev )
+                                {   if( !(first->struc&HelixFlag) ) 
+                                    Info.helixcount++;
 
-                    if( res )
-                    {   if( prev )
-                        {   if( !(first->struc&HelixFlag) ) 
-                                Info.helixcount++;
-
-                            ptr = first;
-                            do {
-                                ptr->struc |= flag;
-                                ptr = ptr->gnext;
-                            } while( ptr != group );
-                        } else prev = True;
+                                    ptr = first;
+                                    do {
+                                        ptr->struc |= flag;
+                                        ptr = ptr->gnext;
+                                    } while( ptr != group );
+                                } else prev = True;
+                            } else prev = False;
+                        } else while( hbond && (hbond->srcCA==srcCA) )
+                            hbond = hbond->hnext;
                     } else prev = False;
-                } else while( hbond && hbond->srcCA==srcCA )
-                    hbond = hbond->hnext;
-            } else prev = False;
+                } else prev = False;
 
-            if( group->struc&HelixFlag )
-            {   first = group; prev = False; dist = 1;
-            } else if( dist==pitch )
-            {   first = first->gnext;
-            } else dist++;
-        }
-    } else if( first && IsNucleo(first->refno) )
-        while( hbond && !IsAminoBackbone(hbond->src->refno) )
-            hbond = hbond->hnext;
+                if( group->struc & HelixFlag )
+                {   first = group; prev = False; dist = 1;
+                } else if( dist == pitch )
+                {   first = first->gnext;
+                } else dist++;
+            }
+
+        } else if( first && IsNucleo(first->refno) )
+            while( hbond && !IsAminoBackbone(hbond->src->refno) )
+                hbond = hbond->hnext;
+    }
 }
 
 
@@ -1670,14 +2109,15 @@ static HBond __far *hcurri, __far *hnexti;
 static Group __far *curri, __far *nexti;
 
 
-
-static void TestLadder( chain )
-    Chain __far *chain;
+static void TestLadder( Chain __far *chain )
 {
     register Atom __far *cprevj, __far *ccurrj, __far *cnextj;
     register HBond __far *hcurrj, __far *hnextj;
     register Group __far *currj, __far *nextj;
     register int count, result, found;
+
+    /* Avoid Compiler Warnings! */
+    ccurrj = (Atom __far*)0;
 
     /* Already part of atleast one ladder */
     found = curri->flag & SheetFlag;
@@ -1687,7 +2127,7 @@ static void TestLadder( chain )
     while( hnextj && hnextj->srcCA==cnexti )
         hnextj = hnextj->hnext;
 
-    while( True )
+    while( chain )
     {   if( nextj )
             if( IsProtein(chain->glist->refno) )
             {   count = 1;
@@ -1721,20 +2161,21 @@ static void TestLadder( chain )
 
 		    while( hnextj && hnextj->srcCA==cnextj )
 			hnextj = hnextj->hnext;
-		} while( (nextj = nextj->gnext) );
+	            nextj = nextj->gnext;
+		} while( nextj );
 
 	    } else if( IsNucleo(chain->glist->refno) )
 		while( hnextj && !IsAminoBackbone(hnextj->src->refno) )
 		    hnextj = hnextj->hnext;
 
-	if( (chain = chain->cnext) ) 
-	{   nextj = chain->glist;
-	} else return;
+        chain = chain->cnext;
+	if( chain )
+	    nextj = chain->glist;
     }
 }
 
 
-static void FindBetaSheets()
+static void FindBetaSheets( void )
 {
     register Chain __far *chain;
     register int ladder;
@@ -1742,8 +2183,9 @@ static void FindBetaSheets()
 
     hnexti = Database->hlist;
     for( chain=Database->clist; chain; chain=chain->cnext )
-	if( (nexti = chain->glist) )
-	    if( IsProtein(nexti->refno) )
+    {   nexti = chain->glist;
+	if( nexti )
+	{   if( IsProtein(nexti->refno) )
 	    {   count = 1;
 		ladder = False;
 		do {
@@ -1763,15 +2205,18 @@ static void FindBetaSheets()
 		    curri = nexti;   hcurri = hnexti;
 		    while( hnexti && hnexti->srcCA==cnexti )
 			hnexti = hnexti->hnext;
-		} while( (nexti = nexti->gnext) );
+	            nexti = nexti->gnext;
+		} while( nexti );
 
 	    } else if( IsNucleo(nexti->refno) )
 		while( hnexti && !IsAminoBackbone(hnexti->src->refno) )
 		    hnexti = hnexti->hnext;
+        }
+    }
 }
 
 
-static void FindTurnStructure()
+static void FindTurnStructure( void )
 {
     static Atom __far *aptr[5];
     register Chain __far *chain;
@@ -1830,7 +2275,7 @@ static void FindTurnStructure()
 }
 
 
-static void FindBetaTurns()
+static void FindBetaTurns( void )
 {
     static Atom __far *aptr[4];
     register Chain __far *chain;
@@ -1886,8 +2331,7 @@ static void FindBetaTurns()
 }
 
 
-void DetermineStructure( flag )
-    int flag;
+void DetermineStructure( int flag )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -1921,22 +2365,19 @@ void DetermineStructure( flag )
     }
 
     if( FileDepth == -1 )
-    {   if( CommandActive )
-	    WriteChar('\n');
-        CommandActive=False;
+    {   InvalidateCmndLine();
 
-        sprintf(buffer,"Number of Helices ... %d\n",Info.helixcount);
+        sprintf(buffer,"%s%d\n",MsgStrs[StrNumHel],Info.helixcount);
         WriteString(buffer);
-        sprintf(buffer,"Number of Strands ... %d\n",Info.laddercount);
+        sprintf(buffer,"%s%d\n",MsgStrs[StrNumStrnd],Info.laddercount);
         WriteString(buffer);
-        sprintf(buffer,"Number of Turns ..... %d\n",Info.turncount);
+        sprintf(buffer,"%s%d\n",MsgStrs[StrNumTrn],Info.turncount);
         WriteString(buffer);
     }
 }
 
 
-void RenumberMolecule( start )
-    int start;
+void RenumberMolecule( int start )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -1973,25 +2414,31 @@ void RenumberMolecule( start )
 }
 
 
+
 /*===============================*/
 /* Molecule Database Maintenance */
 /*===============================*/
 
-static void ReclaimAtoms( ptr )
-    Atom __far *ptr;
+static void ReclaimAtoms( Atom __far *ptr )
 {
     register Atom __far *temp;
 
-    if( (temp = ptr) )
-    {   while( temp->anext )
+    if( ptr )
+    {   temp = ptr;
+        while( temp->anext )
 	    temp=temp->anext;
 	temp->anext = FreeAtom;
 	FreeAtom = ptr;
     }
 }
 
-static void ResetDatabase()
+
+static void ResetDatabase( void )
 {
+    int i,j;
+
+    Cache = (Group __far*)0;
+
     Database = CurMolecule = (void __far*)0;
     MainGroupCount = HetaGroupCount = 0;
     Info.chaincount = 0;
@@ -2019,12 +2466,17 @@ static void ResetDatabase()
     MinHetaTemp = MaxHetaTemp = 0;
     MinMainRes = MaxMainRes = 0;
     MinHetaRes = MaxHetaRes = 0;
+    MinAltl = MaxAltl = 0;
+
+    MinModel = MaxModel = 0;
 
     *Info.moleculename = 0;
     *Info.classification = 0;
     *Info.spacegroup = 0;
     *Info.identcode = 0;
     *Info.filename = 0;
+    *Info.technique = 0;
+    *Info.date = 0;
 
     VoxelsClean = False;
     HMinMaxFlag = False;
@@ -2034,10 +2486,20 @@ static void ResetDatabase()
     ResNo = MINRES;
     MaskCount = 0;
     NMRModel = 0;
+    NullBonds = 0;
+
+    for ( i=0; i<3; i++ ) {
+      Info.vecf2o[i] = Info.veco2f[i] = Info.cell[i] = 0.;
+      Info.cell[i+3] = 90.;
+      for ( j=0; j<3; j++) {
+        Info.matf2o[i][j] = Info.mato2f[i][j] = ((i!=j)?0.:1.);
+      }
+    }
+
 }
 
 
-void DestroyDatabase()
+void DestroyDatabase( void )
 {
     register void __far *temp;
     register Group __far *gptr;
@@ -2049,7 +2511,8 @@ void DestroyDatabase()
 
 	while( Database->clist )
 	{   ReclaimBonds(Database->clist->blist);
-	    if( (gptr = Database->clist->glist) )
+	    gptr = Database->clist->glist;
+	    if( gptr )
 	    {   ReclaimAtoms(gptr->alist);
 		while( gptr->gnext )
 		{   gptr = gptr->gnext;
@@ -2070,8 +2533,8 @@ void DestroyDatabase()
     ResetDatabase();
 }
 
-
-void PurgeDatabase()
+void FreeAlloc( data )
+    void *data;
 {
 #ifdef APPLEMAC
     register AllocRef *ptr;
@@ -2081,7 +2544,29 @@ void PurgeDatabase()
     /* Avoid Memory Leaks */
     for( ptr=AllocList; ptr; ptr=tmp )
     {   for( i=0; i<ptr->count; i++ )
-	    _ffree( ptr->data[i] );
+	  if (data == ptr->data[i]) {
+            _ffree( ptr->data[i] );
+            ptr->data[i] = 0;
+            return;
+	  }
+	tmp = ptr->next;
+    }
+#endif
+    _ffree(data);
+}
+
+void PurgeDatabase( void )
+{
+#ifdef APPLEMAC
+    register AllocRef *ptr;
+    register AllocRef *tmp;
+    register int i;
+    
+    /* Avoid Memory Leaks */
+    for( ptr=AllocList; ptr; ptr=tmp )
+    {   for( i=0; i<ptr->count; i++ )
+	  if (ptr->data[i])
+            _ffree( ptr->data[i] );
 	tmp = ptr->next;
 	_ffree( ptr );
     }
@@ -2089,7 +2574,7 @@ void PurgeDatabase()
 }
 
 
-void InitialiseDatabase()
+void InitialiseDatabase( void )
 {
     FreeMolecule = (void __far*)0;
     FreeHBond = (void __far*)0;
@@ -2097,11 +2582,14 @@ void InitialiseDatabase()
     FreeGroup = (void __far*)0;
     FreeAtom = (void __far*)0;
     FreeBond = (void __far*)0;
+    Info.cisbondcount = -1; /* to ititialize it has to be < 0 */   
+    CisBondCutOff = CIS;
 
 #ifdef APPLEMAC
     AllocList = (void*)0;
 #endif
 
+    HBondChainsFlag = False;
     ResetDatabase();
 }
 

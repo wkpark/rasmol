@@ -1,24 +1,148 @@
+                                Documentation
+                               RasMol 2.7.1.1
 
+                                  [RasMol]
+                    Molecular Graphics Visualisation Tool
+                               21 January 2001
 
-                            RasMol 2.4
-              Molecular Graphics Visualisation tool.
+                     Based on RasMol 2.6 by Roger Sayle
+    Biomolecular Structures Group, Glaxo Wellcome Research & Development
+                        Stevenage, Hertfordshire, UK
+           Version 2.6, August 1995, Version 2.6.4, December 1998
+                     Copyright (C) Roger Sayle 1992-1999
 
-                           Roger Sayle 
-                  BioMolecular Structures Group
-                   Glaxo Research & Development
-                     Greenford, Middlesex, UK.
-                            June 1994
+                      and Based on Mods by Arne Mueller
+                           Version 2.6x1, May 1998
+                       Copyright (C) Arne Mueller 1998
 
+         Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein
+             Bernstein + Sons, P.O. Box 177, Bellport, NY, USA,
+                        yaya@bernstein-plus-sons.com
+           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 January 2001
+                Copyright (C) Herbert J. Bernstein 1998-2001
 
-This documentation directory contains the following files:
+    Translations of most of the RasMol messages into Spanish contributed
+       by Fernando Gabriel Ranea (Laboratorio de Micología, Museo de
+     Farmacobotánica, Facultad de Farmacia y Bioquímica. Universidad de
+                  Buenos Aires (davinci@dinamica.com.ar)).
 
-	manual.doc	Microsoft Word for Windows copy of User Manual.
-	manual.ps	PostScript version of the RasMol User Manual.
+The original RasMol manual was created by Roger Sayle. In July 1996, Dr.
+Margaret Wong of the Chemistry Department, Swinburne University of
+Technology, Australia, made extensive revisions to the RasMol 2.5 manual to
+accurately reflect the operation of RasMol 2.6. Eric Martz of the University
+of Massachusetts made further revisions. In May 1997, William McClure of
+Carnegie Mellon University reorganized the HTML version of the manual into
+multiple sections which could be downloaded quickly and added use of frames.
+Portions of the 2.7.1 version of the RasMol manual were derived with
+permission from William McClure's version using Roger Sayle's rasmol.doc for
+version 2.6.4 as the primary source.
 
-	refcard.doc	Microsoft Word for Windows copy of Ref. Card.
-	refcard.ps	PostScript version of Quick Reference Card.
+                 Documentation Last Updated 21 January 2001
 
-	rasmol.0	ASCII text formatted version of UNIX 'man' page.
-	rasmol.1	Nroff macro version of the UNIX `man' page.
+           Edited by Herbert J. Bernstein and Frances C. Bernstein
 
-	rasmol.html	HTML version of User Manual for WWW/HTTP.
+               Translation of RasMol 2.7.1 Manual into Spanish
+
+   Thanks to the efforts of José Miguel Fernández Fernández (Departamento
+   de Bioquímica y Biología Molecular. Universidad de Granada. España
+   (jmfernan@ugr.es)) a translation of the Manual for Rasmol version
+   2.7.1 into Spanish is now available. La traducción española del manual
+   de la versión de la Dra. Wong revisada por Eric Martz fue realizada
+   por Isabel Serván Martínez y José Miguel Fernández Fernández. La
+   actual traducción del Manual de RasMol 2.7.1 ha sido realizada usando
+   como base la anterior de RasMol 2.6 por  José Miguel Fernández
+   Fernández.
+
+  ------------------------------------------------------------------------
+
+                   Test Version of Next Release Available
+
+RasMol 2.7.1.1 is an interim release for testing of the integration of
+multilingual capabilities into RasMol. These same mods will then be
+integrated with pending mods, and with the basic structure of RasMol 2.7.2
+to create RasMol 2.7.2.1.
+
+A preliminary release of RasMol 2.7.2 (without the multilingual
+capabilities) is available at:
+
+          http://www.bernstein-plus-sons.com/software/RasMol_2.7.2
+
+       THIS IS A PRELIMINARY RELEASE INVOLVING EXTENSIVE MODIFICATIONS
+                        ***** USE WITH CAUTION ******
+  ------------------------------------------------------------------------
+
+                                  IMPORTANT
+
+This version is based on RasMol version 2.6_CIF.2, on RasMol version 2.6x1
+and on RasMol version 2.6.4. Please read the file NOTICE for important
+notices which apply to this package. If you are not going to make changes to
+RasMol, you are not only permitted to freely make copies and distribute
+them, you are encouraged to do so, provided you do the following:
+
+   * 1. Either include the complete documentation, especially the file
+     NOTICE, with what you distribute or provide a clear indication where
+     people can get a copy of the documentation; and
+   * 2. Please give credit where credit is due citing the version and
+     original authors properly; and
+   * 3. Please do not give anyone the impression that the original authors
+     are providing a warranty of any kind.
+
+If you would like to use major pieces of RasMol in some other program, make
+modifications to RasMol, or in some other way make what a lawyer would call
+a "derived work", you are not only permitted to do so, you are encouraged to
+do so. In addition to the things we discussed above, please do the
+following:
+
+   * 4. Please explain in your documentation how what you did differs from
+     this version of RasMol; and
+   * 5. Please make your modified source code available.
+
+This version of RasMol is not in the public domain, but it is given freely
+to the community in the hopes of advancing science. If you make changes,
+please make them in a responsible manner, and please offer us the
+opportunity to include those changes in future versions of RasMol.
+  ------------------------------------------------------------------------
+
+This documentation directory contains the following "gzipped" files:
+
+       README.gz        Text version of this file
+       README.html.gz   HTML version of this file for WWW/HTTP
+
+       manualUS.rtf.gz  8.5x11 RTF copy of User Manual
+ (bin) manualUS.ps.gz   8.5x11 PostScript version of the RasMol User Manual
+ (bin) manualUS.pdf.gz  8.5x11 PDF version of the RasMol User Manual
+       manualUS.rtf.gz  A4 RTF copy of User Manual
+ (bin) manualA4.ps.gz   A4 PostScript version of the RasMol User Manual
+ (bin) manualA4.pdf.gz  A4 PDF version of the RasMol User Manual
+
+       refcardUS.rtf.gz 8.5x11 RTF copy of Ref. Card
+ (bin) refcardUS.ps.gz  8.5x11 PostScript version of Quick Reference Card
+ (bin) refcardUS.pdf.gz 8.5x11 PDF version of Quick Reference Card
+       refcardA4.rtf.gz A4 RTF copy of Ref. Card
+ (bin) refcardA4.ps.gz  A4 PostScript version of Quick Reference Card
+ (bin) refcardA4.pdf.gz A4 PDF version of Quick Reference Card
+
+       rasmol.0.gz      ASCII text formatted version of UNIX 'man' page
+       rasmol.1.gz      Nroff macro version of the UNIX `man' page
+
+ (bin) rasmol.hlp.gz    RasMol help file (unix, mac, windows)
+
+       rasmol.vms.gz    RasMol help file (VMS librarian HELP text)
+
+       raswin.rtf.gz    RTF source of RasMol WinHelp document
+ (bin) raswin.hpj.gz    Parameter file for RasMol WinHelp document
+ (bin) raswin.hlp.gz    RasMol WinHelp file
+
+       rasmol.html.gz   HTML version of User Manual for WWW/HTTP
+
+All compressed files must be downloaded in binary form. Files marked "(bin)"
+should be transmitted in binary form, even when uncompressed.
+
+In addition to the files listed above, there is a master rasmol document
+file, rasmol.doc.gz, a Makefile and a copy of Roger Sayle's document
+preparation program prepdoc.c which are used in creating new versions of the
+documentation.
+
+  ------------------------------------------------------------------------
+Updated 22 January 2001,
+rasmol@bernstein-plus-sons.com

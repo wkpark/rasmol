@@ -1,8 +1,56 @@
+/***************************************************************************
+ *                            RasMol 2.7.1.1                               *
+ *                                                                         *
+ *                                RasMol                                   *
+ *                 Molecular Graphics Visualisation Tool                   *
+ *                            17 January 2001                              *
+ *                                                                         *
+ *                   Based on RasMol 2.6 by Roger Sayle                    *
+ * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
+ *                      Stevenage, Hertfordshire, UK                       *
+ *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
+ *                   Copyright (C) Roger Sayle 1992-1999                   *
+ *                                                                         *
+ *                  and Based on Mods by Arne Mueller                      *
+ *                      Version 2.6x1, May 1998                            *
+ *                   Copyright (C) Arne Mueller 1998                       *
+ *                                                                         *
+ *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
+ *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *                      yaya@bernstein-plus-sons.com                       *
+ *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
+ *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *                                                                         *
+ * Please read the file NOTICE for important notices which apply to this   *
+ * package. If you are not going to make changes to RasMol, you are not    *
+ * only permitted to freely make copies and distribute them, you are       *
+ * encouraged to do so, provided you do the following:                     *
+ *   * 1. Either include the complete documentation, especially the file   *
+ *     NOTICE, with what you distribute or provide a clear indication      *
+ *     where people can get a copy of the documentation; and               *
+ *   * 2. Please give credit where credit is due citing the version and    *
+ *     original authors properly; and                                      *
+ *   * 3. Please do not give anyone the impression that the original       *
+ *     authors are providing a warranty of any kind.                       *
+ *                                                                         *
+ * If you would like to use major pieces of RasMol in some other program,  *
+ * make modifications to RasMol, or in some other way make what a lawyer   *
+ * would call a "derived work", you are not only permitted to do so, you   *
+ * are encouraged to do so. In addition to the things we discussed above,  *
+ * please do the following:                                                *
+ *   * 4. Please explain in your documentation how what you did differs    *
+ *     from this version of RasMol; and                                    *
+ *   * 5. Please make your modified source code available.                 *
+ *                                                                         *
+ * This version of RasMol is not in the public domain, but it is given     *
+ * freely to the community in the hopes of advancing science. If you make  *
+ * changes, please make them in a responsible manner, and please offer us  *
+ * the opportunity to include those changes in future versions of RasMol.  *
+ ***************************************************************************/
+
 /* x11win.c
- * RasMol2 Molecular Graphics
- * Roger Sayle, August 1995
- * Version 2.6
  */
+
 #ifndef sun386
 #include <stdlib.h>
 #endif
@@ -26,6 +74,8 @@
 #include "graphics.h"
 #include "bitmaps.h"
 #include "command.h"
+#include "cmndline.h"
+#include "langsel.h"
 
 
 /* Menu Definitions */
@@ -37,78 +87,87 @@
 
 
 typedef struct _MenuItem {
-            char *text;
+            char **text;
             int flags;
-            int pos;
-            int len;
+            int *pos;
+            int *len;
         } MenuItem;
 
 static MenuItem FilMenu[5] = {
-    { "Open...",    0x11, 0,  7 },
-    { "Save As...", 0x11, 0, 10 },
-    { "Close",      0x11, 0,  5 },
-    { "",           0x08, 0,  0 },
-    { "Exit",       0x11, 0,  4 } };
+    { &MsgStrs[StrMOpen],   0x11,&MsgAuxl[StrMOpen],   &MsgLens[StrMOpen]    },
+    { &MsgStrs[StrMSaveAs], 0x11,&MsgAuxl[StrMSaveAs], &MsgLens[StrMSaveAs]  },
+    { &MsgStrs[StrMClose],  0x11,&MsgAuxl[StrMClose],  &MsgLens[StrMClose]   },
+    { &MsgStrs[StrMEmpty],  0x08,&MsgAuxl[StrMEmpty],  &MsgLens[StrMEmpty]   },
+    { &MsgStrs[StrMExit],   0x11,&MsgAuxl[StrMExit],   &MsgLens[StrMExit]    }};
 
 static MenuItem DisMenu[8] = {
-    { "Wireframe",    0x11, 0,  9 },
-    { "Backbone",     0x11, 0,  8 },
-    { "Sticks",       0x11, 1,  6 },
-    { "Spacefill",    0x11, 0,  9 },
-    { "Ball & Stick", 0x11, 0, 12 },
-    { "Ribbons",      0x11, 0,  7 },
-    { "Strands",      0x01, 0,  7 },
-    { "Cartoons",     0x11, 0,  8 } };
+    { &MsgStrs[StrMWirefr], 0x11,&MsgAuxl[StrMWirefr], &MsgLens[StrMWirefr]  },
+    { &MsgStrs[StrMBackbn], 0x11,&MsgAuxl[StrMBackbn], &MsgLens[StrMBackbn]  },
+    { &MsgStrs[StrMSticks], 0x11,&MsgAuxl[StrMSticks], &MsgLens[StrMSticks]  },
+    { &MsgStrs[StrMSpacefl],0x11,&MsgAuxl[StrMSpacefl],&MsgLens[StrMSpacefl] },
+    { &MsgStrs[StrMBallStk],0x11,&MsgAuxl[StrMBallStk],&MsgLens[StrMBallStk] },
+    { &MsgStrs[StrMRibbons],0x11,&MsgAuxl[StrMRibbons],&MsgLens[StrMRibbons] },
+    { &MsgStrs[StrMStrands],0x11,&MsgAuxl[StrMStrands],&MsgLens[StrMStrands] },
+    { &MsgStrs[StrMCartoon],0x11,&MsgAuxl[StrMCartoon],&MsgLens[StrMCartoon] }};
 
-static MenuItem ColMenu[8] = {
-    { "Monochrome",  0x11, 0, 10 },
-    { "CPK",         0x11, 0,  3 },
-    { "Shapely",     0x11, 0,  7 },
-    { "Group",       0x11, 0,  5 },
-    { "Chain",       0x11, 1,  5 },
-    { "Temperature", 0x11, 0, 11 },
-    { "Structure",   0x11, 2,  9 },
-    { "User",        0x11, 0,  4 } };
+static MenuItem ColMenu[10] = {
+    { &MsgStrs[StrMMonochr],0x11,&MsgAuxl[StrMMonochr],&MsgLens[StrMMonochr] },
+    { &MsgStrs[StrMCPK],    0x11,&MsgAuxl[StrMCPK],    &MsgLens[StrMCPK]     },
+    { &MsgStrs[StrMShapely],0x11,&MsgAuxl[StrMShapely],&MsgLens[StrMShapely] },
+    { &MsgStrs[StrMGroup],  0x11,&MsgAuxl[StrMGroup],  &MsgLens[StrMGroup]   },
+    { &MsgStrs[StrMChain],  0x11,&MsgAuxl[StrMChain],  &MsgLens[StrMChain]   },
+    { &MsgStrs[StrMTemp],   0x11,&MsgAuxl[StrMTemp],   &MsgLens[StrMTemp]    },
+    { &MsgStrs[StrMStruct], 0x11,&MsgAuxl[StrMStruct], &MsgLens[StrMStruct]  },
+    { &MsgStrs[StrMUser],   0x11,&MsgAuxl[StrMUser],   &MsgLens[StrMUser]    }, 
+    { &MsgStrs[StrMModel],  0x11,&MsgAuxl[StrMModel],  &MsgLens[StrMModel]   },
+    { &MsgStrs[StrMAlt],    0x11,&MsgAuxl[StrMAlt],    &MsgLens[StrMAlt]     }};
 
 static MenuItem OptMenu[7] = {
-    { "Slab Mode",    0x13, 0,  9 },
-    { "Hydrogens",    0x17, 1,  9 },
-    { "Hetero Atoms", 0x17, 2, 12 },
-    { "Specular",     0x13, 1,  8 },
-    { "Shadows",      0x13, 1,  7 },
-    { "Stereo",       0x13, 1,  6 },
-    { "Labels",       0x13, 0,  6 } };
+    { &MsgStrs[StrMSlab],   0x13,&MsgAuxl[StrMSlab],   &MsgLens[StrMSlab]    },
+    { &MsgStrs[StrMHydr],   0x17,&MsgAuxl[StrMHydr],   &MsgLens[StrMHydr]    },
+    { &MsgStrs[StrMHet],    0x17,&MsgAuxl[StrMHet],    &MsgLens[StrMHet]     },
+    { &MsgStrs[StrMSpec],   0x13,&MsgAuxl[StrMSpec],   &MsgLens[StrMSpec]    },
+    { &MsgStrs[StrMShad],   0x13,&MsgAuxl[StrMShad],   &MsgLens[StrMShad]    },
+    { &MsgStrs[StrMStereo], 0x13,&MsgAuxl[StrMStereo], &MsgLens[StrMStereo]  },
+    { &MsgStrs[StrMLabel],  0x13,&MsgAuxl[StrMLabel],  &MsgLens[StrMLabel]   }};
 
 static MenuItem ExpMenu[7] = {
-    { "GIF...",        0x11, 0,  6 },
-    { "PostScript...", 0x11, 0, 13 },
-    { "PPM...",        0x11, 2,  6 },
-    { "IRIS RGB...",   0x11, 5, 11 },
-    { "Sun Raster...", 0x11, 0, 13 },
-    { "BMP...",        0x11, 0,  6 },
-    { "PICT...",       0x11, 1,  7 } };
+    { &MsgStrs[StrMGIF],    0x11,&MsgAuxl[StrMGIF],    &MsgLens[StrMGIF]     },
+    { &MsgStrs[StrMPostscr],0x11,&MsgAuxl[StrMPostscr],&MsgLens[StrMPostscr] },
+    { &MsgStrs[StrMPPM],    0x11,&MsgAuxl[StrMPPM],    &MsgLens[StrMPPM]     },
+    { &MsgStrs[StrMIRGB],   0x11,&MsgAuxl[StrMIRGB],   &MsgLens[StrMIRGB]    },
+    { &MsgStrs[StrMSRast],  0x11,&MsgAuxl[StrMSRast],  &MsgLens[StrMSRast]   },
+    { &MsgStrs[StrMBMP],    0x11,&MsgAuxl[StrMBMP],    &MsgLens[StrMBMP]     },
+    { &MsgStrs[StrMPICT],   0x11,&MsgAuxl[StrMPICT],   &MsgLens[StrMPICT]    }};
 
 static MenuItem HelMenu[2] = {
-    { "About RasMol...",  0x10, 0, 15 },
-    { "User Manual...",   0x10, 0, 14 } };
+    { &MsgStrs[StrMAbout],  0x10,&MsgAuxl[StrMAbout],  &MsgLens[StrMAbout]   },
+    { &MsgStrs[StrMUserM],  0x10,&MsgAuxl[StrMUserM],  &MsgLens[StrMUserM]   }};
 
 
 typedef struct _BarItem {
             MenuItem *menu;
-            char *text;
+            char **text;
             int count;
             int flags;
-            int len;
+            int *pos;
+            int *len;
         } BarItem;
 
 #define MenuBarMax 6
 static BarItem MenuBar[MenuBarMax] = { 
-    { FilMenu, "File",    5, 0x01, 4 },
-    { DisMenu, "Display", 8, 0x01, 7 },
-    { ColMenu, "Colours", 8, 0x01, 7 },
-    { OptMenu, "Options", 7, 0x01, 7 },
-    { ExpMenu, "Export",  7, 0x01, 6 },
-    { HelMenu, "Help",    2, 0x01, 4 } };
+    { FilMenu,  &MsgStrs[StrMFile],     5, 0x01, &MsgAuxl[StrMFile],
+                                                 &MsgLens[StrMFile] },
+    { DisMenu,  &MsgStrs[StrMDisplay],  8, 0x01, &MsgAuxl[StrMDisplay],
+                                                 &MsgLens[StrMDisplay] },
+    { ColMenu,  &MsgStrs[StrMColour],  10, 0x01, &MsgAuxl[StrMColour],
+                                                 &MsgLens[StrMColour] },
+    { OptMenu,  &MsgStrs[StrMOpt],      7, 0x01, &MsgAuxl[StrMOpt],
+                                                 &MsgLens[StrMOpt] },
+    { ExpMenu,  &MsgStrs[StrMExport],   7, 0x01, &MsgAuxl[StrMExport],
+                                                 &MsgLens[StrMExport] },
+    { HelMenu,  &MsgStrs[StrMHelp],     2, 0x01, &MsgAuxl[StrMHelp],
+                                                 &MsgLens[StrMHelp] } };
 
 static int MenuFocus;
 static int ItemFocus;
@@ -163,9 +222,6 @@ typedef union {
     } ByteTest;
 
 
-/* Determine Mouse Sensitivity! */
-#define IsClose(u,v) (((u)>=(v)-1) && ((u)<=(v)+1))
-
 static int MenuHigh;
 static int FontHigh;
 
@@ -197,8 +253,6 @@ static unsigned long Ident[256];
 static int IdentCount;
 #endif
 
-
-static int InitX, InitY;
 static int HeldButton;
 static int HeldStep;
 
@@ -229,15 +283,16 @@ static Atom InterpAtom;
 static Atom CommAtom;
 
 
-/* Routine in rasmol.c! */
-extern int ProcessCommand();
+/*=======================*/
+/*  Function Prototypes  */
+/*=======================*/
+  
+extern int ProcessCommand( void );
+static int HandleMenuLoop( void );
 
-/* Forward Declarations */
-static int HandleMenuLoop();
 
 
-static void FatalGraphicsError(ptr)
-    char *ptr;
+static void FatalGraphicsError( char *ptr )
 {
     char buffer[80];
 
@@ -246,7 +301,7 @@ static void FatalGraphicsError(ptr)
 }
 
 
-void AllocateColourMap()
+void AllocateColourMap( void )
 {
 #ifdef EIGHTBIT
     static XColor Col;
@@ -278,7 +333,7 @@ void AllocateColourMap()
             if( !XAllocColor(dpy,cmap,&Col) )
                 break;
             Ident[IdentCount++] = Col.pixel;
-            Lut[i] = Col.pixel;
+            Lut[i] = (Pixel)Col.pixel;
         }
 
     if( i<LutSize )
@@ -290,7 +345,7 @@ void AllocateColourMap()
             Col.green = GLut[j]<<8 | GLut[j];
             Col.blue  = BLut[j]<<8 | BLut[j];
             XAllocColor(dpy,cmap,&Col);
-            Lut[i] = Col.pixel;
+            Lut[i] = (Pixel)Col.pixel;
         }
 
         for( j=i; j<LutSize; j++ )
@@ -299,13 +354,14 @@ void AllocateColourMap()
                 Col.green = GLut[j]<<8 | GLut[j];
                 Col.blue  = BLut[j]<<8 | BLut[j];
                 XAllocColor(dpy,lmap,&Col);
-                Lut[j] = Col.pixel;
+                Lut[j] = (Pixel)Col.pixel;
             }
         XSetWindowColormap(dpy,MainWin,lmap);
         XSetWindowColormap(dpy,CanvWin,lmap);
         XInstallColormap(dpy,lmap);
     }
-#else
+#else /* EIGHTBIT */
+#ifdef THIRTYTWOBIT
     static XColor Col;
     static ByteTest buf;
     register Byte temp;
@@ -317,7 +373,6 @@ void AllocateColourMap()
             Col.green = GLut[i]<<8 | GLut[i];
             Col.blue  = BLut[i]<<8 | BLut[i];
             XAllocColor(dpy,cmap,&Col);
-#ifdef THIRTYTWOBIT
             if( SwapBytes )
             {   buf.longword = (Long)Col.pixel;
                 temp = buf.bytes[0];
@@ -329,17 +384,26 @@ void AllocateColourMap()
                 buf.bytes[2] = temp;
                 Lut[i] = buf.longword;
             } else Lut[i] = (Long)Col.pixel;
-#else
-            Lut[i] = Col.pixel;
-#endif
        }
-#endif
+#else /* THIRTYTWOBIT */
+    static XColor Col;
+    register int i;
+
+    for( i=0; i<LutSize; i++ )
+        if( ULut[i] )
+        {   Col.red   = RLut[i]<<8 | RLut[i];
+            Col.green = GLut[i]<<8 | GLut[i];
+            Col.blue  = BLut[i]<<8 | BLut[i];
+            XAllocColor(dpy,cmap,&Col);
+            Lut[i] = (Pixel)Col.pixel;
+       }
+#endif /* THIRTYTWOBIT */
+#endif /* EIGHTBIT */
     XSetWindowBackground(dpy,CanvWin,(unsigned long)Lut[5]);
 }
 
 
-static void OpenCanvas( x, y )
-    int x, y;
+static void OpenCanvas( int x, int y )
 {
     register unsigned long mask;
 
@@ -354,7 +418,7 @@ static void OpenCanvas( x, y )
 }
 
 
-static void OpenFonts()
+static void OpenFonts( void )
 {
     static char *fontname[] = { "-*-helvetica-bold-o-normal-*-14-*",
                                      "-*-serf-bold-o-normal-*-14-*",
@@ -376,7 +440,7 @@ static void OpenFonts()
 }
 
 
-static void OpenCursors()
+static void OpenCursors( void )
 {
     Pixmap source,mask;
     XColor black,white;
@@ -394,7 +458,7 @@ static void OpenCursors()
 }
 
 
-static void OpenColourMap()
+static void OpenColourMap( void )
 {
     static XColor Col;
     register int i;
@@ -411,7 +475,7 @@ static void OpenColourMap()
             {   cmap = XCopyColormapAndFree(dpy,cmap);
                 XAllocColor(dpy,cmap,&Col);
             } 
-            Lut[i] = Col.pixel;
+            Lut[i] = (Pixel)Col.pixel;
         }
         Lut[5] = Lut[0];
     } else /* Black & White */
@@ -435,15 +499,14 @@ static void OpenColourMap()
         Col.green = GLut[i]<<8 | GLut[i];
         Col.blue  = BLut[i]<<8 | BLut[i];
         XAllocColor(dpy,cmap,&Col);
-        Lut[i] = Col.pixel;
+        Lut[i] = (Pixel)Col.pixel;
     }
     Lut[5] = Lut[0];
 #endif
 }
 
 
-static int RegisterInterpName( name )
-    char *name;
+static int RegisterInterpName( char *name )
 {
     static unsigned char *registry;
     static unsigned long len,left;
@@ -478,7 +541,7 @@ static int RegisterInterpName( name )
         /* Compare Interp Name */
         if( !strcmp(ptr,name) )
         {   XFree( (char*)registry );
-            return(False);
+            return False;
         }
 
         while( *ptr++ );
@@ -493,8 +556,7 @@ static int RegisterInterpName( name )
 }
 
 
-static void DeRegisterInterpName( name )
-    char *name;
+static void DeRegisterInterpName( char *name )
 {
     static unsigned char *registry;
     static unsigned long len,left;
@@ -546,7 +608,7 @@ static void DeRegisterInterpName( name )
 }
 
 
-static void OpenIPCComms()
+static void OpenIPCComms( void )
 {
     auto char buffer[16];
     register int i;
@@ -585,8 +647,7 @@ static void OpenIPCComms()
 }
 
 
-static void DrawUpBox( wdw, x1, y1, x2, y2 )
-    Drawable wdw;  int x1,y1,x2,y2;
+static void DrawUpBox( Drawable wdw, int x1, int y1, int x2, int y2 )
 {
     register int lx,ly,ux,uy;
 
@@ -607,8 +668,7 @@ static void DrawUpBox( wdw, x1, y1, x2, y2 )
 }
 
 
-static void DrawDnBox( wdw, x1, y1, x2, y2 )
-    Drawable wdw;  int x1,y1,x2,y2;
+static void DrawDnBox(  Drawable wdw, int x1, int y1, int x2, int y2 )
 {
     register int lx,ly,ux,uy;
 
@@ -629,8 +689,7 @@ static void DrawDnBox( wdw, x1, y1, x2, y2 )
 }
 
 
-static void DrawNoBox( wdw, x1, y1, x2, y2 )
-    Drawable wdw;  int x1,y1,x2,y2;
+static void DrawNoBox( Drawable wdw, int x1, int y1, int x2, int y2 )
 {
     register int lx,ly,ux,uy;
 
@@ -651,7 +710,7 @@ static void DrawNoBox( wdw, x1, y1, x2, y2 )
 }
 
 
-static void OpenMenuBar()
+static void OpenMenuBar( void )
 {
     register unsigned long mask;
 
@@ -659,7 +718,6 @@ static void OpenMenuBar()
     attr.event_mask = ExposureMask | ButtonPressMask | ButtonReleaseMask;
     MenuWin = XCreateWindow( dpy, MainWin, 2, 2, XRange+49, FontHigh+5, 0,
                              CopyFromParent, InputOnly, vis, mask, &attr );
-
 
     /* Create Unmapped PopUp Window! */
     mask = CWEventMask;
@@ -679,7 +737,7 @@ static void OpenMenuBar()
 }
 
 
-static void OpenScrollBars()
+static void OpenScrollBars( void )
 {
     register unsigned long mask;
 
@@ -708,7 +766,6 @@ static void OpenScrollBars()
                                          (unsigned long)Lut[0], 
                                          (unsigned long)Lut[2], PixDepth );
 
-
     YScrlWin = XCreateWindow(dpy,MainWin,XRange+24,MenuHigh+14,16,YRange, 
                              0,CopyFromParent,InputOutput,vis,mask,&attr);
     uppix = XCreatePixmapFromBitmapData( dpy, MainWin, (char*)UpArrow, 16, 16,
@@ -722,14 +779,16 @@ static void OpenScrollBars()
     ScrlY = (YRange/2)-8;
 }
 
-static void DrawXScroll()
+
+static void DrawXScroll( void )
 {
     XCopyArea(dpy,rgpix,XScrlWin,gcon,0,0,16,16,XRange-16,0);
     XCopyArea(dpy,Scrl ,XScrlWin,gcon,0,0,16,16,ScrlX,0);
     XCopyArea(dpy,lfpix,XScrlWin,gcon,0,0,16,16,0,0);
 }
 
-static void DrawYScroll()
+
+static void DrawYScroll( void )
 {
     XCopyArea(dpy,dnpix,YScrlWin,gcon,0,0,16,16,0,YRange-16);
     XCopyArea(dpy,Scrl ,YScrlWin,gcon,0,0,16,16,0,ScrlY);
@@ -737,7 +796,7 @@ static void DrawYScroll()
 }
 
 
-void UpdateScrollBars()
+void UpdateScrollBars( void )
 {
     register int temp;
 
@@ -766,8 +825,7 @@ void UpdateScrollBars()
 
 
 #ifdef DIALBOX
-static void SetDialLabel( num, ptr )
-    int num; char *ptr;
+static void SetDialLabel( int num, char *ptr )
 {
     static XStringFeedbackControl ctrl;
     static KeySym text[8];
@@ -786,7 +844,7 @@ static void SetDialLabel( num, ptr )
 }
 
 
-static void GetDialState()
+static void GetDialState( void )
 {
     register XValuatorState *ptr;
     register XDeviceState *stat;
@@ -810,7 +868,7 @@ static void GetDialState()
 }
 
 
-static void OpenDialsBox()
+static void OpenDialsBox( void )
 {
     register XValuatorInfo *valptr;
     register XFeedbackState *list;
@@ -822,7 +880,6 @@ static void OpenDialsBox()
 
     static XEventClass dclass;
     static int count;
-
 
     UseDials = False;
     /* Avoid X Server's without the extension */
@@ -886,8 +943,7 @@ static void OpenDialsBox()
 }
 
 
-static void HandleDialEvent( ptr )
-    XDeviceMotionEvent *ptr;
+static void HandleDialEvent( XDeviceMotionEvent *ptr )
 {
     register double temp;
     register int count;
@@ -937,7 +993,7 @@ static void HandleDialEvent( ptr )
 #endif
 
 
-static void DrawMainWin()
+static void DrawMainWin( void )
 {
     register int temp;
 
@@ -951,30 +1007,39 @@ static void DrawMainWin()
 }
 
 
-/********************/
-/* Menu Bar Display */
-/********************/
+/*====================*/
+/*  Menu Bar Display  */
+/*====================*/
 
-static void DisplayMenuBarText( ptr, x, y )
-    BarItem *ptr;  int x, y;
+static void DisplayMenuBarText( BarItem *ptr, int x, int y )
 {
     register unsigned long col;
-    register int under,wide;
+    register int under, pos, i, index, wide;
 
     if( ptr->flags&mbEnable && !DisableMenu )
     {      col = Lut[0];
     } else col = Lut[1];
     XSetForeground( dpy, gcon, col );
 
-    XDrawString( dpy, MainWin, gcon, x, y, ptr->text, ptr->len );
+    XDrawString( dpy, MainWin, gcon, x, y, *(ptr->text), *(ptr->len) );
 
     under = y + MenuFont->descent;
-    wide = XTextWidth( MenuFont, ptr->text, 1 );
-    XDrawLine( dpy, MainWin, gcon, x, under, x+wide, under );
+
+    pos = x;
+    for( i=0; i<*(ptr->pos); i++)
+    {   index = (*(ptr->text))[i] - MenuFont->min_char_or_byte2;
+        pos += MenuFont->per_char[index].width;
+    }
+
+    index = (*(ptr->text))[*(ptr->pos)] - MenuFont->min_char_or_byte2;
+    wide = pos+MenuFont->per_char[index].rbearing;
+    pos += MenuFont->per_char[index].lbearing;
+
+    XDrawLine( dpy, MainWin, gcon, pos, under, wide, under );
 }
 
 
-static void DrawMenuBar()
+static void DrawMenuBar( void )
 {
     register BarItem *ptr;
     register int wide;
@@ -986,7 +1051,7 @@ static void DrawMenuBar()
 
     for( i=0; i<MenuBarMax; i++ )
     {   ptr = MenuBar+i;
-        wide = XTextWidth( MenuFont, ptr->text, ptr->len );
+        wide = XTextWidth( MenuFont, *(ptr->text), *(ptr->len) );
         if( x+wide+24 > MainWide ) break;
 
         /* Right Justify "Help" */
@@ -1006,12 +1071,11 @@ static void DrawMenuBar()
 }
 
 
-/***********************/
-/* Pop-up Menu Display */
-/***********************/
+/*=======================*/
+/*  Pop-up Menu Display  */
+/*=======================*/
 
-static void DisplayPopUpText( ptr, x, y )
-    MenuItem *ptr; int x, y;
+static void DisplayPopUpText( MenuItem *ptr, int x, int y )
 {
     register unsigned long col;
     register int pos, wide;
@@ -1021,18 +1085,18 @@ static void DisplayPopUpText( ptr, x, y )
     col = (ptr->flags&mbEnable)? Lut[0] : Lut[1];
     XSetForeground( dpy, gcon, col );
 
-    XDrawString( dpy, PopUpWin, gcon, x, y, ptr->text, ptr->len );
+    XDrawString( dpy, PopUpWin, gcon, x, y, *(ptr->text), *(ptr->len) );
 
     if( ptr->flags & mbAccel )
     {   under = y + MenuFont->descent;
 
         pos = x;
-        for( i=0; i<ptr->pos; i++ )
-        {   index = ptr->text[i] - MenuFont->min_char_or_byte2;
+        for( i=0; i<*(ptr->pos); i++ )
+        {   index = (*(ptr->text))[i] - MenuFont->min_char_or_byte2;
             pos += MenuFont->per_char[index].width;
         }
 
-        index = ptr->text[ptr->pos] - MenuFont->min_char_or_byte2;
+        index = (*(ptr->text))[*(ptr->pos)] - MenuFont->min_char_or_byte2;
         wide = pos+MenuFont->per_char[index].rbearing;
         pos += MenuFont->per_char[index].lbearing;
 
@@ -1041,7 +1105,7 @@ static void DisplayPopUpText( ptr, x, y )
 }
 
 
-static void DrawPopUpMenu()
+static void DrawPopUpMenu( void )
 {
     register MenuItem *ptr;
     register int count;
@@ -1076,13 +1140,10 @@ static void DrawPopUpMenu()
 }
 
 
-static void DisplayPopUpMenu( i, x )
-    int i, x;
+static void DisplayPopUpMenu( int i, int x )
 {
     register int wide, count;
     register MenuItem *ptr;
-    register int flag;
-
     static int xpos, ypos;
     static Window win;
 
@@ -1093,13 +1154,11 @@ static void DisplayPopUpMenu( i, x )
     ptr = MenuBar[i].menu;
     count = MenuBar[i].count;
 
-    flag = False;
     PopUpHigh = 4;
     PopUpWide = 4;
     for( i=0; i<count; i++ )
     {   if( !(ptr->flags&mbSepBar) )
-        {   if( ptr->flags & mbOption ) flag = True;
-            wide = XTextWidth(MenuFont,ptr->text,ptr->len);
+        {   wide = XTextWidth(MenuFont,*(ptr->text),*(ptr->len));
             if( wide+28 > PopUpWide ) PopUpWide = wide+28;
             PopUpHigh += FontHigh+4;
         } else PopUpHigh += 2;
@@ -1125,13 +1184,12 @@ static void DisplayPopUpMenu( i, x )
 }
 
 
-/******************************/
-/* Pop-Up Menu Event Handling */
-/******************************/
 
+/*==============================*/
+/*  Pop-Up Menu Event Handling  */
+/*==============================*/
 
-static void HandleItemClick( x, y )
-    int x, y;
+static void HandleItemClick( int x, int y )
 {
     register MenuItem *ptr;
     register int count,i;
@@ -1141,7 +1199,6 @@ static void HandleItemClick( x, y )
 
     XTranslateCoordinates(dpy,MenuWin,PopUpWin,x,y,
                           &xpos,&ypos,&win);
-
 
     /* Ignore by not setting ItemFocus! */
     if( (xpos<0) || (xpos>PopUpWide) ) return;
@@ -1177,8 +1234,7 @@ static void HandleItemClick( x, y )
 }
 
 
-static void HandleItemMove( x, y )
-    int x, y;
+static void HandleItemMove( int x, int y )
 {
     register MenuItem *ptr;
     register int count,i;
@@ -1220,8 +1276,7 @@ static void HandleItemMove( x, y )
 }
 
 
-static int HandleItemKey( key )
-    int key;
+static int HandleItemKey( int key )
 {
     register MenuItem *ptr;
     register int count;
@@ -1236,7 +1291,7 @@ static int HandleItemKey( key )
     for( i=0; i<count; i++ )
     {   if( (ptr->flags&(mbEnable|mbAccel)) && 
            !(ptr->flags&mbSepBar) )
-        {   ch = ptr->text[ptr->pos];
+        {   ch = (*(ptr->text))[*(ptr->pos)];
             if( ToUpper(ch) == key )
                 return( (MenuBarSelect<<8)+item+1 );
         }
@@ -1250,12 +1305,11 @@ static int HandleItemKey( key )
             ptr++;
         }
     }
-    return( 0 );
+    return 0;
 }
 
 
-static void SelectFirstItem( menu )
-    int menu;
+static void SelectFirstItem( int menu )
 {
     register MenuItem *ptr;
     register int count;
@@ -1275,7 +1329,7 @@ static void SelectFirstItem( menu )
 }
 
 
-static void SelectPrevItem()
+static void SelectPrevItem( void )
 {
     register BarItem *ptr;
     register int flags;
@@ -1303,7 +1357,8 @@ static void SelectPrevItem()
     }
 }
 
-static void SelectNextItem()
+
+static void SelectNextItem( void )
 {
     register BarItem *ptr;
     register int flags;
@@ -1333,17 +1388,15 @@ static void SelectNextItem()
 
 
 
-/***************************/
-/* Menu Bar Event Handling */
-/***************************/
+/*===========================*/
+/*  Menu Bar Event Handling  */
+/*===========================*/
 
-static void SelectMenu( menu )
-    int menu;
+static void SelectMenu( int menu )
 {
     register BarItem *ptr;
     register int wide;
     register int i,x;
-
 
     if( !PopUpFlag )
     {   MenuBarSelect = menu;
@@ -1355,12 +1408,12 @@ static void SelectMenu( menu )
     {   x = 6;
         for( i=0; i<menu; i++ )
         {   ptr = MenuBar+i;
-            wide = XTextWidth(MenuFont,ptr->text,ptr->len);
+            wide = XTextWidth(MenuFont,*(ptr->text),*(ptr->len));
             x += wide+24;
         }
     } else 
     {   ptr = MenuBar+menu;
-        wide = XTextWidth(MenuFont,ptr->text,ptr->len);
+        wide = XTextWidth(MenuFont,*(ptr->text),*(ptr->len));
         x = MainWide - (wide+24);
     }
 
@@ -1370,8 +1423,7 @@ static void SelectMenu( menu )
 }
 
 
-static int HandleMenuClick( pos )
-    int pos;
+static int HandleMenuClick( int pos )
 {
     register BarItem *ptr;
     register int wide;
@@ -1380,7 +1432,7 @@ static int HandleMenuClick( pos )
     x = 6;
     for( i=0; i<MenuBarCount; i++ )
     {   ptr = MenuBar+i;
-        wide = XTextWidth( MenuFont, ptr->text, ptr->len );
+        wide = XTextWidth( MenuFont, *(ptr->text), *(ptr->len) );
         if( i == MenuBarMax-1 ) x = MainWide - (wide+24);
 
         if( (pos>=x) && (pos<=x+wide+16) )
@@ -1392,33 +1444,31 @@ static int HandleMenuClick( pos )
                 DrawPopUpMenu();
             }
             ItemFocus = True;
-            return( True );
+            return True;
         } else x += wide+24;
     }
-    return( False );
+    return False;
 }
 
 
-static int HandleMenuKey( key )
-    char key;
+static int HandleMenuKey( char key )
 {
     register int i;
 
     key = ToUpper(key);
     for( i=0; i<MenuBarCount; i++ )
-        if( MenuBar[i].text[0] == key )
+        if( ToUpper((*(MenuBar[i].text))[*(MenuBar[i].pos)]) == key )
         {   if( !PopUpFlag || (MenuBarSelect!=i) )
             {   PopUpFlag = True;
                 SelectMenu( i );
             }
-            return( True );
+            return True;
         }
-    return( False );
+    return False;
 }
 
 
-void EnableMenus( flag )
-    int flag;
+void EnableMenus( int flag )
 {
     DisableMenu = !flag;
     if( Interactive )
@@ -1426,9 +1476,7 @@ void EnableMenus( flag )
 }
 
 
-
-static void ReSizeWindow( wide, high )
-    int wide, high;
+static void ReSizeWindow( int wide, int high )
 {
     register Real xpos;
     register Real ypos;
@@ -1467,37 +1515,47 @@ static void ReSizeWindow( wide, high )
     XSync(dpy,True);
 }
 
-
-int FatalXError( ptr )
-    Display *ptr;
+void ReDrawWindow( void )
 {
-    dpy = (Display*)NULL;
-    RasMolFatalExit("*** Fatal X11 I/O Error! ***");
-    /* Avoid Compilation Warnings! */
-    return( (int)ptr );
+    if( Interactive )
+        ReSizeWindow( MainWide, MainHigh );
 }
 
 
-int OpenDisplay( x, y )
-    int x, y;
+
+int FatalXError( Display *ptr )
 {
+     /* Avoid Compiler Warnings! */
+    UnusedArgument(ptr);
+
+    dpy = (Display*)NULL;
+    RasMolFatalExit("*** Fatal X11 I/O Error! ***");
+    return 0;
+}
+
+
+int OpenDisplay( int x, int y )
+{
+#ifdef THIRTYTWOBIT
+    static ByteTest test;
+#endif
     register unsigned long mask;
     register int i,num;
     register char *ptr;
  
-#ifdef THIRTYTWOBIT
-    static ByteTest test;
-#endif
     static XVisualInfo visinfo;
     static XClassHint xclass;
     static XSizeHints size;
     static Pixmap icon;
     static int temp;
+    static char VersionStr[50];
 
+    sprintf (VersionStr,"RasMol Version %s", VERSION);
 
     image = (XImage*)NULL;
 
-    MouseMode = MMRasMol;
+    MouseCaptureStatus = False;
+    MouseUpdateStatus = False;
     UseHourGlass = True;
     DisableMenu = False;
     Monochrome = False;
@@ -1518,7 +1576,7 @@ int OpenDisplay( x, y )
 
     if( !Interactive ) return( False );
     if( (dpy=XOpenDisplay(NULL)) == NULL )
-        return( 0 );
+        return 0;
 
     num = DefaultScreen(dpy);
     RootWin = RootWindow(dpy,num);
@@ -1531,7 +1589,7 @@ int OpenDisplay( x, y )
         if( !(XMatchVisualInfo(dpy,num,1,StaticColor,&visinfo) ||
               XMatchVisualInfo(dpy,num,1,StaticGray,&visinfo)) )
         {   XCloseDisplay(dpy);
-            return( 0 );
+            return 0;
         }
         Monochrome = True;
         PixDepth = 1;
@@ -1549,11 +1607,16 @@ int OpenDisplay( x, y )
         return(0);
     }
 #else /* SIXTEENBIT */
-    if( !XMatchVisualInfo(dpy,num,16,TrueColor,&visinfo) &&
-        !XMatchVisualInfo(dpy,num,16,DirectColor,&visinfo) )
+    if( XMatchVisualInfo(dpy,num,16,TrueColor,&visinfo) ||
+        XMatchVisualInfo(dpy,num,16,DirectColor,&visinfo) )
+    {   PixDepth = 16;
+    } else if( XMatchVisualInfo(dpy,num,15,TrueColor,&visinfo) ||
+               XMatchVisualInfo(dpy,num,15,DirectColor,&visinfo) )
+    {   PixDepth = 15;
+    } else /* No suitable display! */
     {   XCloseDisplay(dpy);
-        return(0);
-    } else PixDepth = 16;
+        return 0;
+    }
 #endif
 #endif
 
@@ -1564,11 +1627,11 @@ int OpenDisplay( x, y )
         } else cmap = DefaultColormap(dpy,num);
     } else /* Black & White */
     {   /* PixDepth = DefaultDepth(dpy,num); */
-        /* vis = DefaultVisual(dpy,num);     */
         cmap = DefaultColormap(dpy,num);
+        vis = visinfo.visual;
 
-        BlackCol = BlackPixel(dpy,num) & 1;
-        WhiteCol = WhitePixel(dpy,num) & 1;
+        BlackCol = (Pixel)(BlackPixel(dpy,num)&1);
+        WhiteCol = (Pixel)(WhitePixel(dpy,num)&1);
     }
 
     OpenFonts();
@@ -1601,7 +1664,7 @@ int OpenDisplay( x, y )
     size.flags = PMinSize | PMaxSize;
     size.min_width = MinWidth;    size.max_width = MaxWidth;
     size.min_height = MinHeight;  size.max_height = MaxHeight;
-    XSetStandardProperties(dpy, MainWin, "RasMol Version 2.6",
+    XSetStandardProperties(dpy, MainWin, VersionStr,
                            "RasMol", icon, NULL, 0, &size );
 
     xclass.res_name = "rasmol";
@@ -1656,10 +1719,10 @@ int OpenDisplay( x, y )
 }
 
 
-int CreateImage()
+int CreateImage( void )
 {
-    register int format,depth;
     register Long size, temp;
+    register int format;
     register Pixel *ptr;
 
     if( !Interactive )
@@ -1669,14 +1732,7 @@ int CreateImage()
         return( (int)FBuffer );
     }
 
-    if( Monochrome )
-    {   format = XYPixmap;
-        depth = 1;
-    } else /* Colour */
-    {   format = ZPixmap;
-        depth = PixDepth;
-    }
-
+    format = Monochrome? XYPixmap : ZPixmap;
 
     if( image ) 
     {   /* Monochrome Mode Frame Buffer! */
@@ -1693,12 +1749,11 @@ int CreateImage()
         image = (XImage*)NULL;
     }
 
-
     if( Monochrome )
     {   /* Monochrome Mode Frame Buffer! */
         size = (Long)XRange*YRange*sizeof(Pixel);
         FBuffer = (Pixel*)malloc( size+32 );
-        if( !FBuffer ) return( False );
+        if( !FBuffer ) return False;
 
         /* Bit per Pixel ScanLines! */
         temp = ((XRange+31)>>5)<<2;
@@ -1709,7 +1764,7 @@ int CreateImage()
 #ifdef MITSHM
     if( SharedMemOption )
     {   SharedMemFlag = False;
-        image = XShmCreateImage( dpy, vis, depth, format,
+        image = XShmCreateImage( dpy, vis, PixDepth, format,
                                  NULL, &xshminfo, XRange, YRange );
 
         if( image )
@@ -1737,7 +1792,7 @@ int CreateImage()
                     {      memset((void*)image->data,255,size);
                     } else memset((void*)image->data,255,size);
                 }
-                return( True );
+                return True;
             } else 
             {   XDestroyImage( image );
                 image = (XImage*)NULL;
@@ -1748,16 +1803,16 @@ int CreateImage()
 
     /* Allocate Frame Buffer! */
     ptr = (Pixel*)malloc( size );
-    if( !ptr ) return( False );
+    if( !ptr ) return False;
 
     if( !Monochrome ) FBuffer = ptr;
-    image = XCreateImage( dpy, vis, depth, format, 0, (char*)ptr, 
-                          XRange, YRange, ((PixDepth>8)?32: 8) , 0 );
-    return( (int)image );
+    image = XCreateImage( dpy, vis, PixDepth, format, 0, (char*)ptr, 
+                          XRange, YRange, sizeof(Pixel)<<3, 0 );
+    return (int)image;
 }
 
 
-static void DitherImage()
+static void DitherImage( void )
 {
     register Card bits;
     register Card *dst;
@@ -1853,7 +1908,7 @@ static void DitherImage()
 }
 
 
-void TransferImage()
+void TransferImage( void )
 {
     if( Monochrome )
         DitherImage();
@@ -1873,32 +1928,44 @@ void TransferImage()
 }
 
 
-void ClearImage()
+void ClearImage( void )
 {
     XClearWindow( dpy, CanvWin );
     XFlush(dpy);
 }
 
 
-int PrintImage()
+int PrintImage( void )
 {
-    return( False );
-}
-
-int ClipboardImage()
-{
-    return( False );
+    return False;
 }
 
 
-static int HandleIPCError( disp, ptr )
-    Display *disp;  XErrorEvent *ptr;
+int ClipboardImage( void )
 {
-    return( 0 );
+    return False;
 }
 
 
-static void HandleIPCCommand()
+void SetCanvasTitle( char *ptr )
+{
+    if( Interactive ) {
+      XStoreName(dpy,MainWin,ptr);
+    }
+}
+
+
+
+static int HandleIPCError( Display *dpy, XErrorEvent *ptr )
+{
+    /* Avoid Compiler Warnings! */
+    UnusedArgument(dpy);
+    UnusedArgument(ptr);
+    return 0;
+}
+
+
+static void HandleIPCCommand( void )
 {
     static unsigned long len,left;
     static unsigned char *command;
@@ -1907,10 +1974,10 @@ static void HandleIPCCommand()
     static int format;
     static Atom type;
     char buffer[32];
-    int (*handler)();
 
     register int rlen;
     register int result;
+    register int (*handler)();
     register char *cmnd;
     register char *ptr;
 
@@ -1998,213 +2065,69 @@ static void HandleIPCCommand()
 }
 
 
-static int CropRange( val, min, max )
-    int val, min, max;
+void SetMouseUpdateStatus( int bool )
 {
-    if( val<min ) return( min );
-    if( val>max ) return( max );
-    return( val );
-}
-
-
-static void ClampDial( dial, value )
-    int dial;  Real value;
-{
-    register Real temp;
-
-    temp = DialValue[dial] + value;
-
-    if( temp > 1.0 )
-    {   DialValue[dial] = 1.0;
-    } else if( temp < -1.0 )
-    {   DialValue[dial] = -1.0;
-    } else DialValue[dial] = temp;
-}
-
-
-static void WrapDial( dial, value )
-    int dial;  Real value;
-{
-    register Real temp;
-
-    temp = DialValue[dial] + value;
-    while( temp < -1.0 )  temp += 2.0;
-    while( temp > 1.0 )   temp -= 2.0;
-    DialValue[dial] = temp;
-}
-
-
-void SetMouseMode( mode )
-    int mode;
-{
-    if( mode==MouseMode )
-        return;
-
-    if( (mode==MMQuanta) || (MouseMode==MMQuanta) )
+    if( MouseUpdateStatus != bool )
     {   /* Enable/Disable Pointer Motion Events! */
         attr.event_mask = ExposureMask | ButtonPressMask | ButtonMotionMask 
                         | ButtonReleaseMask;
-        if( mode==MMQuanta ) attr.event_mask |= PointerMotionMask;
+        if( bool ) attr.event_mask |= PointerMotionMask;
         XChangeWindowAttributes( dpy, CanvWin, CWEventMask, &attr );
     }
-    MouseMode = mode;
+    MouseUpdateStatus = bool;
 }
 
 
-static void MouseMove( status, dx, dy )
-    int status, dx, dy;
+void SetMouseCaptureStatus( int bool )
 {
-    register int index;
+    MouseCaptureStatus = bool;
+}
+                         
 
-    if( MouseMode == MMRasMol )
-    {   if( status & ShiftMask )
-        {   if( status & Button1Mask ) 
-            {   if( dy ) /* Zoom Vertical */
-                {   ClampDial( 3, (Real)dy/HRange );
-                    ReDrawFlag |= RFZoom;
-                }
-            } else if( status & (Button2Mask|Button3Mask) )
-                if( dx ) /* Z Rotation Horizontal */
-                {   WrapDial( 2, (Real)dx/WRange );
-                    ReDrawFlag |= RFRotateZ;
-                }
-        } else if( status & ControlMask )
-        {   if( status & Button1Mask )
-            {   if( dy ) /* Slab Vertical */
-                {   ClampDial( 7, (Real)dy/YRange );
-                    ReDrawFlag |= RFSlab;
-                }
-            }
+static int GetStatus( int mask )
+{
+    register int status;
+    
+    status = 0;                             
+    if( mask & Button1Mask ) status |= MMLft;
+    if( mask & Button2Mask ) status |= MMMid;
+    if( mask & Button3Mask ) status |= MMRgt;
+    if( mask & ControlMask ) status |= MMCtl;          
+    if( mask & ShiftMask )   status |= MMSft;
+    return status;
+}
+  
 
-        } else /* Unmodified! */
-            if( status & Button1Mask )
-            {   if( dx ) /* Rotate Y Horizontal */
-                {   WrapDial( 1, (Real)dx/WRange );
-                    index = (DialValue[1]+1.0)*(XRange-48);
-                    NewScrlX = (index>>1)+16;
-                    ReDrawFlag |= RFRotateY;
-                }
-
-                if( dy ) /* Rotate X Vertical */
-                {   WrapDial( 0, (Real)dy/HRange );
-                    index = (DialValue[0]+1.0)*(YRange-48);
-                    NewScrlY = (index>>1)+16;
-                    ReDrawFlag |= RFRotateX;
-                }
-            } else if( status & (Button2Mask|Button3Mask) )
-            {   if( dx ) /* Translate X Horizontal */
-                {   ClampDial( 4, (Real)dx/XRange );
-                    ReDrawFlag |= RFTransX;
-                }
-
-                if( dy ) /* Translate Y Vertical */
-                {   ClampDial( 5, (Real)dy/YRange );
-                    ReDrawFlag |= RFTransY;
-                }
-            }
-    } else if( MouseMode==MMQuanta )
-    {   if( status & ShiftMask )
-        {   if( status & Button1Mask )
-            {   if( dy ) /* Slab Vertical */
-                {   ClampDial( 7, (Real)dy/YRange );
-                    ReDrawFlag |= RFSlab;
-                }
-            } else if( status & Button2Mask )
-            {   if( dx ) /* Translate X Horizontal */
-                {   ClampDial( 4, (Real)dx/XRange );
-                    ReDrawFlag |= RFTransX;
-                }
-
-                if( dy ) /* Translate Y Vertical */
-                {   ClampDial( 5, (Real)dy/YRange );
-                    ReDrawFlag |= RFTransY;
-                }
-            } else if( !(status & Button3Mask) )
-                if( dy ) /* Zoom Vertical */
-                {   ClampDial( 3, (Real)dy/HRange );
-                    ReDrawFlag |= RFZoom;
-                }
-        } else if( status & Button2Mask )
-        {   if( dx ) /* Rotate Y Horizontal */
-            {   WrapDial( 1, (Real)dx/WRange );
-                index = (DialValue[1]+1.0)*(XRange-48);
-                NewScrlX = (index>>1)+16;
-                ReDrawFlag |= RFRotateY;
-            }
-
-            if( dy ) /* Rotate X Vertical */
-            {   WrapDial( 0, (Real)dy/HRange );
-                index = (DialValue[0]+1.0)*(YRange-48);
-                NewScrlY = (index>>1)+16;
-                ReDrawFlag |= RFRotateX;
-            }
-        } else if( status & Button3Mask )
-            if( dx ) /* Z Rotation Horizontal */
-            {   WrapDial( 2, (Real)dx/WRange );
-                ReDrawFlag |= RFRotateZ;
-            }
-    } else /* MMInsight */
-        switch( status & (Button1Mask|Button2Mask|Button3Mask) )
-        {   case( Button1Mask ):
-                    if( dx ) /* Rotate Y Horizontal */
-                    {   WrapDial( 1, (Real)dx/WRange );
-                        index = (DialValue[1]+1.0)*(XRange-48);
-                        NewScrlX = (index>>1)+16;
-                        ReDrawFlag |= RFRotateY;
-                    }
-
-                    if( dy ) /* Rotate X Vertical */
-                    {   WrapDial( 0, (Real)dy/HRange );
-                        index = (DialValue[0]+1.0)*(YRange-48);
-                        NewScrlY = (index>>1)+16;
-                        ReDrawFlag |= RFRotateX;
-                    }
-                    break;
-
-            case( Button2Mask ):
-                    if( dx ) /* Translate X Horizontal */
-                    {   ClampDial( 4, (Real)dx/XRange );
-                        ReDrawFlag |= RFTransX;
-                    }
-
-                    if( dy ) /* Translate Y Vertical */
-                    {   ClampDial( 5, (Real)dy/YRange );
-                        ReDrawFlag |= RFTransY;
-                    }
-                    break;
-
-            case( Button1Mask|Button2Mask ):
-                    ClampDial( 3, (Real)dx/WRange - (Real)dy/HRange );
-                    ReDrawFlag |= RFZoom;
-                    break;
-
-            case( Button1Mask|Button3Mask ):
-                    WrapDial( 2, (Real)dx/WRange - (Real)dy/HRange );
-                    ReDrawFlag |= RFRotateZ;
-                    break;
-
-            case( Button1Mask|Button2Mask|Button3Mask ):
-                    ClampDial( 7, (Real)dx/XRange - (Real)dy/YRange );
-                    ReDrawFlag |= RFSlab;
-                    break;
-        }
+static int CropRange( int val, int min, int  max )
+{
+    if( val<min ) return min;
+    if( val>max ) return max;
+    return val;
 }
 
 
-static void DoneEvents()
+static void DoneEvents( void )
 {
     register Real temp;
     register int index;
 
     if( HeldButton == YScrlDial )
     {   index = NewScrlY+HeldStep;
-        if( YScrlDial<3 )
+#ifdef ORIG
+        if( YScrlDial < 3 )
         {   if( index<16 )             
             {   index += YRange-48;
-            } else if( index>YRange-32 ) 
+            } else if( index > YRange-32 ) 
                 index -= YRange-48;
             NewScrlY = index;
         } else NewScrlY = CropRange(index,16,YRange-32);
+#else
+        if( index < 16 )
+        {   index += YRange-48;
+        } else if( index > YRange-32 )
+            index -= YRange-48;
+        NewScrlY = index;
+#endif
     }
 
     if( NewScrlY != ScrlY )
@@ -2219,13 +2142,21 @@ static void DoneEvents()
 
     if( HeldButton == XScrlDial )
     {   index = NewScrlX+HeldStep;
+#ifdef ORIG
         if( XScrlDial<3 )
-        {   if( index<16 ) 
+        {   if( index < 16 ) 
             {   index += XRange-48;
-            } else if( index>XRange-32 ) 
+            } else if( index > XRange-32 ) 
                 index -= XRange-48;
             NewScrlX = index;
         } else NewScrlX = CropRange(index,16,XRange-32);
+#else
+        if( index < 16 )
+        {   index += XRange-48;
+        } else if( index > XRange-32 )
+            index -= XRange-48;
+        NewScrlX = index;
+#endif
     }
 
     if( NewScrlX != ScrlX )
@@ -2242,11 +2173,11 @@ static void DoneEvents()
 }
 
 
-static int ProcessEvent( event )
-    XEvent *event;
+static int ProcessEvent(  XEvent *event )
 {
     register int result;
     register int index;
+    register int stat;
 
     result = 0;
     switch( event->type )
@@ -2257,8 +2188,8 @@ static int ProcessEvent( event )
                 ptr = (XButtonPressedEvent*)event;
 
                 if( ptr->window==CanvWin )
-                {   InitX = PointX = ptr->x;
-                    InitY = PointY = ptr->y;
+                {   stat = GetStatus(ptr->state);
+                    ProcessMouseDown(ptr->x,ptr->y,stat);
                 } else if( ptr->window==MenuWin )
                 {   if( !DisableMenu )
                         if( HandleMenuClick(ptr->x) )
@@ -2273,11 +2204,21 @@ static int ProcessEvent( event )
                         HeldStep = XScrlSkip;
                     } else
                     {   index = ptr->x-8;
+#ifdef ORIG
                         if( XScrlDial<3 )
-                        {   if( index>XRange-32 ) index -= XRange-48;
-                            else if( index<16 ) index += XRange-48;
+                        {   if( index>XRange-32 )
+                            {   index -= XRange-48;
+                            } else if( index<16 )
+                                index += XRange-48;
                             NewScrlX = index;
                         } else NewScrlX = CropRange(index,16,XRange-32);
+#else
+                        if( index > XRange-32 )
+                        {   index -= XRange-48;
+                        } else if( index < 16 )
+                            index += XRange-48;
+                        NewScrlX = index;
+#endif
                     }
 
                 } else if( ptr->window==YScrlWin )
@@ -2290,29 +2231,33 @@ static int ProcessEvent( event )
                         HeldStep = YScrlSkip;
                     } else
                     {   index = ptr->y-8;
+#ifdef ORIG
                         if( YScrlDial<3 )
-                        {   if( index>YRange-32 ) index -= YRange-48;
-                            else if( index<16 ) index += YRange-48;
+                        {   if( index > YRange-32 )
+                            {   index -= YRange-48;
+                            } else if( index < 16 )
+                                index += YRange-48;
                             NewScrlY = index;
                         } else NewScrlY = CropRange(index,16,YRange-32);
-                    }
+#else
+                        if( index > YRange-32 )
+                        {   index -= YRange-48;
+                        } else if( index < 16 )
+                            index += YRange-48;
+                        NewScrlY = index;
+#endif
+                    } 
 
-                } 
+	        }
             } break;
 
         case(MotionNotify):
             {   XMotionEvent *ptr;
-                int dx, dy;
 
                 ptr = (XMotionEvent*)event;
                 if( ptr->window==CanvWin )
-                {   if( !IsClose(ptr->x,InitX) || !IsClose(ptr->y,InitY) )
-                    {   dx = ptr->x-PointX;  dy = ptr->y-PointY;
-                        MouseMove( ptr->state, dx, dy );
-
-                        PointX = ptr->x;
-                        PointY = ptr->y;
-                    }
+                {   stat = GetStatus(ptr->state);
+                    ProcessMouseMove(ptr->x,ptr->y,stat);
                 } else if( HeldButton == -1 )
                 {   if( ptr->window==XScrlWin )
                     {   index = ptr->x-8;
@@ -2334,11 +2279,8 @@ static int ProcessEvent( event )
 
                 ptr = (XButtonReleasedEvent*)event;
                 if( ptr->window==CanvWin )
-                {   PointX = ptr->x;  PointY = ptr->y;
-                    if( IsClose(PointX,InitX) && IsClose(PointY,InitY) )
-                        if( ptr->state & (ShiftMask|ControlMask) )
-                        {      ReDrawFlag |= RFPoint1;
-                        } else ReDrawFlag |= RFPoint2;
+                {   stat = GetStatus(ptr->state);
+                    ProcessMouseUp(ptr->x,ptr->y,stat);
                 }
             } break;
 
@@ -2477,19 +2419,20 @@ static int ProcessEvent( event )
         default:  
 #ifdef DIALBOX
             if( event->type == DialEvent )
-                HandleDialEvent( event );
+                HandleDialEvent(  (XDeviceMotionEvent*)event );
 #endif
             break;
     }
-    return( result );
+    return result;
 }
 
 
-/*************************/
-/* Modal Dialog Handling */
-/*************************/
 
-static int HandleMenuLoop()
+/*=========================*/
+/*  Modal Dialog Handling  */
+/*=========================*/
+
+static int HandleMenuLoop( void )
 {
     register unsigned int mask;
     register int result;
@@ -2627,21 +2570,18 @@ static int HandleMenuLoop()
     /* Passive Grab Release */
     XUngrabPointer(dpy,CurrentTime);
 
-
     XUnmapWindow(dpy,PopUpWin);
     PopUpFlag = False;
     MenuFocus = False;
     DrawMenuBar();
-    return( result );
+    return result;
 }
 
 
-int FetchEvent( wait )
-    int wait;
+int FetchEvent( int wait )
 {
     register int result;
     auto XEvent event;
-
 
     NewScrlX = ScrlX;
     NewScrlY = ScrlY;
@@ -2650,15 +2590,14 @@ int FetchEvent( wait )
     while( XPending(dpy) || (wait && !ReDrawFlag) )
     {   XNextEvent( dpy, &event );
         result = ProcessEvent(&event);
-        if( result ) return( result );
+        if( result ) return result;
     }
     DoneEvents();
-    return( 0 );
+    return 0;
 }
 
 
-int LookUpColour( name, red, grn, blu )
-    char *name; int *red, *grn, *blu;
+int LookUpColour( char *name, int *red, int *grn, int *blu )
 {
     static XColor exact, close;
     register Colormap map;
@@ -2668,13 +2607,13 @@ int LookUpColour( name, red, grn, blu )
     {   *red = exact.red>>8;
         *grn = exact.green>>8;
         *blu = exact.blue>>8;
-        return(True);
-    } else 
-        return(False);
+        return True;
+    }
+    return False;
 }
 
 
-void BeginWait()
+void BeginWait( void )
 {
     if( UseHourGlass )
     {   XDefineCursor(dpy,CanvWin,hglass);
@@ -2684,7 +2623,7 @@ void BeginWait()
 }
 
 
-void EndWait()
+void EndWait( void )
 {
     if( UseHourGlass )
     {   XDefineCursor(dpy,CanvWin,cross);
@@ -2694,7 +2633,7 @@ void EndWait()
 }
 
 
-void CloseDisplay()
+void CloseDisplay( void )
 {
 #ifdef DIALBOX
     register int num;

@@ -1,8 +1,56 @@
+/***************************************************************************
+ *                            RasMol 2.7.1.1                               *
+ *                                                                         *
+ *                                RasMol                                   *
+ *                 Molecular Graphics Visualisation Tool                   *
+ *                            21 January 2001                              *
+ *                                                                         *
+ *                   Based on RasMol 2.6 by Roger Sayle                    *
+ * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
+ *                      Stevenage, Hertfordshire, UK                       *
+ *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
+ *                   Copyright (C) Roger Sayle 1992-1999                   *
+ *                                                                         *
+ *                  and Based on Mods by Arne Mueller                      *
+ *                      Version 2.6x1, May 1998                            *
+ *                   Copyright (C) Arne Mueller 1998                       *
+ *                                                                         *
+ *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
+ *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *                      yaya@bernstein-plus-sons.com                       *
+ *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
+ *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *                                                                         *
+ * Please read the file NOTICE for important notices which apply to this   *
+ * package. If you are not going to make changes to RasMol, you are not    *
+ * only permitted to freely make copies and distribute them, you are       *
+ * encouraged to do so, provided you do the following:                     *
+ *   * 1. Either include the complete documentation, especially the file   *
+ *     NOTICE, with what you distribute or provide a clear indication      *
+ *     where people can get a copy of the documentation; and               *
+ *   * 2. Please give credit where credit is due citing the version and    *
+ *     original authors properly; and                                      *
+ *   * 3. Please do not give anyone the impression that the original       *
+ *     authors are providing a warranty of any kind.                       *
+ *                                                                         *
+ * If you would like to use major pieces of RasMol in some other program,  *
+ * make modifications to RasMol, or in some other way make what a lawyer   *
+ * would call a "derived work", you are not only permitted to do so, you   *
+ * are encouraged to do so. In addition to the things we discussed above,  *
+ * please do the following:                                                *
+ *   * 4. Please explain in your documentation how what you did differs    *
+ *     from this version of RasMol; and                                    *
+ *   * 5. Please make your modified source code available.                 *
+ *                                                                         *
+ * This version of RasMol is not in the public domain, but it is given     *
+ * freely to the community in the hopes of advancing science. If you make  *
+ * changes, please make them in a responsible manner, and please offer us  *
+ * the opportunity to include those changes in future versions of RasMol.  *
+ ***************************************************************************/
+
 /* applemac.c
- * RasMol2 Molecular Graphics
- * Roger Sayle, August 1995
- * Version 2.6
  */
+
 #include <QuickDraw.h>
 #include <Controls.h>
 #include <Palettes.h>
@@ -31,15 +79,23 @@
 #include "abstree.h"
 #include "transfor.h"
 #include "render.h"
+#include "langsel.h"
+
+
+#ifdef __CONDITIONALMACROS__
+#define ArrowCursor   SetCursor(&qd.arrow)
+#else
+#define ArrowCursor   SetCursor(&arrow)
+#endif
 
 
 static PixPatHandle BackHand;
 static PaletteHandle CMap;
 static PixMap *PixelMap;
-static int CMapClean;
 
 
-int CreateImage()
+
+int CreateImage( void )
 {
     register Long size;
     
@@ -56,11 +112,11 @@ int CreateImage()
     PixelMap->baseAddr = (Ptr)FBuffer;
     PixelMap->bounds.right = XRange;
     PixelMap->bounds.bottom = YRange;
-    return( (int)FBuffer );
+    return (int)FBuffer;
 }
 
 
-void TransferImage()
+void TransferImage( void )
 {
     register PixMapHandle pmHand;
     register GDHandle gdHand;
@@ -93,7 +149,7 @@ void TransferImage()
 }
 
 
-void ClearImage()
+void ClearImage( void )
 {
     GrafPtr savePort;
     RGBColor col;
@@ -117,7 +173,7 @@ void ClearImage()
 }
 
 
-static PicHandle CreateMacPicture()
+static PicHandle CreateMacPicture( void )
 {
     GrafPtr savePort;
     RgnHandle saveRgn;
@@ -151,7 +207,7 @@ static PicHandle CreateMacPicture()
 }
 
 
-int PrintImage()
+int PrintImage( void )
 {
     register int xsize,ysize;
     register int high,wide;
@@ -213,17 +269,15 @@ int PrintImage()
     } else prErr = False;  /* Cancel Print */
 
     PrClose();
-    return( !prErr );
+    return !prErr;
 }
 
-int ClipboardImage()
+
+int ClipboardImage( void )
 {
     register long clipErr;
     register long length;
     PicHandle pict;
-    
-    register int i;
-    register FILE *fp;
     
     ZeroScrap();
     pict = CreateMacPicture();
@@ -234,11 +288,11 @@ int ClipboardImage()
     HUnlock((Handle)pict);
     
     KillPicture(pict);   
-    return( !clipErr );
+    return !clipErr;
 }
 
 
-void AllocateColourMap()
+void AllocateColourMap( void )
 { 
 #ifdef EIGHTBIT
     register PixMapHandle pmHand;
@@ -268,49 +322,193 @@ void AllocateColourMap()
     gdHand = GetMaxDevice(&CanvWin->portRect);
     pmHand = (**gdHand).gdPMap;
     if( (**pmHand).pixelSize >= 8 )
-    {   ActivatePalette(CanvWin);
-        CMapClean = False;
-    }
+        ActivatePalette(CanvWin);
     FBClear = False;
 #endif
 }
 
 
-void UpdateScrollBars()
+void UpdateScrollBars( void )
 {
     register int pos;
     
     pos = 50+(int)(50.0*DialValue[1]);
+#ifdef USEOLDROUTINENAMES
     SetCtlValue(HScroll,pos);
+#else
+    SetControlValue(HScroll,pos);
+#endif
     
     pos = 50+(int)(50.0*DialValue[0]);
+#ifdef USEOLDROUTINENAMES
     SetCtlValue(VScroll,pos);
+#else
+    SetControlValue(VScroll,pos);
+#endif
 }
 
 
-void SetMouseMode( mode )
-    int mode;
+unsigned char * ReWriteStr255(unsigned char buffer[255], char* str)
+{   unsigned char *dst;
+    unsigned char *src;
+    unsigned int limit;
+
+    limit = buffer[0]+1;
+    dst = buffer+1;
+    src = (unsigned char *)str;
+    while( *src && (dst<buffer+254) && ((dst-buffer)< limit) )
+      *dst++ = *src++;
+    while ((dst-buffer)< limit )
+      *dst++ = '\0';
+    return buffer;
+}
+
+unsigned char * tostr255(unsigned char buffer[255], char* str)
+{   unsigned char *dst;
+    unsigned char *src;
+
+    buffer[0]=0;
+    dst = buffer+1;
+    src = (unsigned char *)str;
+    while( *src && (dst<buffer+254) )
+      *dst++ = *((unsigned char *)src++);
+    buffer[0] = (unsigned char)((dst-buffer)-1);
+    *dst = (unsigned char)'\0';
+    return buffer;
+}
+
+void ReDrawWindow( void )
+{    MenuHandle hand;
+     unsigned char buffer[255];
+     int menu;
+     
+     for( menu=140; menu < 148; menu++) {
+
+#ifdef USEOLDROUTINENAMES
+       hand = GetMHandle(menu);
+#else
+       hand = GetMenuHandle(menu);
+#endif
+
+        switch( menu )
+        {   case(140):  /* Apple Menu */
+              SetMenuItemText(hand,1,tostr255(buffer,MsgStrs[StrMAbout]));
+              break;
+                      
+            case(141):  /* File Menu */
+              SetMenuItemText(hand,1,tostr255(buffer,MsgStrs[StrMOpen]));
+              SetMenuItemText(hand,2,tostr255(buffer,MsgStrs[StrMSaveAs]));
+              SetMenuItemText(hand,3,tostr255(buffer,MsgStrs[StrMClose]));
+              SetMenuItemText(hand,5,tostr255(buffer,MsgStrs[StrMPSetup]));
+              SetMenuItemText(hand,6,tostr255(buffer,MsgStrs[StrMPrint]));
+              SetMenuItemText(hand,8,tostr255(buffer,MsgStrs[StrMExit]));
+              ReWriteStr255((*hand)->menuData,MsgStrs[StrMFile]);
+              break;
+                      
+            case(142):  /* Edit Menu */
+              SetMenuItemText(hand,1,tostr255(buffer,MsgStrs[StrMUndo]));
+              SetMenuItemText(hand,2,tostr255(buffer,MsgStrs[StrMCut]));
+              SetMenuItemText(hand,3,tostr255(buffer,MsgStrs[StrMCopy]));
+              SetMenuItemText(hand,4,tostr255(buffer,MsgStrs[StrMPaste]));
+              SetMenuItemText(hand,5,tostr255(buffer,MsgStrs[StrMClear]));
+              SetMenuItemText(hand,7,tostr255(buffer,MsgStrs[StrMSelAll]));
+              ReWriteStr255((*hand)->menuData,MsgStrs[StrMEdit]);
+              break;
+                        
+            case(143):  /* Display Menu */
+              SetMenuItemText(hand,1,tostr255(buffer,MsgStrs[StrMWirefr]));
+              SetMenuItemText(hand,2,tostr255(buffer,MsgStrs[StrMBackbn]));
+              SetMenuItemText(hand,3,tostr255(buffer,MsgStrs[StrMSticks]));
+              SetMenuItemText(hand,4,tostr255(buffer,MsgStrs[StrMSpacefl]));
+              SetMenuItemText(hand,5,tostr255(buffer,MsgStrs[StrMBallStk]));
+              SetMenuItemText(hand,6,tostr255(buffer,MsgStrs[StrMRibbons]));
+              SetMenuItemText(hand,7,tostr255(buffer,MsgStrs[StrMStrands]));
+              SetMenuItemText(hand,8,tostr255(buffer,MsgStrs[StrMCartoon]));
+              ReWriteStr255((*hand)->menuData,MsgStrs[StrMDisplay]);
+              break;              
+                            
+            case(144):  /* Colours Menu */
+              SetMenuItemText(hand,1,tostr255(buffer,MsgStrs[StrMMonochr]));
+              SetMenuItemText(hand,2,tostr255(buffer,MsgStrs[StrMCPK]));
+              SetMenuItemText(hand,3,tostr255(buffer,MsgStrs[StrMShapely]));
+              SetMenuItemText(hand,4,tostr255(buffer,MsgStrs[StrMGroup]));
+              SetMenuItemText(hand,5,tostr255(buffer,MsgStrs[StrMChain]));
+              SetMenuItemText(hand,6,tostr255(buffer,MsgStrs[StrMTemp]));
+              SetMenuItemText(hand,7,tostr255(buffer,MsgStrs[StrMStruct]));
+              SetMenuItemText(hand,8,tostr255(buffer,MsgStrs[StrMUser]));
+              SetMenuItemText(hand,9,tostr255(buffer,MsgStrs[StrMModel]));
+              SetMenuItemText(hand,10,tostr255(buffer,MsgStrs[StrMAlt]));
+              ReWriteStr255((*hand)->menuData,MsgStrs[StrMColour]);
+              break;
+                                                    
+            case(145):  /* Option Menu */
+              SetMenuItemText(hand,1,tostr255(buffer,MsgStrs[StrMSlab]));
+              SetMenuItemText(hand,2,tostr255(buffer,MsgStrs[StrMHydr]));
+              SetMenuItemText(hand,3,tostr255(buffer,MsgStrs[StrMHet]));
+              SetMenuItemText(hand,4,tostr255(buffer,MsgStrs[StrMSpec]));
+              SetMenuItemText(hand,5,tostr255(buffer,MsgStrs[StrMShad]));
+              SetMenuItemText(hand,6,tostr255(buffer,MsgStrs[StrMStereo]));
+              SetMenuItemText(hand,7,tostr255(buffer,MsgStrs[StrMLabel]));
+              ReWriteStr255((*hand)->menuData,MsgStrs[StrMOpt]);
+              break;
+                        
+            case(146):  /* Export Menu */
+              SetMenuItemText(hand,1,tostr255(buffer,MsgStrs[StrMGIF]));
+              SetMenuItemText(hand,2,tostr255(buffer,MsgStrs[StrMPostscr]));
+              SetMenuItemText(hand,3,tostr255(buffer,MsgStrs[StrMPPM]));
+              SetMenuItemText(hand,4,tostr255(buffer,MsgStrs[StrMSRast]));
+              SetMenuItemText(hand,5,tostr255(buffer,MsgStrs[StrMBMP]));
+              SetMenuItemText(hand,6,tostr255(buffer,MsgStrs[StrMPICT]));
+              ReWriteStr255((*hand)->menuData,MsgStrs[StrMExport]);
+              break;
+                        
+            case(147):  /* Windows Menu */
+              SetMenuItemText(hand,1,tostr255(buffer,MsgStrs[StrMMainWin]));
+              SetMenuItemText(hand,2,tostr255(buffer,MsgStrs[StrMCmndLin]));
+              ReWriteStr255((*hand)->menuData,MsgStrs[StrMWindow]);
+              break; 
+         }    
+     }
+     SetMenuBar(GetMenuBar());
+     DrawMenuBar();
+    
+
+}
+
+void SetMouseUpdateStatus( int bool )
 {
-    MouseMode = mode;
+    MouseUpdateStatus = bool;
 }
 
 
-int LookUpColour( name, r, g, b )
-    char *name; int *r, *g, *b;
+void SetMouseCaptureStatus( int bool )
 {
-    return( False );
+    MouseCaptureStatus = bool;
 }
 
 
-void EnableMenus( flag )
-    int flag;
+int LookUpColour( char *name, int *r, int *g, int *b )
 {
-    register int i;
+    UnusedArgument(name);
+    UnusedArgument(r);
+    UnusedArgument(g);
+    UnusedArgument(b);
+
+    return False;
+}
+
+
+void EnableMenus( int flag )
+{
     MenuHandle hand;
     long offset;
     
     /* File Menu */
+#ifdef USEOLDROUTINENAMES
     hand = GetMHandle(141);
+#else
+    hand = GetMenuHandle(141);
+#endif
     if( flag && !Database )
     {   EnableItem(hand,1);
     } else DisableItem(hand,1);
@@ -328,7 +526,11 @@ void EnableMenus( flag )
     }
     
     /* Edit Menu */
+#ifdef USEOLDROUTINENAMES
     hand = GetMHandle(142);
+#else
+    hand = GetMenuHandle(142);
+#endif
     if( Database )
     {   EnableItem(hand,3);
     } else DisableItem(hand,3);
@@ -341,8 +543,8 @@ void EnableMenus( flag )
     {   EnableItem(hand,7);
     } else DisableItem(hand,7);
     
-    
     /* Middle Menus */
+#ifdef USEOLDROUTINENAMES
     if( Database && flag )
     {   EnableItem(GetMHandle(143),0);
         EnableItem(GetMHandle(144),0);
@@ -352,9 +554,24 @@ void EnableMenus( flag )
         DisableItem(GetMHandle(144),0);
         DisableItem(GetMHandle(145),0);
     }
+#else 
+    if( Database && flag )
+    {   EnableItem(GetMenuHandle(143),0);
+        EnableItem(GetMenuHandle(144),0);
+        EnableItem(GetMenuHandle(145),0);
+    } else
+    {   DisableItem(GetMenuHandle(143),0);
+        DisableItem(GetMenuHandle(144),0);
+        DisableItem(GetMenuHandle(145),0);
+    }
+#endif
     
     /* Export Menu */
+#ifdef USEOLDROUTINENAMES
     hand = GetMHandle(146);
+#else 
+    hand = GetMenuHandle(146);
+#endif
     if( Database )
     {   EnableItem(hand,0);
     } else DisableItem(hand,0);
@@ -363,28 +580,30 @@ void EnableMenus( flag )
 }
 
 
-static void DefineMenus()
+static void DefineMenus( void )
 {
     MenuHandle hand;
-    register long region;
     register int i;
     
     /* Apple Menu */
     hand = GetMenu(140);
+#ifdef USEOLDROUTINENAMES
     AddResMenu(hand,'DRVR');
+#else
+    AppendResMenu(hand,'DRVR');
+#endif
     InsertMenu(hand,0);
     
     for( i=141; i<148; i++ )
         InsertMenu( GetMenu(i), 0 );
         
     /* if( GetEnvirons(smRegionCode) == verUS ) */
-    /* SetItem(GetMHandle(144),0,'\pColors");   */
+    /* SetItem(GetMenuHandle(144),0,'\pColors");   */
     EnableMenus( True );
 }
 
 
-int OpenDisplay( x, y )
-    int x, y;
+int OpenDisplay( int x, int y )
 {
 #ifndef EIGHTBIT
     register CTabHandle cmap;
@@ -392,8 +611,9 @@ int OpenDisplay( x, y )
     register int i;
     Rect rect;
     
+    MouseCaptureStatus = False;
+    MouseUpdateStatus = False;
     UseHourGlass = True;
-    MouseMode = MMRasMol;
     DisableMenu = False;
 
     for( i=0; i<8; i++ )
@@ -431,10 +651,9 @@ int OpenDisplay( x, y )
     
     DrawGrowIcon(CanvWin);
     
-    
     /* PixMap! */
     PixelMap = (PixMap*)NewPtr(sizeof(PixMap));
-    if( !PixelMap ) return( True );
+    if( !PixelMap ) return True;
     
     /* 72.0 DPI Resolution! */
     PixelMap->hRes = 72;
@@ -460,7 +679,6 @@ int OpenDisplay( x, y )
     
     CMap = NewPalette(256,(CTabHandle)0,pmTolerant,0);
     SetPalette(CanvWin,CMap,True);
-    CMapClean = True;
 #else
     /* Direct PixMap */
     PixelMap->pixelSize = 32;
@@ -484,15 +702,16 @@ int OpenDisplay( x, y )
     PrintHand = (THPrint)NULL;
     BackHand = NewPixPat();
     DefineMenus();
-    return(False);
+    return False;
 }
 
-void CloseDisplay()
+
+void CloseDisplay( void )
 {
 }
 
 
-void BeginWait()
+void BeginWait( void )
 {
     register WindowPtr win;
     
@@ -503,13 +722,9 @@ void BeginWait()
     }
 }
 
-#ifdef __CONDITIONALMACROS__
-#define ArrowCursor   SetCursor(&qd.arrow)
-#else
-#define ArrowCursor   SetCursor(&arrow)
-#endif
 
-void EndWait()
+
+void EndWait( void )
 {
     register WindowPtr win;
     GrafPtr savePort;
@@ -542,3 +757,23 @@ void EndWait()
         SetPort(savePort);
     }
 }
+
+
+void SetCanvasTitle( char *ptr )
+{
+    register char *dst;
+    char buffer[255];
+
+    if( ptr )
+    {   dst = buffer+1;
+        while( *ptr && (dst<buffer+254) )
+            *dst++ = *ptr++;
+        buffer[0] = (char)((dst-buffer)-1);
+        *dst = '\0';
+    } else  /* No Title! */
+    {   buffer[0] = '\0';
+        buffer[1] = '\0';
+    }
+    SetWTitle(CanvWin,(Byte*)buffer);
+}
+

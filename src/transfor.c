@@ -1,7 +1,54 @@
+/***************************************************************************
+ *                              RasMol 2.7.1                               *
+ *                                                                         *
+ *                                 RasMol                                  *
+ *                 Molecular Graphics Visualisation Tool                   *
+ *                              22 June 1999                               *
+ *                                                                         *
+ *                   Based on RasMol 2.6 by Roger Sayle                    *
+ * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
+ *                      Stevenage, Hertfordshire, UK                       *
+ *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
+ *                   Copyright (C) Roger Sayle 1992-1999                   *
+ *                                                                         *
+ *                  and Based on Mods by Arne Mueller                      *
+ *                      Version 2.6x1, May 1998                            *
+ *                   Copyright (C) Arne Mueller 1998                       *
+ *                                                                         *
+ *           Version 2.7.0, 2.7.1 Mods by Herbert J. Bernstein             *
+ *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *                      yaya@bernstein-plus-sons.com                       *
+ *                    2.7.0 March 1999, 2.7.1 June 1999                    *
+ *              Copyright (C) Herbert J. Bernstein 1998-1999               *
+ *                                                                         *
+ * Please read the file NOTICE for important notices which apply to this   *
+ * package. If you are not going to make changes to RasMol, you are not    * 
+ * only permitted to freely make copies and distribute them, you are       * 
+ * encouraged to do so, provided you do the following:                     *
+ *   * 1. Either include the complete documentation, especially the file   *
+ *     NOTICE, with what you distribute or provide a clear indication      *
+ *     where people can get a copy of the documentation; and               *
+ *   * 2. Please give credit where credit is due citing the version and    * 
+ *     original authors properly; and                                      *  
+ *   * 3. Please do not give anyone the impression that the original       *   
+ *     authors are providing a warranty of any kind.                       *
+ *                                                                         *
+ * If you would like to use major pieces of RasMol in some other program,  *
+ * make modifications to RasMol, or in some other way make what a lawyer   *
+ * would call a "derived work", you are not only permitted to do so, you   *
+ * are encouraged to do so. In addition to the things we discussed above,  *
+ * please do the following:                                                *
+ *   * 4. Please explain in your documentation how what you did differs    *
+ *     from this version of RasMol; and                                    *
+ *   * 5. Please make your modified source code available.                 *
+ *                                                                         *
+ * This version of RasMol is not in the public domain, but it is given     *
+ * freely to the community in the hopes of advancing science. If you make  *
+ * changes, please make them in a responsible manner, and please offer us  *
+ * the opportunity to include those changes in future versions of RasMol.  *
+ ***************************************************************************/
+
 /* transfor.c
- * RasMol2 Molecular Graphics
- * Roger Sayle, August 1995
- * Version 2.6
  */
 #include "rasmol.h"
 
@@ -24,19 +71,11 @@
 #include "molecule.h"
 #include "abstree.h"
 #include "transfor.h"
+#include "cmndline.h"
 #include "command.h"
 #include "render.h"
 #include "repres.h"
 #include "graphics.h"
-
-
-typedef struct {
-                short col;
-                short shade;
-                unsigned char r;
-                unsigned char g;
-                unsigned char b;
-              } ShadeRef;
 
 
 #define CPKMAX  16
@@ -157,24 +196,21 @@ static ShadeRef PotentialShade[] = {
 
 #define MatchChar(a,b)   (((a)=='#')||((a)==(b)))
 
-
-static ShadeRef ScaleRef[LastShade];
 static int MaskColour[MAXMASK];
 static int MaskShade[MAXMASK];
-static int ScaleCount;
 
 static Real LastRX,LastRY,LastRZ;
 static Real Zoom;
 
 
 
-void DetermineClipping()
+void DetermineClipping( void )
 {
     register int temp;
     register int max;
 
     max = 0;
-    if( DrawAtoms && (MaxAtomRadius>max) )  max = MaxAtomRadius;
+    if( (DrawAtoms || DrawStars) && (MaxAtomRadius>max) )  max = MaxAtomRadius;
     if( DrawBonds && (MaxBondRadius>max) )  max = MaxBondRadius;
        
     temp = ImageRadius + max;
@@ -186,9 +222,7 @@ void DetermineClipping()
 }
 
 
-
-void SetRadiusValue( rad )
-    int rad;
+void SetRadiusValue( int rad , int flag)
 {
     register int irad,change;
     register Chain __far *chain;
@@ -200,32 +234,45 @@ void SetRadiusValue( rad )
 
     irad = (int)(Scale*rad);
     MaxAtomRadius = 0;
-    DrawAtoms = False;
-    change = False;
+    if (flag == SphereFlag )
+    { DrawAtoms = False;
+    } else { 
+      DrawStars = False; 
+    }
+     change = False;
 
     ForEachAtom
         if( ptr->flag & SelectFlag )
         {   if( irad>MaxAtomRadius )
                 MaxAtomRadius = irad;
-            ptr->flag |= SphereFlag;
+            ptr->flag |= flag;
             ptr->radius = rad;
             ptr->irad = irad;
             change = True;
-        } else if( ptr->flag & SphereFlag )
-        {   DrawAtoms = True;
+        } else if( ptr->flag & flag )
+        {   if (flag == SphereFlag )
+            { DrawAtoms = True;
+            } else { 
+              DrawStars = True;
+            }
             if( ptr->irad>MaxAtomRadius )
                 MaxAtomRadius = ptr->irad;
         }
 
     if( change )
-    {   DrawAtoms = True;
+    {   if (flag == SphereFlag )
+        { DrawAtoms = True;
+        } else { 
+          DrawStars = True;
+        }
         DetermineClipping();
         VoxelsClean = False;
         BucketFlag = False;
     }
 }
 
-void SetRadiusTemperature()
+
+void SetRadiusTemperature( int flag )
 {
     register int rad,irad,change;
     register Chain __far *chain;
@@ -236,7 +283,11 @@ void SetRadiusTemperature()
         return;
 
     MaxAtomRadius = 0;
-    DrawAtoms = False;
+    if( flag == SphereFlag )
+    { DrawAtoms = False;
+    } else { 
+      DrawStars = False; 
+    }
     change = False;
 
     ForEachAtom
@@ -247,18 +298,26 @@ void SetRadiusTemperature()
             irad = (int)(Scale*rad);
             if( irad>MaxAtomRadius )
                 MaxAtomRadius = irad;
-            ptr->flag |= SphereFlag;
+            ptr->flag |= flag;
             ptr->radius = rad;
             ptr->irad = irad;
             change = True;
-        } else if( ptr->flag & SphereFlag )
-        {   DrawAtoms = True;
+        } else if( ptr->flag & flag )
+        {   if ( flag == SphereFlag )
+            { DrawAtoms = True;
+            } else { 
+              DrawStars = True;
+            }
             if( ptr->irad>MaxAtomRadius )
                 MaxAtomRadius = ptr->irad;
         }
 
     if( change )
-    {   DrawAtoms = True;
+    {   if (flag == SphereFlag )
+        { DrawAtoms = True;
+        } else { 
+          DrawStars = True;
+        }
         DetermineClipping();
         VoxelsClean = False;
         BucketFlag = False;
@@ -266,7 +325,7 @@ void SetRadiusTemperature()
 }
 
 
-void SetVanWaalRadius()
+void SetVanWaalRadius( int flag )
 {
     register int rad,change;
     register Chain __far *chain;
@@ -277,8 +336,12 @@ void SetVanWaalRadius()
         return;
 
     MaxAtomRadius = 0;
+    if (flag == SphereFlag )
+    { DrawAtoms = False;
+    } else { 
+      DrawStars = False; 
+    }
     DrawAtoms = False;
-    change = False;
 
     ForEachAtom
         if( ptr->flag&SelectFlag )
@@ -287,17 +350,25 @@ void SetVanWaalRadius()
             ptr->radius = rad;
             change = True;
 
-            ptr->flag |=SphereFlag;
+            ptr->flag |=flag;
             if( ptr->irad>MaxAtomRadius )
                 MaxAtomRadius = ptr->irad;
-        } else if( ptr->flag&SphereFlag )
-        {   DrawAtoms = True;
+        } else if( ptr->flag&flag )
+        {   if (flag == SphereFlag )
+            { DrawAtoms = True;
+            } else { 
+              DrawStars = True;
+            }
             if( ptr->irad>MaxAtomRadius )
                 MaxAtomRadius = ptr->irad;
         }
 
     if( change )
-    {   DrawAtoms = True;
+    {   if (flag == SphereFlag )
+        { DrawAtoms = True;
+        } else { 
+          DrawStars = True;
+        }
         DetermineClipping();
         VoxelsClean = False;
         BucketFlag = False;
@@ -305,7 +376,7 @@ void SetVanWaalRadius()
 }
 
 
-void DisableSpacefill()
+void DisableSpacefill( void )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -316,6 +387,7 @@ void DisableSpacefill()
 
     MaxAtomRadius = 0;
     DrawAtoms = False;
+    DrawStars = False;
     
     ForEachAtom
         if( !(ptr->flag&SelectFlag) )
@@ -323,9 +395,17 @@ void DisableSpacefill()
             {   if( ptr->irad>MaxAtomRadius )
                     MaxAtomRadius = ptr->irad;
                 DrawAtoms = True;
+            } 
+            if( ptr->flag&StarFlag )
+            {   if( ptr->irad>MaxAtomRadius )
+                    MaxAtomRadius = ptr->irad;
+                DrawStars = True;
             }
         } else if( ptr->flag&SphereFlag )
+          {
             ptr->flag &= ~SphereFlag;
+            ptr->flag &= ~StarFlag;
+          }
 
     DetermineClipping();
     VoxelsClean = False;
@@ -333,12 +413,14 @@ void DisableSpacefill()
 }
 
 
-
-void EnableWireframe( mask, rad )
-    int mask, rad;
+void EnableWireframe( int mask, int rad )
 {
     register Bond __far *bptr;
+    register Chain __far *chain;
+    register Group __far *group;
+    register Atom __far *ptr;
     register int flag, irad;
+    register int starrad, istarrad, change;
 
     if( !Database )
         return;
@@ -368,11 +450,37 @@ void EnableWireframe( mask, rad )
                      MaxBondRadius = bptr->irad;
         }
     }
+
+    if ( MarkAtoms & (AllAtomFlag | NonBondFlag) )
+    { starrad = 75;
+      istarrad = (int)(Scale*starrad);
+      change = False;
+      ForEachAtom
+      { if ( (ptr->flag & SelectFlag) &&
+          (MarkAtoms&AllAtomFlag) || (ptr->flag&NonBondFlag) ) 
+        {  ptr->flag |= ( rad == 0 )?StarFlag:SphereFlag;
+           ptr->radius = starrad;
+           ptr->irad = istarrad;
+           change = True;
+        }
+      }
+      if ( change )
+	{  if ( rad == 0 )
+	   { DrawStars = True;
+           } else {
+             DrawAtoms = True;
+           }
+        MaxAtomRadius = istarrad;
+        DetermineClipping();
+        VoxelsClean = False;
+        BucketFlag = False;        
+      }
+    }
     DetermineClipping();
 }
 
 
-void DisableWireframe()
+void DisableWireframe( void )
 {
     register Bond __far *bptr;
     register int flag;
@@ -400,8 +508,7 @@ void DisableWireframe()
 }
 
 
-void EnableBackbone( mask, rad )
-    int mask, rad;
+void EnableBackbone( int mask, int rad )
 {
     register Chain __far *chain;
     register Bond __far *bptr;
@@ -428,7 +535,7 @@ void EnableBackbone( mask, rad )
 }
 
 
-void DisableBackbone()
+void DisableBackbone( void )
 {
     register Chain __far *chain;
     register Bond __far *bptr;
@@ -446,8 +553,7 @@ void DisableBackbone()
 }
 
 
-void SetHBondStatus( hbonds, enable, rad )
-    int hbonds, enable, rad;
+void SetHBondStatus( int hbonds, int enable, int rad )
 {
     register HBond __far *list;
     register HBond __far *ptr;
@@ -487,8 +593,7 @@ void SetHBondStatus( hbonds, enable, rad )
 }
 
 
-void SetRibbonStatus( enable, flag, width )
-    int enable, flag, width;
+void SetRibbonStatus( int enable, int flag, int width )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -551,7 +656,7 @@ void SetRibbonStatus( enable, flag, width )
 }
 
 
-void SetRibbonCartoons()
+void SetRibbonCartoons( void )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -600,13 +705,13 @@ void SetRibbonCartoons()
 }
 
 
-void SetTraceTemperature()
+void SetTraceTemperature( void )
 {
     register Chain __far *chain;
     register Group __far *group;
     register Atom __far *ptr;
     register int init,flag;
-    register int min,max;
+    register int min = 0,max = 0;
     register Real coeff;
 
     if( !Database )
@@ -667,15 +772,12 @@ void SetTraceTemperature()
 /* Atom Selection Functions! */
 /*===========================*/
 
-static void DisplaySelectCount()
+static void DisplaySelectCount( void )
 {
     char buffer[40];
 
     if( FileDepth == -1 )
-    {   if( CommandActive )
-           WriteChar('\n');
-        CommandActive=False;
-
+    {   InvalidateCmndLine();
         if( SelectCount==0 )
         {   WriteString("No atoms selected!\n");
         } else if( SelectCount>1 )
@@ -690,8 +792,7 @@ static void DisplaySelectCount()
 }
 
 
-void SelectZone( mask )
-    int mask;
+void SelectZone( int mask )
 {
     register Bond __far *bptr;
     register Chain __far *chain;
@@ -723,8 +824,7 @@ void SelectZone( mask )
 }
 
 
-void RestrictZone( mask )
-    int mask;
+void RestrictZone( int mask )
 {
     register Bond __far *bptr;
     register Chain __far *chain;
@@ -736,8 +836,8 @@ void RestrictZone( mask )
         return;
 
     DrawAtoms = False;   MaxAtomRadius = 0;
+    DrawStars = False;
     DrawBonds = False;   MaxBondRadius = 0;
-    DrawLabels = False;
     
     SelectCount = 0;
     ForEachAtom
@@ -750,11 +850,13 @@ void RestrictZone( mask )
                 if( ptr->irad>MaxAtomRadius )
                     MaxAtomRadius = ptr->irad;
             }
-
-            if( ptr->label )
-                DrawLabels = True;
+            if( ptr->flag & StarFlag )
+            {   DrawStars = True;
+                if( ptr->irad>MaxAtomRadius )
+                    MaxAtomRadius = ptr->irad;
+            }
         } else 
-        {   ptr->flag &= ~(SelectFlag|SphereFlag);
+        {   ptr->flag &= ~(SelectFlag|SphereFlag|StarFlag);
             if( ptr->label )
             {   DeleteLabel( (Label*)ptr->label );
                 ptr->label = (void*)0;
@@ -806,8 +908,7 @@ void RestrictZone( mask )
 }
 
 
-void SelectZoneExpr( expr )
-    Expr *expr;
+void SelectZoneExpr( Expr *expr )
 {
     register Bond __far *bptr;
 
@@ -837,8 +938,7 @@ void SelectZoneExpr( expr )
 }
 
 
-void RestrictZoneExpr( expr )
-    Expr *expr;
+void RestrictZoneExpr( Expr *expr )
 {
     register Bond __far *bptr;
     register Chain __far *chain;
@@ -850,8 +950,8 @@ void RestrictZoneExpr( expr )
         return;
 
     DrawAtoms = False;   MaxAtomRadius = 0;
+    DrawStars = False;
     DrawBonds = False;   MaxBondRadius = 0;
-    DrawLabels = False;
 
     SelectCount = 0;
     for( QChain=Database->clist; QChain; QChain=QChain->cnext )
@@ -866,11 +966,13 @@ void RestrictZoneExpr( expr )
                         if( QAtom->irad>MaxAtomRadius )
                             MaxAtomRadius = QAtom->irad;
                     }
-                    if( QAtom->label )
-                        DrawLabels = True;
-
+                    if( QAtom->flag & StarFlag )
+                    {   DrawStars = True;
+                        if( QAtom->irad>MaxAtomRadius )
+                            MaxAtomRadius = QAtom->irad;
+                    }
                 }  else 
-                {   QAtom->flag &= ~(SelectFlag|SphereFlag);
+                {   QAtom->flag &= ~(SelectFlag|SphereFlag|StarFlag);
                     if( QAtom->label )
                     {   DeleteLabel( (Label*)QAtom->label );
                         QAtom->label = (void*)0;
@@ -922,9 +1024,7 @@ void RestrictZoneExpr( expr )
 }
 
 
-
-int DefineShade( r, g, b )
-    unsigned char r, g, b;
+int DefineShade( int r, int g, int b )
 {
     register int d,dr,dg,db;
     register int dist,best;
@@ -934,7 +1034,7 @@ int DefineShade( r, g, b )
     for( i=0; i<LastShade; i++ )
         if( Shade[i].refcount )
             if( (Shade[i].r==r)&&(Shade[i].g==g)&&(Shade[i].b==b) )
-                return(i);
+                return i;
 
     /* Allocate request */
     for( i=0; i<LastShade; i++ )
@@ -943,13 +1043,11 @@ int DefineShade( r, g, b )
              Shade[i].g = g;
              Shade[i].b = b;
              Shade[i].refcount = 0;
-             return(i);
+             return i;
          }
 
-    if( CommandActive )
-        WriteChar('\n');
+    InvalidateCmndLine();
     WriteString("Warning: Unable to allocate shade!\n");
-    CommandActive = False;
 
     /* To avoid lint warning! */
     best = dist = 0;
@@ -965,12 +1063,11 @@ int DefineShade( r, g, b )
             best = i;
         }
     }
-    return( best );
+    return best;
 }
 
 
-void ScaleColourMap( count )
-    int count;
+void ScaleColourMap( int count )
 {
     register int i, r, g, b;
     register int fract;
@@ -1015,8 +1112,7 @@ void ScaleColourMap( count )
 }
 
 
-static void SetLutEntry( i, r, g, b )
-    int i, r, g, b;
+static void SetLutEntry( int i, int r, int g, int b )
 {
     ULut[i] = True;
     RLut[i] = r;
@@ -1031,21 +1127,22 @@ static void SetLutEntry( i, r, g, b )
 }
 
 
-static Real Power( x, y )
-    Real x; int y;
+static Real Power( Real x, int y )
 {
     register Real result;
 
     result = x;
-    while( y>1 )
-    {   if( y&1 ) { result *= x; y--; }
-        else { result *= result; y>>=1; }
+    while( y > 1 )
+    {   if( y & 1 )
+            result *= x;
+        result *= result;
+        y >>= 1;
     }
-    return( result );
+    return result;
 }
 
 
-void DefineColourMap()
+void DefineColourMap( void )
 {
     register Real diffuse,fade;
     register Real temp,inten;
@@ -1060,7 +1157,6 @@ void DefineColourMap()
         SetLutEntry(LabelCol,LabR,LabG,LabB);
         SetLutEntry(BoxCol,BoxR,BoxG,BoxB);
     } else SetLutEntry(BackCol,80,80,80);
-
 
     diffuse = 1.0 - Ambient;
     if( DisplayMode )
@@ -1121,7 +1217,7 @@ void DefineColourMap()
 }
 
 
-void ResetColourMap()
+void ResetColourMap( void )
 {
     register int i;
 
@@ -1142,10 +1238,14 @@ void ResetColourMap()
     for( i=0; i<LastShade; i++ )
         Shade[i].refcount = 0;
     ScaleCount = 0;
+
+    for (i=0; i<AltlDepth; i++)
+      AltlColours[i] = 0;
+
 }
 
 
-void ColourBondNone()
+void ColourBondNone( void )
 {
     register Bond __far *bptr;
 
@@ -1158,8 +1258,7 @@ void ColourBondNone()
 }
 
 
-void ColourBondAttrib( r, g, b )
-    int r, g, b;
+void ColourBondAttrib( int r, int g, int b )
 {
     register Bond __far *bptr;
     register int shade,col;
@@ -1169,7 +1268,7 @@ void ColourBondAttrib( r, g, b )
             if( (bptr->flag&SelectFlag) && bptr->col )
                 Shade[Colour2Shade(bptr->col)].refcount--;
 
-        shade = DefineShade((Byte)r,(Byte)g,(Byte)b);
+        shade = DefineShade(r,g,b);
         col = Shade2Colour(shade);
 
         ForEachBond
@@ -1181,7 +1280,7 @@ void ColourBondAttrib( r, g, b )
 }
 
 
-void ColourBackNone()
+void ColourBackNone( void )
 {
     register Chain __far *chain;
     register Bond __far *bptr;
@@ -1203,8 +1302,7 @@ void ColourBackNone()
 }
 
 
-void ColourBackAttrib( r, g, b )
-    int r, g, b;
+void ColourBackAttrib( int r, int g, int b )
 {
     register int shade,col;
     register Chain __far *chain;
@@ -1212,7 +1310,7 @@ void ColourBackAttrib( r, g, b )
 
     if( Database )
     {   ColourBackNone();
-        shade = DefineShade((Byte)r,(Byte)g,(Byte)b);
+        shade = DefineShade(r,g,b);
         col = Shade2Colour(shade);
 
         ForEachBack
@@ -1224,8 +1322,7 @@ void ColourBackAttrib( r, g, b )
 }
 
 
-void ColourHBondNone( hbonds )
-    int hbonds;
+void ColourHBondNone( int hbonds )
 {
     register HBond __far *list;
     register HBond __far *ptr;
@@ -1263,7 +1360,8 @@ void ColourHBondNone( hbonds )
         }
 }
 
-void ColourHBondType()
+
+void ColourHBondType( void )
 {
     register HBond __far *ptr;
     register ShadeRef *ref;
@@ -1299,8 +1397,7 @@ void ColourHBondType()
 }
 
 
-void ColourHBondAttrib( hbonds, r, g, b )
-    int hbonds, r, g, b;
+void ColourHBondAttrib( int hbonds, int r, int g, int b )
 {
     register HBond __far *list;
     register HBond __far *ptr;
@@ -1319,7 +1416,7 @@ void ColourHBondAttrib( hbonds, r, g, b )
         } else ColourHBondNone(False);
 
 
-    shade = DefineShade((Byte)r,(Byte)g,(Byte)b);
+    shade = DefineShade(r,g,b);
     col = Shade2Colour(shade);
 
     list = hbonds? Database->hlist : Database->slist;
@@ -1331,8 +1428,7 @@ void ColourHBondAttrib( hbonds, r, g, b )
 }
 
 
-void ColourRibbonNone( flag )
-    int flag;
+void ColourRibbonNone( int flag )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -1363,8 +1459,7 @@ void ColourRibbonNone( flag )
 }
 
 
-void ColourRibbonAttrib( flag, r, g, b )
-    int flag, r, g, b;
+void ColourRibbonAttrib( int flag, int r, int g, int b )
 {
     register int shade, col;
     register Chain __far *chain;
@@ -1376,7 +1471,7 @@ void ColourRibbonAttrib( flag, r, g, b )
         {   ColourRibbonNone( flag );
         } else DetermineStructure(False);
 
-        shade = DefineShade((Byte)r,(Byte)g,(Byte)b);
+        shade = DefineShade(r,g,b);
         col = Shade2Colour(shade);
 
         for( chain=Database->clist; chain; chain=chain->cnext )
@@ -1399,7 +1494,7 @@ void ColourRibbonAttrib( flag, r, g, b )
 }
 
 
-void ColourMonitNone()
+void ColourMonitNone( void )
 {
     register Monitor *ptr;
     register int flag;
@@ -1417,8 +1512,7 @@ void ColourMonitNone()
 }
 
 
-void ColourMonitAttrib( r, g, b )
-    int r, g, b;
+void ColourMonitAttrib( int r, int g, int b )
 {
     register Monitor *ptr;
     register int shade,col;
@@ -1428,7 +1522,7 @@ void ColourMonitAttrib( r, g, b )
         return;
 
     ColourMonitNone();
-    shade = DefineShade((Byte)r,(Byte)g,(Byte)b);
+    shade = DefineShade(r,g,b);
     col = Shade2Colour(shade);
 
     for( ptr=MonitList; ptr; ptr=ptr->next )
@@ -1442,8 +1536,7 @@ void ColourMonitAttrib( r, g, b )
 }
 
 
-void ColourDotsAttrib( r, g, b )
-    int r, g, b;
+void ColourDotsAttrib( int r, int g, int b )
 {
     register DotStruct __far *ptr;
     register int i,shade,col;
@@ -1455,7 +1548,7 @@ void ColourDotsAttrib( r, g, b )
                  Shade[shade].refcount--;
             }
 
-        shade = DefineShade((Byte)r,(Byte)g,(Byte)b);
+        shade = DefineShade(r,g,b);
         col = Shade2Colour(shade);
         for( ptr=DotPtr; ptr; ptr=ptr->next )
             for( i=0; i<ptr->count; i++ )
@@ -1468,8 +1561,7 @@ void ColourDotsAttrib( r, g, b )
 
 /* Coulomb's Law */
 #define CoulombScale  ((Long)(1<<12))
-int CalculatePotential( x, y, z )
-    Long x, y, z;
+int CalculatePotential( Long x, Long y, Long z )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -1502,11 +1594,11 @@ int CalculatePotential( x, y, z )
     /* Dielectric Constant = 10.0 */
     /* (332.0*250.0)/(10.0*100.0) */
     result = (result*83)/CoulombScale;
-    return( (int)result );
+    return (int)result;
 }
 
 
-void ColourDotsPotential()
+void ColourDotsPotential( void )
 {
     register DotStruct __far *ptr;
     register int i,shade,result;
@@ -1558,7 +1650,7 @@ void ColourDotsPotential()
 }
 
 
-static void ResetColourAttrib()
+static void ResetColourAttrib( void )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -1570,8 +1662,7 @@ static void ResetColourAttrib()
 }
 
 
-void MonoColourAttrib( r, g, b )
-    int r, g, b;
+void MonoColourAttrib( int r, int g, int b )
 {
     register int shade,col;
     register Chain __far *chain;
@@ -1580,7 +1671,7 @@ void MonoColourAttrib( r, g, b )
 
     if( Database )
     {   ResetColourAttrib();
-        shade = DefineShade((Byte)r,(Byte)g,(Byte)b);
+        shade = DefineShade(r,g,b);
         col = Shade2Colour(shade);
 
         ForEachAtom
@@ -1591,9 +1682,39 @@ void MonoColourAttrib( r, g, b )
     }
 }
 
+void AddAltlColours( void )
+{
+    int i, ic;
+    register ShadeRef *ref;
+    register Chain __far *chain;
+    register Group __far *group;
+    register Atom __far *ptr;
 
-void ScaleColourAttrib( attr )
-    int attr;
+    /* Add colours for any alternate conformations used */    
+
+    ForEachAtom
+        if( ptr->flag&SelectFlag )
+	  {   if(! (ptr->altl == '\0' || ptr->altl == ' ') ){
+            ic = (((int)(ptr->altl))&(AltlDepth-1))+1;
+            i = (int)((Long)ScaleCount*(ic--)/(AltlDepth));
+
+            if( i >= ScaleCount )
+            {   ref = ScaleRef + (ScaleCount-1);
+            } else if( i >= 0 )
+            {   ref = ScaleRef + i;
+            } else ref = ScaleRef;
+
+            if( !(ref->col && Shade[ref->shade].refcount) )
+            {   ref->shade = DefineShade(ref->r,ref->g,ref->b);
+                ref->col = Shade2Colour(ref->shade);
+            }
+            Shade[ref->shade].refcount++;
+             AltlColours[ic] = ref->col;
+           }
+	}
+ }
+
+void ScaleColourAttrib( int attr )
 {
     register ShadeRef *ref;
     register int count, attrno, factor;
@@ -1601,7 +1722,7 @@ void ScaleColourAttrib( attr )
     register Group __far *group;
     register Atom __far *ptr;
     register Long temp;
-    register int i;
+    register int i, ic;
 
     if( !Database ) return;
 
@@ -1619,6 +1740,14 @@ void ScaleColourAttrib( attr )
                                    attrno = MaxHetaRes;
                            } 
                            attrno -= (factor-1);
+                           break;
+
+        case(ModelAttr):   factor = MinModel;
+                           attrno = MaxModel-MinModel+1;
+                           break;
+
+        case(AltAttr):     factor = 1;
+                           attrno = AltlDepth;
                            break;
 
         case(ChargeAttr):
@@ -1639,13 +1768,13 @@ void ScaleColourAttrib( attr )
     if( attrno<2 )
     {   MonoColourAttrib(255,255,255);
         return;
-    }
+    } 
 
     ResetColourAttrib();
     ScaleColourMap(attrno);
 
-    switch( attr )
-    {    case(ChainAttr):
+        switch( attr )
+        {    case(ChainAttr):
                  count = 0;
                  for( chain=Database->clist; chain; chain=chain->cnext )
                  {   ref = &(ScaleRef[(count*ScaleCount)/attrno]);
@@ -1689,7 +1818,56 @@ void ScaleColourAttrib( attr )
                      }
                  break;
 
+         case(ModelAttr):
+                 for( chain=Database->clist; chain; chain=chain->cnext )
+                     for( group=chain->glist; group; group=group->gnext )
+                     {   temp = (Long)ScaleCount*(group->model-factor);
+                         i = (int)(temp/attrno);
 
+                         if( i >= ScaleCount )
+                         {   ref = ScaleRef + (ScaleCount-1);
+                         } else if( i >= 0 )
+                         {   ref = ScaleRef + i;
+                         } else ref = ScaleRef;
+
+                         if( !(ref->col && Shade[ref->shade].refcount) )
+                         {   ref->shade = DefineShade(ref->r,ref->g,ref->b);
+                             ref->col = Shade2Colour(ref->shade);
+                         }
+
+                         for( ptr=group->alist; ptr; ptr=ptr->anext )
+                             if( ptr->flag&SelectFlag )
+                             {   Shade[ref->shade].refcount++;
+                                 ptr->col = ref->col;
+                             }
+                     }
+                 break;
+
+
+         case(AltAttr):
+                 ForEachAtom
+                     if( ptr->flag&SelectFlag )
+		     {   if (ptr->altl == '\0' || ptr->altl == ' ') i=0;
+                         else i = (((int)(ptr->altl))&(AltlDepth-1))+1;
+                         i = (int)((Long)ScaleCount*i/attrno);
+
+                         if( i >= ScaleCount )
+                         {   ref = ScaleRef + (ScaleCount-1);
+                         } else if( i >= 0 )
+                         {   ref = ScaleRef + i;
+                         } else ref = ScaleRef;
+
+                         if( !(ref->col && Shade[ref->shade].refcount) )
+                         {   ref->shade = DefineShade(ref->r,ref->g,ref->b);
+                             ref->col = Shade2Colour(ref->shade);
+                         }
+                         Shade[ref->shade].refcount++;
+                         ptr->col = ref->col;
+                     }
+                 break;
+
+
+                 
          case(TempAttr):
                  ForEachAtom
                      if( ptr->flag&SelectFlag )
@@ -1731,14 +1909,22 @@ void ScaleColourAttrib( attr )
                          ptr->col = ref->col;
                      }
                  break;
-    }
+        }
+           
+    /* Now add colours for any alternate conformations used */    
+
+    AddAltlColours();
+    return;      
+
 }
 
 
 
-static int MatchNumber( len, value, mask )
-    int len, value;
-    char *mask;
+/*====================================*/
+/*  Raster3D Color Record Processing  */
+/*====================================*/
+
+static int MatchNumber( int len, int value, char *mask )
 {
     register char digit, template;
     register int result;
@@ -1752,49 +1938,48 @@ static int MatchNumber( len, value, mask )
         {   if( value ) result = False;
         } else if( !MatchChar(template,digit) )
             result = False;
-        value/=10;
+        value /= 10;
     }
-    return( result );
+    return result;
 }
 
 
-void UserMaskAttrib( fields )
-    int fields;
+void UserMaskAttrib( int fields )
 {
     register MaskDesc *mptr;
     register char *temp, *name;
     register int shade, change;
     register int i, rad, match;
-
     register Chain __far *chain;
     register Group __far *group;
     register Atom __far *ptr;
 
-
     if( !Database ) return;
 
     if( !MaskCount )
-    {   if( CommandActive )
-            WriteChar('\n');
+    {   InvalidateCmndLine();
         WriteString("Warning: No user supplied colour records!\n");
-        CommandActive = False;
         return;
     }
 
+    /* Avoid Compiler Warning! */
+    mptr = (MaskDesc*)0;
+    match = False;
+
     change = False;
     ResetColourAttrib();
-    if( fields&MaskColourFlag )
+    if( fields & MaskColourFlag )
         for( i=0; i<MaskCount; i++ )
             MaskShade[i] = -1;
 
-    if( fields&MaskRadiusFlag )
+    if( fields & MaskRadiusFlag )
     {   MaxAtomRadius = 0;
         DrawAtoms = False;
+        DrawStars = False;
     }
 
-
     ForEachAtom
-    if( ptr->flag&SelectFlag )
+    if( ptr->flag & SelectFlag )
     {   for( i=0; i<MaskCount; i++ )
         {   mptr = UserMask+i;
             temp = mptr->mask;
@@ -1820,7 +2005,6 @@ void UserMaskAttrib( fields )
                 if( !MatchChar(temp[12],name[2]) ) match=False;
             }
 
-
             if( match && (mptr->flags&SerNoFlag) )
                 match = MatchNumber(4,ptr->serno,&temp[0]);
             if( match && (mptr->flags&ResNoFlag) )
@@ -1828,7 +2012,7 @@ void UserMaskAttrib( fields )
             if( match ) break;
         }
 
-        if( fields&MaskColourFlag )
+        if( fields & MaskColourFlag )
         {   if( match )
             {   if( MaskShade[i] == -1 )
                 {   MaskShade[i] = DefineShade(mptr->r,mptr->g,mptr->b);
@@ -1843,7 +2027,7 @@ void UserMaskAttrib( fields )
             }
         }
 
-        if( fields&MaskRadiusFlag )
+        if( fields & MaskRadiusFlag )
         {   rad = match? mptr->radius : 375;
             ptr->irad = (int)(Scale*rad);
             ptr->flag |= SphereFlag;
@@ -1853,11 +2037,18 @@ void UserMaskAttrib( fields )
                 MaxAtomRadius = ptr->irad;
             change = True;
         }
-    } else if( ptr->flag&SphereFlag )
-    {   DrawAtoms = True;
+    } else 
+    {   if( ptr->flag & SphereFlag )
+        {   DrawAtoms = True;
         if( ptr->irad>MaxAtomRadius )
             MaxAtomRadius = ptr->irad;
-    }
+        }
+        if( ptr->flag & StarFlag )
+        {   DrawStars = True;
+        if( ptr->irad>MaxAtomRadius )
+            MaxAtomRadius = ptr->irad;
+        }
+     }
 
     if( change )
     {   DrawAtoms = True;
@@ -1868,7 +2059,7 @@ void UserMaskAttrib( fields )
 }
 
 
-void CPKColourAttrib()
+void CPKColourAttrib( void )
 {
     register ShadeRef *ref;
     register Chain __far *chain;
@@ -1880,7 +2071,7 @@ void CPKColourAttrib()
     for( i=0; i<CPKMAX; i++ )
         CPKShade[i].col = 0;
     ResetColourAttrib();
-
+    ScaleColourMap(CPKMAX);
 
     ForEachAtom
         if( ptr->flag&SelectFlag )
@@ -1893,10 +2084,13 @@ void CPKColourAttrib()
             Shade[ref->shade].refcount++;
             ptr->col = ref->col;
         }
+
+    AddAltlColours();
+
 }
 
 
-void AminoColourAttrib()
+void AminoColourAttrib( void )
 {
     register ShadeRef *ref;
     register Chain __far *chain;
@@ -1908,6 +2102,7 @@ void AminoColourAttrib()
     for( i=0; i<13; i++ )
         AminoShade[i].col = 0;
     ResetColourAttrib();
+    ScaleColourMap(13);
 
     ForEachAtom
         if( ptr->flag&SelectFlag )
@@ -1922,10 +2117,13 @@ void AminoColourAttrib()
             Shade[ref->shade].refcount++;
             ptr->col = ref->col;
         }
+
+    AddAltlColours();
+
 }
 
 
-void ShapelyColourAttrib()
+void ShapelyColourAttrib( void )
 {
     register ShadeRef *ref;
     register Chain __far *chain;
@@ -1937,6 +2135,7 @@ void ShapelyColourAttrib()
     for( i=0; i<30; i++ )
         Shapely[i].col = 0;
     ResetColourAttrib();
+    ScaleColourMap(30);
 
     ForEachAtom
         if( ptr->flag&SelectFlag )
@@ -1964,10 +2163,13 @@ void ShapelyColourAttrib()
             Shade[ref->shade].refcount++;
             ptr->col = ref->col;
         }
+
+    AddAltlColours();
+
 }
 
 
-void StructColourAttrib()
+void StructColourAttrib( void )
 {
     register ShadeRef *ref;
     register Chain __far *chain;
@@ -2002,12 +2204,13 @@ void StructColourAttrib()
             Shade[ref->shade].refcount++;
             ptr->col = ref->col;
         }
+
+    AddAltlColours();
+
 }
 
 
-
-int IsCPKColour( ptr )
-    Atom __far *ptr;
+int IsCPKColour( Atom __far *ptr )
 {
     register ShadeRef *cpk;
     register ShadeDesc *col;
@@ -2020,20 +2223,18 @@ int IsCPKColour( ptr )
 }
 
 
-int IsVDWRadius( ptr )
-    Atom __far *ptr;
+int IsVDWRadius( Atom __far *ptr )
 {
     register int rad;
 
     if( ptr->flag & SphereFlag )
     {   rad = ElemVDWRadius( ptr->elemno );
         return( ptr->radius == rad );
-    } else return( False );
+    } else return False;
 }
 
 
-
-void DefaultRepresentation()
+void DefaultRepresentation( void )
 {
     if( Database )
     {   ReDrawFlag |= RFRefresh | RFColour;
@@ -2045,8 +2246,7 @@ void DefaultRepresentation()
 }
 
 
-
-void InitialTransform()
+void InitialTransform( void )
 {
     register Card dist,max;
     register double fdist,fmax;
@@ -2055,7 +2255,6 @@ void InitialTransform()
     register Atom __far *ptr;
     register Card ax, ay, az;
     register Long dx, dy, dz;
-
 
     dx = MaxX-MinX;   OrigCX = (dx>>1)+MinX;
     dy = MaxY-MinY;   OrigCY = (dy>>1)+MinY;
@@ -2102,14 +2301,13 @@ void InitialTransform()
         fmax = (double)max;
     }
 
-
-    WorldRadius = (Card)sqrt(fmax);
+    WorldRadius = ((Card)sqrt(fmax))+750;
     WorldSize = WorldRadius<<1;
-    DScale = 1.0/(WorldSize+1500);
+    DScale = 1.0/WorldSize;
 
     /* Code should match ReSizeScreen() */
     /* MaxZoom*DScale*Range*750 == 252  */
-    MaxZoom = 0.336*(WorldSize+1500)/Range;
+    MaxZoom = 0.336*WorldSize/Range;
     if( MaxZoom < 1.0 )
     {   DScale *= MaxZoom;
         MaxZoom = 1.0;
@@ -2119,7 +2317,7 @@ void InitialTransform()
 }
 
 
-void ReviseInvMatrix()
+void ReviseInvMatrix( void )
 {
     /* The inverse of a rotation matrix
      * is its transpose, and the inverse
@@ -2140,7 +2338,7 @@ void ReviseInvMatrix()
 }
 
 
-void PrepareTransform()
+void PrepareTransform( void )
 {
     register Real theta, temp;
     register Real cost, sint;
@@ -2164,19 +2362,6 @@ void PrepareTransform()
         RotY[2]=cost*y+sint*z;
         RotZ[2]=cost*z-sint*y;
 
-        if( CenX || CenY || CenZ )
-        {   ncost = 1.0-cost;
-            temp =  CenX*(ncost*RotY[0] + sint*RotZ[0]);
-            temp += CenY*(ncost*RotY[1] + sint*RotZ[1]);
-            temp += CenZ*(ncost*RotY[2] + sint*RotZ[2]);
-            temp = DialValue[5] - (Scale*temp)/YRange;
-
-            if( temp < -1.0 )
-            {   DialValue[5] = -1.0;
-            } else if( temp > 1.0 )
-            {   DialValue[5] = 1.0;
-            } else DialValue[5] = temp;
-        }
     }
 
     if( (ReDrawFlag&RFRotateY) && (DialValue[1]!=LastRY) )
@@ -2196,19 +2381,6 @@ void PrepareTransform()
         RotX[2]=cost*x+sint*z;
         RotZ[2]=cost*z-sint*x;
 
-        if( CenX || CenY || CenZ )
-        {   ncost = 1.0-cost;
-            temp =  CenX*(ncost*RotX[0] + sint*RotZ[0]);
-            temp += CenY*(ncost*RotX[1] + sint*RotZ[1]);
-            temp += CenZ*(ncost*RotX[2] + sint*RotZ[2]);
-            temp = DialValue[4] - (Scale*temp)/XRange;
-
-            if( temp < -1.0 )
-            {   DialValue[4] = -1.0;
-            } else if( temp > 1.0 )
-            {   DialValue[4] = 1.0;
-            } else DialValue[4] = temp;
-        }
     }
 
     if( (ReDrawFlag&RFRotateZ) && (DialValue[2]!=LastRZ) )
@@ -2228,36 +2400,11 @@ void PrepareTransform()
         RotX[2]=cost*x-sint*y;
         RotY[2]=cost*y+sint*x;
 
-        if( CenX || CenY || CenZ )
-        {   ncost = 1.0-cost;
-            temp =  CenX*(ncost*RotX[0] - sint*RotY[0]);
-            temp += CenY*(ncost*RotX[1] - sint*RotY[1]);
-            temp += CenZ*(ncost*RotX[2] - sint*RotY[2]);
-            temp = DialValue[4] - (Scale*temp)/XRange;
-
-            if( temp < -1.0 )
-            {   DialValue[4] = -1.0;
-            } else if( temp > 1.0 )
-            {   DialValue[4] = 1.0;
-            } else DialValue[4] = temp;
-
-            ncost = 1.0-cost;
-            temp =  CenX*(ncost*RotY[0] + sint*RotX[0]);
-            temp += CenY*(ncost*RotY[1] + sint*RotX[1]);
-            temp += CenZ*(ncost*RotY[2] + sint*RotX[2]);
-            temp = DialValue[5] - (Scale*temp)/YRange;
-
-            if( temp < -1.0 )
-            {   DialValue[5] = -1.0;
-            } else if( temp > 1.0 )
-            {   DialValue[5] = 1.0;
-            } else DialValue[5] = temp;
-        }
-    }
+   }
 }
 
 
-void ApplyTransform()
+void ApplyTransform( void )
 {
     register int temp;
     register Real x, y, z;
@@ -2269,7 +2416,7 @@ void ApplyTransform()
     register Atom __far *ptr;
 
 
-    if( ReDrawFlag & RFMagnify )
+    if( ReDrawFlag & (RFMagnify | RFZoom) )
     {   if( DialValue[3] <= 0.0 )
         {   Zoom = DialValue[3]+1.0;
             if( Zoom<0.1 ) Zoom=0.1;
@@ -2294,7 +2441,7 @@ void ApplyTransform()
             ShadowTransform();
     }
 
-    if( ReDrawFlag & (RFRotate|RFMagnify) )
+    if( ReDrawFlag & (RFRotate|RFMagnify|RFZoom) )
     {   MatX[0] = Scale*RotX[0]; 
         MatX[1] = Scale*RotX[1];
         MatX[2] = Scale*RotX[2];
@@ -2324,14 +2471,21 @@ void ApplyTransform()
 
     oldx = XOffset;
     oldy = YOffset;
-    XOffset = WRange + (int)(DialValue[4]*XRange);
-    YOffset = HRange + (int)(DialValue[5]*YRange);
-    if( UseStereo ) XOffset /= 2;
 
     /* Zoom dependent Translation! */
     /* XOffset = WRange + (int)(DialValue[4]*ImageSize); */
     /* YOffset = HRange + (int)(DialValue[5]*ImageSize); */
 
+    if( PickMode == PickOrign )
+    {   /* Zoom about Center of Screen */
+        XOffset = WRange + (int)(Zoom*DialValue[4]*XRange);
+        YOffset = HRange + (int)(Zoom*DialValue[5]*YRange);
+    } else
+    {   XOffset = WRange + (int)(DialValue[4]*XRange);
+        YOffset = HRange + (int)(DialValue[5]*YRange);
+    }
+
+    if( UseStereo ) XOffset /= 2;
 
     switch( ReDrawFlag )
     {   case(RFTransX):
@@ -2350,7 +2504,9 @@ void ApplyTransform()
 
         case(RFRotateX):
             ForEachAtom
-            {   x = ptr->xorg; y = ptr->yorg; z = ptr->zorg;
+            {   x = ptr->xorg - CenX; 
+                y = ptr->yorg - CenY; 
+                z = ptr->zorg - CenZ;
                 ptr->y = (int)(x*MatY[0]+y*MatY[1]+z*MatY[2])+YOffset;
                 ptr->z = (int)(x*MatZ[0]+y*MatZ[1]+z*MatZ[2])+ZOffset;
             }
@@ -2358,7 +2514,9 @@ void ApplyTransform()
 
         case(RFRotateY):
             ForEachAtom
-            {   x = ptr->xorg; y = ptr->yorg; z = ptr->zorg;
+            {   x = ptr->xorg - CenX; 
+                y = ptr->yorg - CenY; 
+                z = ptr->zorg - CenZ;
                 ptr->x = (int)(x*MatX[0]+y*MatX[1]+z*MatX[2])+XOffset;
                 ptr->z = (int)(x*MatZ[0]+y*MatZ[1]+z*MatZ[2])+ZOffset;
             }
@@ -2366,7 +2524,9 @@ void ApplyTransform()
 
         case(RFRotateZ):
             ForEachAtom
-            {   x = ptr->xorg; y = ptr->yorg; z = ptr->zorg;
+            {   x = ptr->xorg - CenX; 
+                y = ptr->yorg - CenY; 
+                z = ptr->zorg - CenZ;
                 ptr->x = (int)(x*MatX[0]+y*MatX[1]+z*MatX[2])+XOffset;
                 ptr->y = (int)(x*MatY[0]+y*MatY[1]+z*MatY[2])+YOffset;
             }
@@ -2374,9 +2534,11 @@ void ApplyTransform()
 
         default:
             /* This condition scales atomic radii! */
-            if( DrawAtoms && (ReDrawFlag&RFMagnify) )
+            if( (DrawAtoms || DrawStars) && (ReDrawFlag&(RFMagnify | RFZoom)) )
             {   ForEachAtom 
-                {   x = ptr->xorg; y = ptr->yorg; z = ptr->zorg;
+                {   x = ptr->xorg - CenX; 
+                    y = ptr->yorg - CenY; 
+                    z = ptr->zorg - CenZ;
                     ptr->x = (int)(x*MatX[0]+y*MatX[1]+z*MatX[2])+XOffset;
                     ptr->y = (int)(x*MatY[0]+y*MatY[1]+z*MatY[2])+YOffset;
                     ptr->z = (int)(x*MatZ[0]+y*MatZ[1]+z*MatZ[2])+ZOffset;
@@ -2388,13 +2550,15 @@ void ApplyTransform()
                 }
             } else
                 ForEachAtom 
-                {   x = ptr->xorg; y = ptr->yorg; z = ptr->zorg;
+                {   x = ptr->xorg - CenX; 
+                    y = ptr->yorg - CenY; 
+                    z = ptr->zorg - CenZ;
                     ptr->x = (int)(x*MatX[0]+y*MatX[1]+z*MatX[2])+XOffset;
                     ptr->y = (int)(x*MatY[0]+y*MatY[1]+z*MatY[2])+YOffset;
                     ptr->z = (int)(x*MatZ[0]+y*MatZ[1]+z*MatZ[2])+ZOffset;
                 }
 
-            if( ReDrawFlag & RFMagnify )
+            if( ReDrawFlag & ( RFMagnify | RFZoom ) )
             {   if( DrawBonds )
                     ForEachBond
                         if( bptr->flag&CylinderFlag )
@@ -2423,7 +2587,7 @@ void ApplyTransform()
 }
 
 
-void ResetTransform()
+void ResetTransform( void )
 {
     RotX[0] = 1.0;  RotX[1] = 0.0;  RotX[2] = 0.0;
     RotY[0] = 0.0;  RotY[1] = 1.0;  RotY[2] = 0.0;
@@ -2433,7 +2597,7 @@ void ResetTransform()
 }
 
 
-void InitialiseTransform()
+void InitialiseTransform( void )
 {
     ResetColourMap();
     ResetTransform();
@@ -2441,5 +2605,6 @@ void InitialiseTransform()
     ZoneBoth = True;
     HetaGroups = True;
     Hydrogens = True;
+    MarkAtoms = 0;
 }
 

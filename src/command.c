@@ -1,8 +1,56 @@
+/***************************************************************************
+ *                            RasMol 2.7.1.1                               *
+ *                                                                         *
+ *                                RasMol                                   *
+ *                 Molecular Graphics Visualisation Tool                   *
+ *                            17 January 2001                              *
+ *                                                                         *
+ *                   Based on RasMol 2.6 by Roger Sayle                    *
+ * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
+ *                      Stevenage, Hertfordshire, UK                       *
+ *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
+ *                   Copyright (C) Roger Sayle 1992-1999                   *
+ *                                                                         *
+ *                  and Based on Mods by Arne Mueller                      *
+ *                      Version 2.6x1, May 1998                            *
+ *                   Copyright (C) Arne Mueller 1998                       *
+ *                                                                         *
+ *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
+ *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *                      yaya@bernstein-plus-sons.com                       *
+ *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
+ *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *                                                                         *
+ * Please read the file NOTICE for important notices which apply to this   *
+ * package. If you are not going to make changes to RasMol, you are not    *
+ * only permitted to freely make copies and distribute them, you are       *
+ * encouraged to do so, provided you do the following:                     *
+ *   * 1. Either include the complete documentation, especially the file   *
+ *     NOTICE, with what you distribute or provide a clear indication      *
+ *     where people can get a copy of the documentation; and               *
+ *   * 2. Please give credit where credit is due citing the version and    *
+ *     original authors properly; and                                      *
+ *   * 3. Please do not give anyone the impression that the original       *
+ *     authors are providing a warranty of any kind.                       *
+ *                                                                         *
+ * If you would like to use major pieces of RasMol in some other program,  *
+ * make modifications to RasMol, or in some other way make what a lawyer   *
+ * would call a "derived work", you are not only permitted to do so, you   *
+ * are encouraged to do so. In addition to the things we discussed above,  *
+ * please do the following:                                                *
+ *   * 4. Please explain in your documentation how what you did differs    *
+ *     from this version of RasMol; and                                    *
+ *   * 5. Please make your modified source code available.                 *
+ *                                                                         *
+ * This version of RasMol is not in the public domain, but it is given     *
+ * freely to the community in the hopes of advancing science. If you make  *
+ * changes, please make them in a responsible manner, and please offer us  *
+ * the opportunity to include those changes in future versions of RasMol.  *
+ ***************************************************************************/
+
 /* command.c
- * RasMol2 Molecular Graphics
- * Roger Sayle, August 1995
- * Version 2.6
  */
+
 #include "rasmol.h"
 
 #ifdef IBMPC
@@ -24,6 +72,11 @@
 #endif
 
 #include <string.h>
+#if defined(IBMPC) || defined(VMS) || defined(APPLEMAC)
+#include "string_case.h"
+#else
+#include <strings.h>
+#endif
 #include <ctype.h>
 #include <stdio.h>
 
@@ -38,13 +91,20 @@
 #include "infile.h"
 #include "abstree.h"
 #include "transfor.h"
+#include "cmndline.h"
 #include "render.h"
 #include "repres.h"
 #include "graphics.h"
 #include "pixutils.h"
 #include "outfile.h"
 #include "script.h"
+#include "langsel.h"
 
+
+#if defined(__sun) && !defined(_XOPEN_SOURCE)
+/* SUN doesn't always define popen in stdio! */
+extern FILE *popen( const char*, const char* );
+#endif
 
 /* Macros for commonly used loops */
 #define ForEachAtom  for(chain=Database->clist;chain;chain=chain->cnext) \
@@ -65,50 +125,38 @@
 #endif
 
 
-#define ErrSyntax        0
-#define ErrBigNum        1
-#define ErrBadOpt        2
-#define ErrParam         3
-#define ErrFilNam        4
-#define ErrBadLoad       5
-#define ErrNotNum        6
-#define ErrNotSep        7
-#define ErrNotBrac       8
-#define ErrNoCol         9
-#define ErrColour       10
-#define ErrBadArg       11
-#define ErrBadExpr      12
-#define ErrParen        13
-#define ErrScript       14
-#define ErrFunc         15
-#define ErrSetName      16
-#define ErrBadSet       17
-#define ErrInScrpt      18
-#define ErrOutScrpt     19
+typedef struct {
+        Byte red;
+        Byte grn;
+        Byte blu;
+    } RGBStruct;
 
-
-static char *ErrorMsg[] = {
-        "Invalid command syntax",            /* ErrSyntax   */
-        "Parameter value too large",         /* ErrBigNum   */
-        "Invalid parameter setting",         /* ErrBadOpt   */
-        "Invalid parameter name",            /* ErrParam    */
-        "Filename string expected",          /* ErrFilNam   */
-        "Molecule database loaded",          /* ErrBadLoad  */
-        "Integer value expected",            /* ErrNotNum   */
-        "Comma separator missing",           /* ErrNotSep   */
-        "Close bracket ']' expected",        /* ErrNotBrac  */
-        "No colour specified",               /* ErrNoCol    */
-        "Unknown or incorrect colour",       /* ErrColour   */
-        "Invalid command argument",          /* ErrBadArg   */
-        "Syntax error in expression",        /* ErrBadExpr  */
-        "Close parenthesis ')' expected",    /* ErrParen    */
-        "Script command stack too deep",     /* ErrScript   */
-        "Open parenthesis '(' expected",     /* ErrFunc     */
-        "Invalid or missing atom set name",  /* ErrSetName  */
-        "Not enough memory to define set",   /* ErrBadSet   */
-        "Command disabled in script file",   /* ErrInScrpt  */
-        "Command invalid outside script"     /* ErrOutScrpt */
-    };
+static RGBStruct ColourTable[34] = {
+    {   0,   0,   0 },  /* Black      */
+    {   0,   0, 255 },  /* Blue       */
+    { 175, 214, 255 },  /* BlueTint   */
+    { 175, 117,  89 },  /* Brown      */
+    {   0, 255, 255 },  /* Cyan       */
+    { 255, 156,   0 },  /* Gold       */
+    { 125, 125, 125 },  /* Gray       */
+    {   0, 255,   0 },  /* Green      */
+    {  46, 139,  87 },  /* GreenBlue  */
+    { 152, 255, 179 },  /* GreenTint  */
+    { 255,   0, 101 },  /* HotPink    */
+    { 255,   0, 255 },  /* Magenta    */
+    { 255, 165,   0 },  /* Orange     */
+    { 255, 101, 117 },  /* Pink       */
+    { 255, 171, 187 },  /* PinkTint   */
+    { 160,  32, 240 },  /* Purple     */
+    { 255,   0,   0 },  /* Red        */
+    { 255,  69,   0 },  /* RedOrange  */
+    {   0, 250, 109 },  /* SeaGreen   */
+    {  58, 144, 255 },  /* SkyBlue    */
+    { 238, 130, 238 },  /* Violet     */
+    { 255, 255, 255 },  /* White      */
+    { 255, 255,   0 },  /* Yellow     */
+    { 246, 246, 117 }   /* YellowTint */
+        };
 
 
 typedef struct _HlpEntry {
@@ -134,19 +182,11 @@ static char ResidueChar[29] = {
     };
 
 
-#define STACKSIZE  10
+#define STACKSIZE  32
 static char *NameStack[STACKSIZE];
 static FILE *FileStack[STACKSIZE];
 static int LineStack[STACKSIZE];
-
-#define HISTSIZE    4096
-#define HISTMASK    4095
-static char HistBuff[HISTSIZE];
-static int MinHist,MaxHist;
-static int CurHist;
-
-static char *CurPrompt;
-static int CurPos,MaxPos;
+static char AcceptData[STACKSIZE];
 
 static int TokenLength;
 static Long TokenValue;
@@ -157,205 +197,27 @@ static int CurToken;
 
 
 static int RVal, GVal, BVal;
-static int AllowWrite;
 static int SeqFormat;
 
 
-#ifdef FUNCPROTO
-/* Forward Declarations */
-int ProcessLine();
-int ExecuteCommand();
+/*=======================*/
+/*  Function Prototypes  */
+/*=======================*/
+
+int ExecuteCommand( void );
 int ExecuteIPCCommand( char __huge* );
-#endif
+static int PrefixString( char __far*, char __far* );
+static char __far * xfgets( char __far*, int, FILE __far *);
+static int FetchToken( void );
 
-/* Forward Declarations */
-void InterruptPauseCommand();
-void ResumePauseCommand();
-
-
-static void UpdateLine()
-{
-    register int i;
-
-    for( i=CurPos; i<MaxPos; i++ )
-        WriteChar(CurLine[i]);
-    WriteChar(' ');
-    for( i=MaxPos+1; i>CurPos; i-- )
-        WriteChar(0x08);
-}
-
-static void CopyHistory()
-{
-    register int i;
-
-    for( i=CurPos; i>0; i-- )
-        WriteChar(0x08);
-    for( i=0; i<MaxPos; i++ )
-        WriteChar(' ');
-    WriteChar(0x0D);
-    WriteString(CurPrompt);
-
-    CurPos = 0;
-    if( (i=CurHist) != MaxHist )
-        while( HistBuff[i] )
-        {   CurLine[CurPos++] = HistBuff[i];
-            WriteChar(HistBuff[i]);
-            i = (i+1) & HISTMASK;
-        }
-    CurLine[CurPos] = 0;
-    MaxPos = CurPos;
-}
-
-
-int ProcessCharacter( ch )
-    int ch;
-{
-    register int i;
-
-    if( !ch ) return( False );
-
-    if( IsPaused )
-    {   if( (ch==0x04) || (ch==0x1a) )
-        {   InterruptPauseCommand();
-        } else ResumePauseCommand();
-        return( False );
-    }
-
-    if( (ch>=' ') && (ch<='~') )
-    {   if( MaxPos<MAXLINELEN )
-        {   for( i=MaxPos; i>CurPos; i-- )
-                CurLine[i] = CurLine[i-1];
-            CurLine[CurPos++] = ch;
-            CurLine[++MaxPos] = 0;
-
-            WriteChar(ch);
-            if( CurPos<MaxPos )
-                UpdateLine();
-        } else 
-            WriteChar(0x07);
-        
-    } else
-        switch( ch )
-        {    case( 0x7f ):  /* DEL and ^H */
-             case( 0x08 ):  if( CurPos>0 )
-                            {   for( i=CurPos; i<=MaxPos; i++ )
-                                    CurLine[i-1] = CurLine[i];
-                                CurPos--; MaxPos--;
-                                WriteChar(0x08);
-                                UpdateLine();
-                            }
-                            break;
-
-             case( 0x04 ):  if( CurPos<MaxPos ) /* ^D */
-                            {   for( i=CurPos; i<MaxPos; i++ )
-                                    CurLine[i] = CurLine[i+1];
-                                MaxPos--; UpdateLine();
-                            }
-                            break;
-
-             case( 0x0d ):  /* ^M and ^J */
-             case( 0x0a ):  WriteChar('\n');
-                            if( MaxPos )
-                                for( i=0; i<=MaxPos; i++ )
-                                {    HistBuff[MaxHist] = CurLine[i];
-                                     MaxHist=(MaxHist+1)&HISTMASK;
-                                     if( MaxHist==MinHist )
-                                     {   while( HistBuff[MinHist] )
-                                             MinHist=(MinHist+1)&HISTMASK;
-                                         MinHist=(MinHist+1)&HISTMASK;
-                                     }
-                                }
-                            CommandActive = False;
-                            return( True );
-
-             case( 0x02 ):  if( CurPos>0 )  /* ^B */
-                            {    WriteChar(0x08);
-                                 CurPos--;
-                            }
-                            break;
-
-             case( 0x06 ):  if( CurPos<MaxPos )  /* ^F */
-                                WriteChar(CurLine[CurPos++]);
-                            break;
-
-             case( 0x01 ):  while( CurPos>0 )   /* ^A */
-                            {    WriteChar(0x08);
-                                 CurPos--;
-                            }
-                            break;
-
-             case( 0x05 ):  while( CurPos<MaxPos )  /* ^E */
-                                WriteChar(CurLine[CurPos++]);
-                            break;
-
-             case( 0x0c ):  WriteChar('\n');    /* ^L */
-                            WriteString(CurPrompt);
-                            for( i=0; i<MaxPos; i++ )
-                                WriteChar(CurLine[i]);
-                            for( i=CurPos; i<MaxPos; i++ )
-                                WriteChar(0x08);
-                            break;
-
-             case( 0x10 ):  if( CurHist != MinHist ) /* ^P */
-                            {   CurHist -= 2;
-                                if( CurHist<0 )
-                                    CurHist += HISTSIZE;
-                                while( HistBuff[CurHist] )
-                                    CurHist=CurHist?CurHist-1:HISTMASK;
-                                CurHist = (CurHist+1)&HISTMASK;
-                                CopyHistory();
-                            }
-                            break;
-
-             case( 0x0e ):  if( CurHist != MaxHist ) /* ^N */
-                            {   while( HistBuff[CurHist] )
-                                    CurHist = (CurHist+1)&HISTMASK;
-                                CurHist = (CurHist+1)&HISTMASK;
-                                CopyHistory();
-                            }
-                            break;
-        }
-    return( False );
-}
-
-
-void ResetCommandLine( state )
-     int state;
-{
-    if( state )
-    {   EnableMenus(state==1);
-        switch( CurState=state )
-        {   case(1):   CurPrompt="RasMol> ";            break;
-            case(2):   CurPrompt="PDB file name:";      break;
-            case(3):   CurPrompt="Image file name:";    break;
-            case(4):   CurPrompt="Molecule file name:"; break;
-        }
-    }
-
-    if( CommandActive )
-        WriteChar('\n');
-    CommandActive = True;
-    WriteString(CurPrompt);
-
-    CurHist = MaxHist;
-    CurPos = MaxPos = 0;
-    CurLine[0] = 0;
-}
-
-
-
-static void CommandError( error )
-    register char *error;
+static void CommandError( char *error )
 {
     register char *ptr;
     char buffer[40];
 
     if( TokenPtr )
     {   if( FileDepth > -1 )
-        {   if( CommandActive )
-                WriteChar('\n');
-            CommandActive=False;
-            
+        {   InvalidateCmndLine();
             WriteString(CurLine);
             WriteChar('\n');
         } else WriteString("        ");
@@ -382,16 +244,22 @@ static void CommandError( error )
 
     if( error )
     {   WriteString(error);
-        WriteString("!\n");
+        if (strlen(error)>0 && !(error[strlen(error)-1]=='\n')) {
+          WriteString("\n");
+        }
     }
     CommandActive = False;
     CurToken = 0;
 }
 
 
+
+/*==========================*/
+/*  File Handling Services  */
+/*==========================*/
+
 #ifdef IBMPC
-static char *ProcessFileName( name )
-    char *name;
+static char *ProcessFileName( char *name )
 {
     register char *ptr;
 
@@ -413,8 +281,7 @@ static char *ProcessFileName( name )
 #endif
 
 #ifdef APPLEMAC
-static char *ProcessFileName( name )
-    char *name;
+static char *ProcessFileName( char *name )
 {
     register char *ptr;
 
@@ -434,8 +301,7 @@ static char *ProcessFileName( name )
 #endif
 
 #ifdef VMS 
-static char *ProcessFileName( name )
-    char *name;
+static char *ProcessFileName( char *name )
 {
     register char *ptr;
 
@@ -454,28 +320,25 @@ static char *ProcessFileName( name )
 
 
 #if !defined(IBMPC) && !defined(APPLEMAC) && !defined(VMS)
-static int IsSecure( ch )
-    int ch;
+static int IsSecure( int ch )
 {
     switch( ch )
     {   /* Dangerous characters in UNIX "popen"!  */
         case('<'):  case('>'):  case('('):  case(')'):
         case('{'):  case('}'):  case('['):  case(']'):
         case('\''): case(';'):  case('|'):  case('&'):
-            return( False );
+            return False;
     }
-    return( True );
+    return True;
 }
 
 
-static char *ProcessFileName( name )
-    char *name;
+static char *ProcessFileName( char *name )
 {
     register struct passwd *entry;
     register char *temp;
-    char username[64];
     register char *ptr;
-
+    char username[64];
 
     while( *name==' ' )
         name++;
@@ -515,14 +378,13 @@ static char *ProcessFileName( name )
 #endif
 
 
-#if !defined(IBMPC) && !defined(APPLEMAC) && !defined(VMS)
+#ifdef UNIX
 
 #define MaxFileExt  4
 /* UNIX Compressed Filename extensions! */
 static char *FileExt[MaxFileExt] = { "", ".Z", ".gz", ".z" };
 
-static FILE *OpenDataFile( begin, end )
-    char *begin, *end;
+static FILE *OpenDataFile( char *begin, char *end )
 {
     register char *src, *dst;
     register FILE *fp;
@@ -531,32 +393,36 @@ static FILE *OpenDataFile( begin, end )
     for( i=0; i<MaxFileExt; i++ )
     {   dst = end; src = FileExt[i];
         while( (*dst++ = *src++) );
-        if( (fp=fopen(begin,"r")) )
+        if( (fp=fopen(begin,"rb")) )
             break;
     }
-    fp = fopen(begin,"r");
+    fp = fopen(begin,"rb");
     *end = '\0';
     return fp;
 }
 #else /* !defined(UNIX) */
 
-static FILE *OpenDataFile( begin, end )
-    char *begin, *end;
+static FILE *OpenDataFile( char *begin, char *end )
 {
     register FILE *fp;
 
-    fp = fopen(begin,"r");
+    fp = fopen(begin,"rb");
     return fp;
 }
 #endif
 
 
-int ProcessFile( format, info, fp )
-    int format, info;
-    FILE *fp;
+int ProcessFile( int format, int info, FILE *fp )
 {
     register int done;
+    char __far *temp;
 
+    temp = getenv("RASMOLCIF");
+    if (temp) {
+      UseCIF = 0;
+      if (!strncasecmp(temp,"cif",3)) UseCIF = 1;
+    }
+    DataFileFormat = 0;
     switch( format )
     {   case(FormatPDB):      done = LoadPDBMolecule(fp,False);  break;
         case(FormatNMRPDB):   done = LoadPDBMolecule(fp,True);   break;
@@ -570,6 +436,7 @@ int ProcessFile( format, info, fp )
         case(FormatFDAT):     done = LoadFDATMolecule(fp);       break;
         case(FormatMDL):      done = LoadMDLMolecule(fp);        break;
         case(FormatXYZ):      done = LoadXYZMolecule(fp);        break;
+        case(FormatCIF):      done = LoadCIFMolecule(fp);        break;
 #ifdef CEXIOLIB
         case(FormatCEX):      done = LoadCEXMolecule(fp);        break;
 #endif
@@ -577,18 +444,18 @@ int ProcessFile( format, info, fp )
     }
 
     if( !done )
-    {   return( False );
+    {   return False;
     } else if( !Database )
-        return( True );
-
+        return True;
+    ReviseTitle();
     if( info )
         DescribeMolecule();
-    DataFileFormat = format;
+    if (!DataFileFormat) DataFileFormat = format;
     AdviseUpdate(AdvName);
     AdviseUpdate(AdvClass);
     AdviseUpdate(AdvIdent);
 
-#if !defined(IBMPC) && !defined(APPLEMAC)
+#ifdef X11WIN
     if( Interactive )
        FetchEvent(False);
 #endif
@@ -597,8 +464,8 @@ int ProcessFile( format, info, fp )
     if( CalcBondsFlag )
     {   if( Info.bondcount < (MainAtomCount+HetaAtomCount)-Info.chaincount )
         {   if( MainAtomCount+HetaAtomCount > 255 )
-            {   CreateMoleculeBonds(info,False);
-            } else CreateMoleculeBonds(info,True);
+            {   CreateMoleculeBonds(info,False,False);
+            } else CreateMoleculeBonds(info,True,False);
         }
     }
 
@@ -606,20 +473,24 @@ int ProcessFile( format, info, fp )
     if( Info.hbondcount > 0 )
         SetHBondStatus(True,True,0);
 
+    /* Explicit SSbonds!        */
+    if (Info.ssbondcount > 0 ) {
+      SetHBondStatus(False,True,0);
+      SSBondMode = True;
+    }
+
     InitialTransform();
 
     VoxelsClean = False;
     ApplyTransform();
-    return( True );
+    return True;
 }
 
 
-int FetchFile( format, info, name )
-    int format, info;
-    char *name;
+int FetchFile( int format, int info, char *name )
 {
 #ifndef APPLEMAC
-#if !defined(IBMPC) && !defined(VMS)
+#ifdef UNIX
     register int comp;
 #endif /* UNIX */
     register char *src,*dst;
@@ -657,6 +528,7 @@ int FetchFile( format, info, name )
             case(FormatAlchemy): src = (char*)getenv("RASMOLMOLPATH");  break;
             case(FormatMDL):     src = (char*)getenv("RASMOLMDLPATH");  break;
             case(FormatXYZ):     src = (char*)getenv("RASMOLXYZPATH");  break;
+            case(FormatCIF):     src = (char*)getenv("RASMOLCIFPATH");  break;
             default:             src = NULL;
         }
 
@@ -695,18 +567,24 @@ int FetchFile( format, info, name )
 #endif /* APPLEMAC */
 
 
+#ifdef CEXIOLIB
+    if( !fp && (format==FormatCEX) )
+    {   if( ProcessFile(format,info,fp) )
+            return True;
+    }
+#endif
+
     if( !fp )
     {   *name = '\0';
-        if( CommandActive )
-            WriteChar('\n');
-        WriteString("Error: File '");
+        InvalidateCmndLine();
+        WriteString(MsgStrs[StrErrFile]);
         WriteString(DataFileName);
-        WriteString("' not found!\n\n");
+        WriteString(MsgStrs[StrNotFnd]);
         CommandActive=False;
-        return( False );
+        return False;
     }
 
-#if !defined(IBMPC) && !defined(VMS) && !defined(APPLEMAC)
+#ifdef UNIX
     done = getc(fp);
     if( done == 0x1f )
     {   done = getc(fp);
@@ -721,20 +599,17 @@ int FetchFile( format, info, name )
             sprintf(buffer,"trap \"\" 13; gzip -cdq %s 2> /dev/null\n",
                                                           DataFileName);
         } else /* bad magic number! */
-        {   if( CommandActive )
-                WriteChar('\n');
-            WriteString("Error: Unrecognised compression format!\n\n");
-            CommandActive=False;
-            return( False );
+        {   InvalidateCmndLine();
+            WriteString(MsgStrs[StrCFmt]);
+            return False;
         }
    
         comp = True;
-        if( !(fp=popen(buffer,"r")) )
-        {   if( CommandActive )
-                WriteChar('\n');
-            WriteString("Error: Unable to decompress file!\n\n");
-            CommandActive=False;
-            return( False );
+        fp = popen(buffer,"r");
+        if( !fp )
+        {   InvalidateCmndLine();
+            WriteString(MsgStrs[StrDcmp]);
+            return False;
         }
     } else /* Uncompressed! */
     {   ungetc(done,fp);
@@ -744,49 +619,100 @@ int FetchFile( format, info, name )
 
     done = ProcessFile(format,info,fp);
 
-#if !defined(IBMPC) && !defined(VMS) && !defined(APPLEMAC)
+#ifdef UNIX
     if( comp )
     {   if( pclose(fp) )
-        {   if( CommandActive )
-                WriteChar('\n');
-            WriteString("Error: Unable to decompress file!\n\n");
-            CommandActive=False;
-            return(False);
+        {   InvalidateCmndLine();
+            WriteString(MsgStrs[StrDcmp]);
+            return False;
         }
     } else fclose(fp);
 #else /* !defined(UNIX) */
     fclose(fp);
 #endif
-    return( done );
+    return done;
 }
 
 
-void LoadScriptFile( fp, name )
-    FILE *fp;  char *name;
+int DivertToData( int format, int info )
+{
+    register char *ptr;
+    register int ch,len,done;
+    register Long pos;
+    FILE *fp;
+
+    fp = FileStack[FileDepth];
+    pos = ftell(fp);
+      do {
+          len = 0;
+          ch = getc(fp);
+          while( (ch!='\n') && (ch!='\r') &&  (ch!=EOF) )
+          {   if( len<MAXBUFFLEN )
+                  CurLine[len++] = ch;
+              ch = getc(fp);
+          }
+
+          if( ch == '\r' )
+          {   ch = getc(fp);
+              if( ch != '\n' )
+                  ungetc(ch,fp);
+          }
+
+          if( len<MAXBUFFLEN )
+          {   CurLine[len] = '\0';
+              TokenPtr = CurLine;
+              if( FetchToken() ) {
+                if ( CurToken == QuitTok || CurToken == ExitTok ) {
+                  done = ProcessFile( format, info, fp );
+                  fseek(fp,pos,SEEK_SET);
+                  strcpy (Info.filename,"inline");
+                  return done;
+                } else {
+                  if ( CurToken == HeaderTok || CurToken == CIFDataTok ) {
+                    Recycle = &CurLine[0];
+                    AcceptData[FileDepth] = 'N';
+                    done = ProcessFile( format, info, fp );
+                    fseek(fp,pos,SEEK_SET);
+                    strcpy (Info.filename,"inline");
+                    return done;
+                  }
+                }
+              }
+          } else CommandError(MsgStrs[StrSLong]);
+      } while( ch!=EOF );
+   return False;
+}
+
+
+void LoadScriptFile( FILE *fp,  char *name )
 {
     register char *ptr;
     register int ch,len;
     register int stat;
 
     if( fp )
-    {   len = 1;
-        for( ptr=name; *ptr; ptr++ )
-            len++;
-
-        FileDepth++;
-        ptr = (char*)malloc( len );
+    {   FileDepth++;
+        len = strlen(name)+1;
+        ptr = (char*)malloc(len);
+        memcpy(ptr,name,len);
         NameStack[FileDepth] = ptr;
-        while( (*ptr++ = *name++) );
         FileStack[FileDepth] = fp;
         LineStack[FileDepth] = 0;
+        AcceptData[FileDepth] = 'Y';
 
         do {
             len = 0;
             ch = getc(fp);
-            while( (ch!='\n') && (ch!=EOF) )
+            while( (ch!='\n') && (ch!='\r') &&  (ch!=EOF) )
             {   if( len<MAXBUFFLEN )
                     CurLine[len++] = ch;
                 ch = getc(fp);
+            }
+
+            if( ch == '\r' )
+            {   ch = getc(fp);
+                if( ch != '\n' )
+                    ungetc(ch,fp);
             }
 
             LineStack[FileDepth]++;
@@ -806,42 +732,66 @@ void LoadScriptFile( fp, name )
                 } else if( IsPaused )
                     return;
 
-            } else CommandError("Script command line too long");
+            } else CommandError(MsgStrs[StrSLong]);
         } while( ch!=EOF );
         free(NameStack[FileDepth]);
         fclose( fp );
         FileDepth--;
     } else
     {   CommandError( (char*)NULL );
-        WriteString("Cannot open script file '");
+        WriteString(MsgStrs[StrSFile]);
         WriteString(name);  WriteString("'\n");
     }
 }
 
-#ifdef FUNCPROTO
-/* Function Prototypes */
-static int PrefixString( char __far*, char __far* );
-#endif
 
 
-static int PrefixString( str1, str2 )
-    register char __far *str1, __far *str2;
+/*====================================*/
+/*  Command Line On-Line Help System  */
+/*====================================*/
+
+static int PrefixString( char __far *str1, char  __far *str2 )
 {
-    while( *str1 == *str2++ )
-        if( *str1++ == '\0' )
-            return( True );
-    return( *str1 == '\0' );
+    while( *str1 )
+        if( *str1++ != *str2++ )
+            return False;
+    return True;
+}
+
+static char __far *xfgets( char __far* s, int n,  FILE __far *fp )
+{
+    register int i;
+    register int c;
+    register char __far *cs;
+    cs = s;
+    c = '\0';
+    for (i = 0; i < n-1; i++)
+    {
+      if ((c = fgetc(fp)) == EOF)
+      {
+        *cs++ = '\0';
+        return NULL;
+      }
+      if (c == '\r' || c == '\n' || c == '\0') break;
+      *cs++ = c;
+    }
+    if (c == '\r') {
+      c = getc(fp);
+      if ( c != '\n' ) ungetc(c,fp);
+    }
+    *cs++ = '\n';
+    *cs++ = '\0';
+    return s;             
 }
 
 
-static HlpEntry __far *EnterHelpInfo( text )
-    register char *text;
+
+static HlpEntry __far *EnterHelpInfo( char *text )
 {
     register HlpEntry __far * __far *tmp;
     register HlpEntry __far *ptr;
     register int res,len,i;
     register char ch;
-
     char keyword[32];
 
     ptr = (void __far*)0;
@@ -876,7 +826,7 @@ static HlpEntry __far *EnterHelpInfo( text )
         {   if( !FreeInfo )
             {   ptr = (HlpEntry __far*)_fmalloc(HelpPool*sizeof(HlpEntry));
                 if( !ptr ) 
-                    RasMolFatalExit("Command Error: Insufficient memory!");
+                    RasMolFatalExit(MsgStrs[StrSMem]);
                 for( i=1; i<HelpPool; i++ )
                 {   ptr->next = FreeInfo;
                     FreeInfo = ptr++;
@@ -896,35 +846,36 @@ static HlpEntry __far *EnterHelpInfo( text )
             *tmp = ptr;
         }
     }
-    return( ptr );
+    return ptr;
 }
 
-static void InitHelpFile()
+
+void InitHelpFile( void )
 {
     register char *src,*dst;
     register HlpEntry __far *fix;
     register HlpEntry __far *ptr;
     register FILE *fp;
     register Long pos;
-
     char buffer[82];
 
-
     HelpFileName = "rasmol.hlp";
-    fp=fopen(HelpFileName,"r");
+    fp=fopen(HelpFileName,"rb");
 
-    if( !fp && (src=(char*)getenv("RASMOLPATH")) )
-    {   HelpFileName = dst = HelpFileBuf; 
-        while( *src )
-            *dst++ = *src++;
+    if( !fp )
+    {   src = (char*)getenv("RASMOLPATH");
+        if( src )
+        {   HelpFileName = dst = HelpFileBuf; 
+            while( *src )
+                *dst++ = *src++;
 #ifndef VMS
         if( (dst!=HelpFileBuf) && (*(dst-1)!=DirChar) )
             *dst++ = DirChar;
 #endif
 
-        src = "rasmol.hlp"; 
-        while( (*dst++ = *src++) );
-        fp = fopen(HelpFileName,"r");
+            strcpy(dst,"rasmol.hlp");
+            fp = fopen(HelpFileName,"rb");
+        }
     }
 
 #ifdef RASMOLDIR
@@ -940,32 +891,30 @@ static void InitHelpFile()
 
         src = "rasmol.hlp"; 
         while( (*dst++ = *src++) );
-        fp = fopen(HelpFileName,"r");
+        fp = fopen(HelpFileName,"rb");
     }
 #endif
 
     if( !fp )
-    {   if( CommandActive )
-            WriteChar('\n');
-        CommandActive = False;
-        
-        WriteString("Unable to find RasMol help file!\n");
+    {   InvalidateCmndLine();
+        WriteString(MsgStrs[StrHFil]);
         HelpFileName = NULL;
         return;
     }
 
     pos = 0;
-    fgets(buffer,80,fp);
+    xfgets(buffer,80,fp);
     while( !feof(fp) )
     {    fix = (void __far*)0;
          while( *buffer=='?' )
-         {   if( (ptr = EnterHelpInfo(buffer+1)) )
+         {   ptr = EnterHelpInfo(buffer+1);
+             if( ptr )
              {   ptr->info = fix;
                  fix = ptr;
              }
 
              pos = ftell(fp);
-             if( !fgets(buffer,80,fp) )
+             if( !xfgets(buffer,80,fp) )
                  break;
          }
 
@@ -976,14 +925,15 @@ static void InitHelpFile()
              fix = ptr;
          }
 
-         while( fgets(buffer,80,fp) )
+         while( xfgets(buffer,80,fp) )
              if( *buffer=='?' )
                  break;
     }
     fclose(fp);
 }
 
-static void FindHelpInfo()
+
+static void FindHelpInfo( void )
 {
     register HlpEntry __far * __far *tmp;
     register HlpEntry __far *ptr;
@@ -991,7 +941,6 @@ static void FindHelpInfo()
     register Long pos;
     register FILE *fp;
     register char ch;
-
     char keyword[32];
     char buffer[82];
 
@@ -1021,9 +970,8 @@ static void FindHelpInfo()
                     {   ptr = *tmp;
                         if( ptr->next && 
                             PrefixString(keyword,ptr->next->keyword) )
-                        {   if( CommandActive ) WriteChar('\n');
-                            WriteString("Ambiguous help topic requested!\n");
-                            CommandActive = False;
+                        {   InvalidateCmndLine();
+                            WriteString(MsgStrs[StrHTop]);
                             return;
                         } else break;
                     } else break;
@@ -1039,24 +987,20 @@ static void FindHelpInfo()
         } while( *TokenPtr && ptr );
 
         if( !ptr || !ptr->fpos )
-        {   if( CommandActive )
-                WriteChar('\n');
-            WriteString("No available help on requested topic!\n");
-            CommandActive=False;
+        {   InvalidateCmndLine();
+            WriteString(MsgStrs[StrHNone]);
             return;
         } else pos=ptr->fpos;
     } else pos=0;
 
 
-    if( !(fp=fopen(HelpFileName,"r")) )
-        RasMolFatalExit("Command Error: Unable to reopen help file!");
+    if( !(fp=fopen(HelpFileName,"rb")) )
+        RasMolFatalExit(MsgStrs[StrHROpn]);
 
-    if( CommandActive )
-        WriteChar('\n');
-    CommandActive = False;
+    InvalidateCmndLine();
 
-    fseek(fp,pos,0);
-    while( fgets(buffer,80,fp) )
+    fseek(fp,pos,SEEK_SET);
+    while( xfgets(buffer,80,fp) )
         if( *buffer!='?' )
         {   WriteString(buffer);
         } else break;
@@ -1064,44 +1008,25 @@ static void FindHelpInfo()
 }
 
 
-static int LookUpKeyword()
-{
-    register int mid,res;
-    register int lo, hi;
 
-    if( TokenLength>MAXKEYLEN )
-        return( IdentTok );
+/*=================================*/
+/*  Command Line Lexical Analysis  */
+/*=================================*/
 
-    lo = KeyLen[TokenLength-1];
-    hi = KeyLen[TokenLength]-1;
-
-    while( hi>=lo )
-    {   mid = (hi+lo)>>1;
-        res = _fstrcmp(TokenIdent,Keyword[mid].ident);
-        if( !res ) return( Keyword[mid].token );
-
-        if( res>0 )
-        {      lo = mid+1;
-        } else hi = mid-1;
-    }
-    return( IdentTok );
-}
-
-
-static int FetchToken()
+static int FetchToken( void )
 {
     register char ch;
 
     CurToken = 0;
-    while( True )
-    {    ch = *TokenPtr++;
-         if( !ch || (ch=='#') ) 
-             return(0);
-         if( isspace(ch) )
-             continue;
+    ch = *TokenPtr++;
+    while( ch && (ch!='#') )
+    {   if( isspace(ch) )
+        {   ch = *TokenPtr++;
+            continue;
+        }
 
-         TokenStart = TokenPtr-1;
-         if( isalpha(ch) )
+        TokenStart = TokenPtr-1;
+        if( isalpha(ch) )
          {   TokenLength = 1;
              *TokenIdent = ToUpper(ch);
              while( IsIdentChar(*TokenPtr) && (TokenLength<32) )
@@ -1109,10 +1034,10 @@ static int FetchToken()
                  TokenIdent[TokenLength++] = ToUpper(ch);
              }
              if( TokenLength==32 )
-             {   CommandError("Identifier too long");
+             {   CommandError(MsgStrs[StrILong]);
                  return(0);
              } else TokenIdent[TokenLength] = '\0';
-             return( CurToken = LookUpKeyword() );
+             return( CurToken = LookUpKeyword(TokenIdent) );
 
          } else if( isdigit(ch) )
          {   TokenValue = ch-'0';
@@ -1127,8 +1052,8 @@ static int FetchToken()
 
              if( ch != *TokenPtr )
              {   if( *TokenPtr )
-                 {   CommandError("String constant unterminated");
-                 } else CommandError("String constant too long");
+                 {   CommandError(MsgStrs[StrCTerm]);
+                 } else CommandError(MsgStrs[StrCLong]);
                  return( 0 );
              } else TokenPtr++;
 
@@ -1136,28 +1061,30 @@ static int FetchToken()
              return( CurToken = StringTok );
          } else if( ispunct(ch) )
              return( CurToken = ch );
+
+         ch = *TokenPtr++;
     }
+    TokenPtr--;
+    return 0;
 }
 
 
-static int NextIf( token, error )
-    int token, error;
+static int NextIf( int tok, strflag err )
 {
-    if( FetchToken()!=token )
-    {   CommandError(ErrorMsg[error]);
-        return( True );
-    } else return( False );
+    if( FetchToken() != tok )
+    {   CommandError(MsgStrs[err]);
+        return True;
+    } else return False;
 }
 
 
-static void FetchFloat( value, scale )
-    Long value;  int scale;
+static void FetchFloat( Long value, int scale )
 {
     register int count;
     register int mant;
 
     if( !value && !isdigit(*TokenPtr) )
-    {   CommandError("Invalid floating point number");
+    {   CommandError(MsgStrs[StrFNum]);
         TokenValue = 0;
         return;
     }
@@ -1177,88 +1104,63 @@ static void FetchFloat( value, scale )
 }
 
 
-static int ParseColour()
+static int ParseColour( void )
 {
-    switch( CurToken )
-    {   case(BlueTok):        RVal=0;   GVal=0;   BVal=255; break;
-        case(BlackTok):       RVal=0;   GVal=0;   BVal=0;   break;
-        case(CyanTok):        RVal=0;   GVal=255; BVal=255; break;
-        case(GreenTok):       RVal=0;   GVal=255; BVal=0;   break;
-        case(GreenblueTok):   RVal=46;  GVal=139; BVal=87;  break;
-        case(MagentaTok):     RVal=255; GVal=0;   BVal=255; break;
-        case(OrangeTok):      RVal=255; GVal=165; BVal=0;   break;
-        case(PurpleTok):      RVal=160; GVal=32;  BVal=240; break;
-        case(RedTok):         RVal=255; GVal=0;   BVal=0;   break;
-        case(RedorangeTok):   RVal=255; GVal=69;  BVal=0;   break;
-        case(VioletTok):      RVal=238; GVal=130; BVal=238; break;
-        case(WhiteTok):       RVal=255; GVal=255; BVal=255; break; 
-        case(YellowTok):      RVal=255; GVal=255; BVal=0;   break;
+    register RGBStruct *rgb;
 
-        case('['):    RVal = GVal = BVal = 0;
+    if( IsColourToken(CurToken) )
+    {   rgb = ColourTable + Token2Colour(CurToken);
+        RVal = rgb->red;
+        GVal = rgb->grn;
+        BVal = rgb->blu;
+        return True;
 
-                      if( NextIf(NumberTok,ErrNotNum) ) { return(False);
-                      } else if( TokenValue>255 )
-                      {   CommandError(ErrorMsg[ErrBigNum]); return( False );
-                      } else RVal = (int)TokenValue;
+    } else if( CurToken == '[' )
+    {   RVal = GVal = BVal = 0;
 
-                      if( NextIf(',',ErrNotSep) ) return(False);
-                      if( NextIf(NumberTok,ErrNotNum) ) { return(False);
-                      } else if( TokenValue>255 )
-                      {   CommandError(ErrorMsg[ErrBigNum]); return( False );
-                      } else GVal = (int)TokenValue;
+        if( NextIf(NumberTok,ErrNotNum) ) 
+        {   return False;
+        } else if( TokenValue>255 )
+        {   CommandError(MsgStrs[ErrBigNum]); 
+            return False;
+        } else RVal = (int)TokenValue;
 
-                      if( NextIf(',',ErrNotSep) ) return(False);
-                      if( NextIf(NumberTok,ErrNotNum) ) { return(False);
-                      } else if( TokenValue>255 )
-                      {   CommandError(ErrorMsg[ErrBigNum]); return( False );
-                      } else BVal = (int)TokenValue;
+        if( NextIf(',',ErrNotSep) ) 
+            return False;
 
-                      return( !NextIf(']',ErrNotBrac) );
+        if( NextIf(NumberTok,ErrNotNum) ) 
+        {   return False;
+        } else if( TokenValue>255 )
+        {   CommandError(MsgStrs[ErrBigNum]); 
+            return False;
+        } else GVal = (int)TokenValue;
 
-        case(IdentTok): if( Interactive )
-                        return( LookUpColour(TokenIdent,&RVal,&GVal,&BVal) );
-                      
-        default:  return(False);
-    }
-    return( True );
+        if( NextIf(',',ErrNotSep) ) 
+            return False;
+
+        if( NextIf(NumberTok,ErrNotNum) ) 
+        {   return False;
+        } else if( TokenValue>255 )
+        {   CommandError(MsgStrs[ErrBigNum]);
+            return False;
+        } else BVal = (int)TokenValue;
+
+        return !NextIf(']',ErrNotBrac);
+
+    } else if( !CurToken && (*TokenPtr=='#') )
+    {   RVal = 0;
+        GVal = 0;
+        BVal = 0;
+    
+    } else if( CurToken == IdentTok )
+        if( Interactive )
+            return LookUpColour(TokenIdent,&RVal,&GVal,&BVal);
+
+    return False;
 }
 
 
-static void CentreZoneExpr( expr )
-    Expr *expr;
-{
-    register Real x, y, z;
-    register Long count;
-
-    if( !Database )
-        return;
-
-    count = 0;
-    x = y = z = 0.0;
-    for( QChain=Database->clist; QChain; QChain=QChain->cnext )
-        for( QGroup=QChain->glist; QGroup; QGroup=QGroup->gnext )
-            for( QAtom=QGroup->alist; QAtom; QAtom=QAtom->anext )
-                if( EvaluateExpr(expr) )
-                {   x += (Real)QAtom->xorg;
-                    y += (Real)QAtom->yorg;
-                    z += (Real)QAtom->zorg;
-                    count++;
-                }
-
-    if( count )
-    {   CenX = (Long)(x/count);
-        CenY = (Long)(y/count);
-        CenZ = (Long)(z/count);
-    } else
-    {   if( CommandActive ) WriteChar('\n');
-        WriteString("No Atoms to Centre!\n");
-        CommandActive = False;
-    }
-}
-
-
-static Expr *ParseRange( neg )
-    int neg;
+static Expr *ParseRange( int neg )
 {
     register Expr *tmp1,*tmp2;
     register char ch;
@@ -1275,7 +1177,7 @@ static Expr *ParseRange( neg )
         FetchToken();
 
         if( CurToken != NumberTok )
-        {   CommandError(ErrorMsg[ErrNotNum]);
+        {   CommandError(MsgStrs[ErrNotNum]);
             DeAllocateExpr( tmp1 );
             return( (Expr*)NULL );
         }
@@ -1316,12 +1218,11 @@ static Expr *ParseRange( neg )
         TokenPtr++;
 
     FetchToken();
-    return( tmp1 );
+    return tmp1;
 }
 
 
-static Expr *ParseExpression( level )
-    int level;
+static Expr *ParseExpression( int level )
 {
     register Expr *tmp1,*tmp2;
     register int done, pred;
@@ -1390,6 +1291,10 @@ static Expr *ParseExpression( level )
                                                  FindDisulphideBridges();
                                              pred = PredCystine;     
                                              break;
+                          case(CisBondedTok):if( Info.cisbondcount<0 )
+                                                FindCisBonds();
+		                             pred = PredCisBond;   
+			                     break;		     
                           case(BackboneTok): pred = PredMainChain;   break;
                           case(SelectedTok): pred = PropSelect;      break;
                           default:  pred = PredAbsChr(PredTokOrd(CurToken));
@@ -1411,6 +1316,7 @@ static Expr *ParseExpression( level )
                           case(ElemNoTok):      pred = PropElemNo;  break;
                           case(ResNoTok):       pred = PropResId;   break;
                           case(ModelTok):       pred = PropModel;   break;
+                          case(AltlTok):        pred = PropAltl;    break;
                       }
                       tmp1->lft.val = pred;
 
@@ -1440,7 +1346,7 @@ static Expr *ParseExpression( level )
                           } else tmp1->type |= OpNotEq;
                           FetchToken();
                       } else
-                      {   CommandError(ErrorMsg[ErrBadExpr]);
+                      {   CommandError(MsgStrs[ErrBadExpr]);
                           DeAllocateExpr( tmp1 );
                           return( (Expr*)NULL );
                       }
@@ -1452,7 +1358,7 @@ static Expr *ParseExpression( level )
                       } else neg = False;
 
                       if( CurToken!=NumberTok )
-                      {   CommandError(ErrorMsg[ErrNotNum]);
+                      {   CommandError(MsgStrs[ErrNotNum]);
                           DeAllocateExpr( tmp1 );
                           return( (Expr*)NULL );
                       } 
@@ -1469,7 +1375,7 @@ static Expr *ParseExpression( level )
                                         return( (Expr*)NULL );
 
                                     if( CurToken!=')' )
-                                    {   CommandError(ErrorMsg[ErrParen]);
+                                    {   CommandError(MsgStrs[ErrParen]);
                                         DeAllocateExpr( tmp1 );
                                         return( (Expr*)NULL );
                                     }
@@ -1504,12 +1410,12 @@ static Expr *ParseExpression( level )
                                             FetchFloat(TokenValue,250);
                                         }
                                     } else if( CurToken!='.' )
-                                    {   CommandError(ErrorMsg[ErrNotNum]);
+                                    {   CommandError(MsgStrs[ErrNotNum]);
                                         return( (Expr*)NULL );
                                     } else FetchFloat(0,250);
 
                                     if( TokenValue>10000 )
-                                    {   CommandError(ErrorMsg[ErrBigNum]);
+                                    {   CommandError(MsgStrs[ErrBigNum]);
                                         return( (Expr*)NULL );
                                     } else pred = (int)TokenValue;
                                     if( NextIf(',',ErrNotSep) )
@@ -1520,7 +1426,7 @@ static Expr *ParseExpression( level )
                                         return( (Expr*)NULL );
 
                                     if( CurToken!=')' )
-                                    {   CommandError(ErrorMsg[ErrParen]);
+                                    {   CommandError(MsgStrs[ErrParen]);
                                         DeAllocateExpr( tmp1 );
                                         return( (Expr*)NULL );
                                     }
@@ -1552,18 +1458,299 @@ static Expr *ParseExpression( level )
                                     FetchToken();
 
                                     if( !done )
-                                    {   CommandError(ErrorMsg[ErrBadExpr]);
+                                    {   CommandError(MsgStrs[ErrBadExpr]);
                                         DeAllocateExpr( QueryExpr );
                                         return( (Expr*)NULL );
                                     } else return( QueryExpr );
                   }
     }
-    return( (Expr*)NULL );
+    return (Expr*)NULL;
 }
 
-static void ExecuteSetCommand()
+
+
+/*======================================*/
+/*  RasMol Command Parsing & Execution  */
+/*  Commands listed alphabetically      */
+/*======================================*/
+
+static void ExecuteAxesCommand( void )
+{
+    FetchToken();
+    if( !CurToken || (CurToken==FalseTok) )
+    {   ReDrawFlag |= RFRefresh;
+        DrawAxes = False;
+    } else if( CurToken == TrueTok )
+    {   ReDrawFlag |= RFRefresh;
+        DrawAxes = True;
+    } else CommandError(MsgStrs[ErrBadOpt]);
+}
+
+
+static void ExecuteBoundBoxCommand( void )
+{
+    FetchToken();
+    if( !CurToken || (CurToken==FalseTok) )
+    {   ReDrawFlag |= RFRefresh;
+        DrawBoundBox = False;
+    } else if( CurToken == TrueTok )
+    {   ReDrawFlag |= RFRefresh;
+        DrawBoundBox = True;
+    } else CommandError(MsgStrs[ErrBadOpt]);
+}
+
+
+static void ExecuteCentreCommand( void )
+{
+    register Real x, y, z;
+    register Long count;
+
+    FetchToken();
+    if( !CurToken || (CurToken==AllTok) )
+    {   CenX = CenY = CenZ = 0;
+        ReDrawFlag |= RFRotate;
+        return;
+    }
+    
+    /* Check for Centre [CenX, CenY, CenZ] syntax */
+
+    if ( CurToken == '[' )
+    {   Long CenV[3];
+        int icen, negcen;
+
+        for (icen = 0; icen < 3; icen++)
+	{ FetchToken();
+          CenV[icen] = 0;
+          if( CurToken == '-' )
+	  {  FetchToken();
+             negcen = True;
+          } else negcen = False;
+          if( CurToken == NumberTok )
+	  {  if (negcen )
+	     { CenV[icen] = -TokenValue;
+             } else CenV[icen] = TokenValue;
+             FetchToken();
+          } 
+          if( !(CurToken == ',' && icen < 2) && 
+              !(CurToken == ']' && icen == 2 ))
+          {   CommandError(MsgStrs[ErrSyntax]);
+              return;
+          }
+        }
+
+        CenX = CenV[0];
+#ifdef INVERT
+        CenY = -CenV[1];
+#else
+        CenY = CenV[1];
+#endif
+        CenZ = -CenV[2];
+        ReDrawFlag |= RFRotate;
+        return;
+    }
+ 
+    QueryExpr = ParseExpression(0);
+    if( !QueryExpr ) return;
+
+    if( CurToken )
+    {   CommandError(MsgStrs[ErrSyntax]);
+        DeAllocateExpr(QueryExpr);
+        return;
+    }
+
+    /* CentreZoneExpr(QueryExpr); */
+    if( !Database ) return;
+
+    count = 0;
+    x = y = z = 0.0;
+    for( QChain=Database->clist; QChain; QChain=QChain->cnext )
+        for( QGroup=QChain->glist; QGroup; QGroup=QGroup->gnext )
+            for( QAtom=QGroup->alist; QAtom; QAtom=QAtom->anext )
+                if( EvaluateExpr(QueryExpr) )
+                {   x += (Real)QAtom->xorg;
+                    y += (Real)QAtom->yorg;
+                    z += (Real)QAtom->zorg;
+                    count++;
+                }
+
+    if( count )
+    {   CenX = (Long)(x/count);
+        CenY = (Long)(y/count);
+        CenZ = (Long)(z/count);
+        ReDrawFlag |= RFRotate;
+    } else
+    {   InvalidateCmndLine();
+        WriteString(MsgStrs[StrCent]);
+    }
+    DeAllocateExpr(QueryExpr);
+}
+
+
+static void ExecuteClipboardCommand( void )
+{
+    if( !ClipboardImage() )
+    {   InvalidateCmndLine();
+        WriteString(MsgStrs[StrCClip]);
+    }
+}
+
+
+static void ExecuteLoadCommand( void )
+{
+    register int format;
+    register int info;
+    register FILE *fp;
+
+    FetchToken();
+    format = FormatPDB;
+    if( !*TokenPtr || *TokenPtr==' ' )
+    {   if( IsMoleculeToken(CurToken) )
+        {   format = Tok2Format(CurToken);
+            FetchToken();
+        } else if( CurToken == DotsTok )
+        {   format = FormatDots;
+            FetchToken();
+        }
+    }
+
+    if( !CurToken )
+    {   CommandError(MsgStrs[ErrFilNam]);
+        return;
+    }
+
+#ifdef STRICT
+    if( (CurToken!=StringTok) && (CurToken!=IdentTok) )
+    {   CommandError(MsgStrs[ErrFilNam]);
+        return;
+    }
+#endif
+
+    info = (FileDepth == -1);
+    if( IsMoleculeFormat(format) )
+    {   if( Database )
+        {   CommandError(MsgStrs[ErrBadLoad]);
+            return;
+        }
+
+        if( CurToken==InLineTok )
+        {   if( (FileDepth!=-1) && LineStack[FileDepth] )
+  	    { DivertToData( format, info );
+            } else CommandError(MsgStrs[ErrOutScrpt]);
+        } else if( CurToken==StringTok )
+        {      FetchFile(format,info,TokenIdent);
+        } else FetchFile(format,info,TokenStart);
+        DefaultRepresentation();
+    } else /* format == FormatDots */
+    {   if( !Database )
+        {   CommandError(MsgStrs[ErrBadMolDB]);
+            return;
+        }
+
+        if( CurToken==StringTok )
+        {      ProcessFileName(TokenIdent);
+        } else ProcessFileName(TokenStart);
+
+        if( !(fp=fopen(DataFileName,"rb")) )
+        {   CommandError( (char*)NULL );
+            WriteString(MsgStrs[StrDFile]);
+            WriteString(DataFileName);
+            WriteString("'!\n");
+            return;
+        } else
+        {   LoadDotsFile(fp,info);
+            fclose(fp);
+        }
+    }
+    CurToken = 0;
+}
+
+
+static void ExecutePauseCommand( void )
+{
+    if( FileDepth == -1 )
+    {   CommandError(MsgStrs[ErrOutScrpt]);
+        return;
+    }
+
+    /* Ignore Pause Commands via IPC! */
+    if( LineStack[FileDepth] )
+    {   CommandActive = True;
+        IsPaused = True;
+
+#ifdef MSWIN
+        /* Disable Drag & Drop! */
+        DragAcceptFiles(CanvWin,FALSE);
+#endif
+    }
+}
+
+
+static void ExecutePickingCommand( void )
+{
+    switch( FetchToken() )
+    {   case(TrueTok):     case(0):
+        case(IdentifyTok): SetPickMode(PickIdent); break;
+        case(FalseTok):
+        case(NoneTok):     SetPickMode(PickNone);  break;
+        case(LabelTok):    SetPickMode(PickLabel); break;
+        case(DistanceTok): SetPickMode(PickDist);  break;
+        case(AngleTok):    SetPickMode(PickAngle); break;
+        case(TorsionTok):  SetPickMode(PickTorsn); break;
+        case(MonitorTok):  SetPickMode(PickMonit); break;
+        case(CentreTok):   SetPickMode(PickCentr); break;
+        case(OriginTok):   SetPickMode(PickOrign); break;
+        case(CoordTok):    SetPickMode(PickCoord); break;
+        default:           CommandError(MsgStrs[ErrBadOpt]);
+    }
+}
+
+
+static void ExecutePrintCommand( void )
+{
+    if( !PrintImage() )
+    {   InvalidateCmndLine();
+        WriteString(MsgStrs[StrNPrint]);
+    }
+}
+
+
+static void ExecuteTitleCommand( void )
+{
+    FetchToken();
+    if( !CurToken )
+    { char VersionStr[50];
+
+      sprintf (VersionStr,"RasMol Version %s", VERSION);
+      SetCanvasTitle(VersionStr);
+    } else if( CurToken == StringTok )
+    {      SetCanvasTitle(TokenIdent);
+    } else SetCanvasTitle(TokenStart);
+    CurToken = 0;
+}
+
+
+static void ExecuteUnitCellCommand( void )
+{
+    FetchToken();
+    if( !CurToken || (CurToken==FalseTok) )
+    {   ReDrawFlag |= RFRefresh;
+        DrawUnitCell = False;
+    } else if( CurToken == TrueTok )
+    {   ReDrawFlag |= RFRefresh;
+        DrawUnitCell = True;
+    } else CommandError(MsgStrs[ErrBadOpt]);
+}
+
+
+
+/*=======================================*/
+/*  Generic Command Parsing & Execution  */
+/*=======================================*/
+
+static void ExecuteSetCommand( void )
 {
     register int option;
+    char buffer[50];
 
     switch( FetchToken() )
     {   case(SlabTok):
@@ -1585,7 +1772,7 @@ static void ExecuteSetCommand()
             {   if( UseSlabPlane && (SlabMode!=option) )
                     ReDrawFlag |= RFRefresh;
                 SlabMode = option;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         case(ShadowTok):
@@ -1600,7 +1787,7 @@ static void ExecuteSetCommand()
             } else if( CurToken==FalseTok )
             {   ReDrawFlag |= RFRefresh;
                 UseShadow = False;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
                                   
         case(SpecularTok):
@@ -1611,7 +1798,7 @@ static void ExecuteSetCommand()
             } else if( CurToken==FalseTok )
             {   FakeSpecular = False;
                 ReDrawFlag |= RFColour;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         case(SpecPowerTok):
@@ -1624,8 +1811,8 @@ static void ExecuteSetCommand()
                 {   ReDrawFlag |= RFColour;
                     SpecPower = (int)TokenValue;
                 } else 
-                    CommandError(ErrorMsg[ErrBigNum]);
-            } else CommandError(ErrorMsg[ErrNotNum]);
+                    CommandError(MsgStrs[ErrBigNum]);
+            } else CommandError(MsgStrs[ErrNotNum]);
             break;
 
         case(AmbientTok):
@@ -1638,8 +1825,8 @@ static void ExecuteSetCommand()
                 {   Ambient = TokenValue/100.0;
                     ReDrawFlag |= RFColour;
                 } else
-                    CommandError(ErrorMsg[ErrBigNum]); 
-            } else CommandError(ErrorMsg[ErrNotNum]);
+                    CommandError(MsgStrs[ErrBigNum]); 
+            } else CommandError(MsgStrs[ErrNotNum]);
             break;
 
         case(HeteroTok):
@@ -1648,7 +1835,7 @@ static void ExecuteSetCommand()
             {   HetaGroups = True;
             } else if( CurToken==FalseTok )
             {   HetaGroups = False;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
                                   
         case(HydrogenTok):
@@ -1657,15 +1844,13 @@ static void ExecuteSetCommand()
             {   Hydrogens = True;
             } else if( CurToken==FalseTok )
             {   Hydrogens = False;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
                                   
 
         case(BackgroundTok):
             FetchToken();
-            if( !CurToken )
-            {   CommandError(ErrorMsg[ErrNoCol]);
-            } else if( CurToken == TransparentTok )
+            if( CurToken == TransparentTok )
             {   UseTransparent = True;
             } else if( CurToken == NormalTok )
             {   UseTransparent = False;
@@ -1678,7 +1863,8 @@ static void ExecuteSetCommand()
                 FBClear = False;
 #endif
             } else if( CurToken )
-                CommandError(ErrorMsg[ErrColour]);
+            {   CommandError(MsgStrs[ErrColour]);
+            } else CommandError(MsgStrs[ErrNoCol]);
             break;
 
         case(BondModeTok):
@@ -1687,7 +1873,16 @@ static void ExecuteSetCommand()
             {   ZoneBoth = True;
             } else if( CurToken==OrTok )
             {   ZoneBoth = False;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else if( CurToken==AllTok ) 
+            {   MarkAtoms = AllAtomFlag;
+            } else if( CurToken==NoneTok)
+	    {	MarkAtoms = 0;
+            } else if( CurToken==NotTok )
+	    {   FetchToken();
+                if( !CurToken || (CurToken==BondedTok) )
+		{ MarkAtoms = NonBondFlag;
+                } else CommandError(MsgStrs[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
             
         case(HBondTok):
@@ -1698,7 +1893,22 @@ static void ExecuteSetCommand()
             } else if( !CurToken || (CurToken==SidechainTok) )
             {   ReDrawFlag |= RFRefresh;
                 HBondMode = False;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else if( CurToken == ChainTok )
+            {   FetchToken();
+                if( !CurToken || (CurToken==TrueTok) )
+                {   if( !HBondChainsFlag && (Info.hbondcount>=0) )
+                    {   ReDrawFlag |= RFRefresh;
+                        HBondChainsFlag = True;
+                        CalcHydrogenBonds();
+                    }
+                } else if( CurToken == FalseTok )
+                {   if( HBondChainsFlag && (Info.hbondcount>=0) )
+                    {   ReDrawFlag |= RFRefresh;
+                        HBondChainsFlag = False;
+                        CalcHydrogenBonds();
+                    }
+                } else CommandError(MsgStrs[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         case(SSBondTok):
@@ -1709,7 +1919,7 @@ static void ExecuteSetCommand()
             } else if( !CurToken || (CurToken==SidechainTok) )
             {   ReDrawFlag |= RFRefresh;
                 SSBondMode = False;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         case(HourGlassTok):
@@ -1718,7 +1928,7 @@ static void ExecuteSetCommand()
             {   UseHourGlass = True;
             } else if( CurToken==FalseTok )
             {   UseHourGlass = False;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         case(StrandsTok):
@@ -1733,8 +1943,8 @@ static void ExecuteSetCommand()
                 } else if( TokenValue==9 )
                 {   ReDrawFlag |= RFRefresh;
                     SplineCount = 9;
-                } else CommandError(ErrorMsg[ErrBadOpt]);
-            } else CommandError(ErrorMsg[ErrNotNum]);
+                } else CommandError(MsgStrs[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrNotNum]);
             break;
 
         case(MouseTok):
@@ -1748,7 +1958,10 @@ static void ExecuteSetCommand()
             } else if( CurToken==QuantaTok )
             {   if( Interactive )
                     SetMouseMode( MMQuanta );
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else if( CurToken==SybylTok )
+            {   if( Interactive )
+                    SetMouseMode( MMSybyl );
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         case(DisplayTok):
@@ -1760,40 +1973,7 @@ static void ExecuteSetCommand()
             } else if( CurToken==SelectedTok )
             {   ReDrawFlag |= RFRefresh | RFColour;
                 DisplayMode = 1;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
-            break;
-
-        case(AxesTok):
-            FetchToken();
-            if( !CurToken || (CurToken==FalseTok) )
-            {   ReDrawFlag |= RFRefresh;
-                DrawAxes = False;
-            } else if( CurToken == TrueTok )
-            {   ReDrawFlag |= RFRefresh;
-                DrawAxes = True;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
-            break;
-
-        case(BoundBoxTok):
-            FetchToken();
-            if( !CurToken || (CurToken==FalseTok) )
-            {   ReDrawFlag |= RFRefresh;
-                DrawBoundBox = False;
-            } else if( CurToken == TrueTok )
-            {   ReDrawFlag |= RFRefresh;
-                DrawBoundBox = True;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
-            break;
-
-        case(UnitCellTok):
-            FetchToken();
-            if( !CurToken || (CurToken==FalseTok) )
-            {   ReDrawFlag |= RFRefresh;
-                DrawUnitCell = False;
-            } else if( CurToken == TrueTok )
-            {   ReDrawFlag |= RFRefresh;
-                DrawUnitCell = True;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         case(VectPSTok):
@@ -1802,7 +1982,7 @@ static void ExecuteSetCommand()
             {   UseOutLine = False;
             } else if( CurToken == TrueTok )
             {   UseOutLine = True;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         case(KinemageTok):
@@ -1811,7 +1991,7 @@ static void ExecuteSetCommand()
             {   KinemageFlag = False;
             } else if( CurToken == TrueTok )
             {   KinemageFlag = True;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         case(MenusTok):
@@ -1820,7 +2000,7 @@ static void ExecuteSetCommand()
             {   EnableMenus(True);
             } else if( CurToken == FalseTok )
             {   EnableMenus(False);
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         case(RadiusTok):
@@ -1834,15 +2014,15 @@ static void ExecuteSetCommand()
                 }
 
                 if( TokenValue>750 )
-                {   CommandError(ErrorMsg[ErrBigNum]);
+                {   CommandError(MsgStrs[ErrBigNum]);
                 } else ProbeRadius = (int)TokenValue;
             } else if( CurToken=='.' )
             {   FetchFloat(0,250);
                 if( TokenValue>750 )
-                {   CommandError(ErrorMsg[ErrBigNum]);
+                {   CommandError(MsgStrs[ErrBigNum]);
                 } else ProbeRadius = (int)TokenValue;
 
-            } else CommandError(ErrorMsg[ErrNotNum]);
+            } else CommandError(MsgStrs[ErrNotNum]);
             break;
 
         case(SolventTok):
@@ -1853,22 +2033,45 @@ static void ExecuteSetCommand()
             } else if( CurToken == TrueTok )
             {   SolventDots = True;
                 ProbeRadius = 300;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         case(FontSizeTok):
             FetchToken();
             if( CurToken==NumberTok )
-            {   if( TokenValue<=32 )
-                {   if( DrawLabels || (MonitList && DrawMonitDistance) )
-                        ReDrawFlag |= RFRefresh;
-                    SetFontSize((int)TokenValue);
-                } else CommandError(ErrorMsg[ErrBigNum]);
+            {   if( TokenValue<=48 )
+                {   int fsize;
+
+                    fsize = (int)TokenValue;
+                    FetchToken();
+                    if ( !CurToken || CurToken==FSTok )
+		    { SetFontSize(fsize);
+                    } else if ( CurToken ==PSTok ) 
+                    { SetFontSize(-fsize);
+                    } else CommandError(MsgStrs[ErrBadOpt]);
+                } else CommandError(MsgStrs[ErrBigNum]);
             } else if( !CurToken )
-            {   if( DrawLabels )
+            {   SetFontSize(8);
+            } else if (CurToken == FSTok) 
+            {   SetFontSize(abs(FontSize));
+            } else if (CurToken == PSTok)
+	    {   SetFontSize(-abs(FontSize));
+            } else CommandError(MsgStrs[ErrBadOpt]);
+            break;
+
+        case(FontStrokeTok):
+            FetchToken();
+            if( CurToken==NumberTok )
+            {   if( TokenValue<=8 )
+                {   if( LabelList || (MonitList && DrawMonitDistance) )
+                        ReDrawFlag |= RFRefresh;
+                    SetFontStroke((int)TokenValue);
+                } else CommandError(MsgStrs[ErrBigNum]);
+            } else if( !CurToken )
+            {   if( LabelList )
                     ReDrawFlag |= RFRefresh;
-                SetFontSize(8);
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+                SetFontStroke(0);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         case(WriteTok):
@@ -1877,9 +2080,9 @@ static void ExecuteSetCommand()
             {   AllowWrite = False;
             } else if( CurToken == TrueTok )
             {   if( (FileDepth!=-1) && LineStack[FileDepth] )
-                {   CommandError(ErrorMsg[ErrInScrpt]);
+                {   CommandError(MsgStrs[ErrInScrpt]);
                 } else AllowWrite = True;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         case(StereoTok):  
@@ -1904,23 +2107,7 @@ static void ExecuteSetCommand()
             } else if( CurToken==NumberTok )
             {   StereoAngle = TokenValue;
                 SetStereoMode(True);
-            } else CommandError(ErrorMsg[ErrSyntax]);
-            break;
-
-        case(PickingTok):
-            switch( FetchToken() )
-            {   case(TrueTok):     case(0):
-                case(IdentifyTok): SetPickMode(PickIdent); break;
-                case(FalseTok):
-                case(NoneTok):     SetPickMode(PickNone);  break;
-                case(LabelTok):    SetPickMode(PickLabel); break;
-                case(DistanceTok): SetPickMode(PickDist);  break;
-                case(AngleTok):    SetPickMode(PickAngle); break;
-                case(TorsionTok):  SetPickMode(PickTorsn); break;
-                case(MonitorTok):  SetPickMode(PickMonit); break;
-                case(CentreTok):   SetPickMode(PickCentr); break;
-                default:           CommandError(ErrorMsg[ErrBadOpt]);
-            }
+            } else CommandError(MsgStrs[ErrSyntax]);
             break;
 
         case(BondTok):
@@ -1931,7 +2118,7 @@ static void ExecuteSetCommand()
             } else if( CurToken == TrueTok )
             {   ReDrawFlag |= RFRefresh;
                 DrawDoubleBonds = True;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         case(MonitorTok):
@@ -1942,7 +2129,7 @@ static void ExecuteSetCommand()
             } else if( CurToken == FalseTok )
             {   ReDrawFlag |= RFRefresh;
                 DrawMonitDistance = False;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         case(CartoonTok):
@@ -1966,15 +2153,15 @@ static void ExecuteSetCommand()
                 if( TokenValue <= 500 )
                 {   CartoonHeight = (int)TokenValue;
                     ReDrawFlag |= RFRefresh;
-                } else CommandError(ErrorMsg[ErrBigNum]);
+                } else CommandError(MsgStrs[ErrBigNum]);
             } else if( CurToken=='.' )
             {   FetchFloat(0,250);
                 if( TokenValue <= 500 )
                 {   CartoonHeight = (int)TokenValue;
                     ReDrawFlag |= RFRefresh;
-                } else CommandError(ErrorMsg[ErrBigNum]);
+                } else CommandError(MsgStrs[ErrBigNum]);
 
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         case(BackFadeTok):
@@ -1985,7 +2172,7 @@ static void ExecuteSetCommand()
             } else if( CurToken == TrueTok )
             {   ReDrawFlag |= RFColour;
                 UseBackFade = True;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         case(TransparentTok):
@@ -1994,7 +2181,7 @@ static void ExecuteSetCommand()
             {   UseTransparent = False;
             } else if( CurToken == TrueTok )
             {   UseTransparent = True;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         case(DepthCueTok):
@@ -2005,8 +2192,23 @@ static void ExecuteSetCommand()
             } else if( CurToken == TrueTok )
             {   ReDrawFlag |= RFColour;
                 UseDepthCue = True;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
+
+	case(CisAngleTok):
+	   FetchToken();
+	   if( !CurToken )
+	   {   CisBondCutOff = CIS;	     
+	   } else if( CurToken==NumberTok )
+	   {   if( TokenValue<=180 )
+		{    CisBondCutOff = TokenValue;
+		     Info.cisbondcount = -1; /* to recalculate peptide bonds */
+		} else
+		    CommandError(MsgStrs[ErrBigNum]); 
+	   } else CommandError(MsgStrs[ErrNotNum]);
+	   sprintf(buffer,"CisBondCutOff = %d\n", CisBondCutOff);
+	   WriteString( buffer );
+	   break;    
 
         case(SequenceTok):
             FetchToken();
@@ -2014,7 +2216,7 @@ static void ExecuteSetCommand()
             {   SeqFormat = False;
             } else if( CurToken == TrueTok )
             {   SeqFormat = True;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         case(ConnectTok):
@@ -2023,16 +2225,46 @@ static void ExecuteSetCommand()
             {   CalcBondsFlag = True;
             } else if( CurToken == FalseTok )
             {   CalcBondsFlag = False;
-            } else CommandError(ErrorMsg[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
+            break;
+
+        case(AxesTok):     ExecuteAxesCommand();     break;
+        case(BoundBoxTok): ExecuteBoundBoxCommand(); break;
+        case(PickingTok):  ExecutePickingCommand();  break;
+        case(TitleTok):    ExecuteTitleCommand();    break;
+        case(UnitCellTok): ExecuteUnitCellCommand(); break;
+
+        case(DotsTok):
+            if( !CurToken )
+            {   SurfaceChainsFlag = False;
+                SolventDots = False;
+                ProbeRadius = 0;
+            } else if( CurToken == SolventTok )
+            {   FetchToken();
+               if( !CurToken || (CurToken==FalseTok) )
+                {   SolventDots = False;
+                    ProbeRadius = 0;
+                } else if( CurToken == TrueTok )
+                {   SolventDots = True;
+                    ProbeRadius = 300;
+                } else CommandError(MsgStrs[ErrBadOpt]);
+            } else if( CurToken == ChainTok )
+            {   FetchToken();
+                if( !CurToken || (CurToken==TrueTok) )
+                {   SurfaceChainsFlag = True;
+                } else if( CurToken == FalseTok )
+                {   SurfaceChainsFlag = False;
+                } else CommandError(MsgStrs[ErrBadOpt]);
+            } else CommandError(MsgStrs[ErrBadOpt]);
             break;
 
         default:
-            CommandError(ErrorMsg[ErrParam]);
+            CommandError(MsgStrs[ErrParam]);
     }
 }
 
 
-static void ExecuteColourCommand()
+static void ExecuteColourCommand( void )
 {
     register int flag;
 
@@ -2041,9 +2273,7 @@ static void ExecuteColourCommand()
     {   case(AtomTok):
             FetchToken();
         default:
-            if( !CurToken )
-            {   CommandError(ErrorMsg[ErrNoCol]);
-            } else switch( CurToken )
+            switch( CurToken )
             {   case(CPKTok):         CPKColourAttrib(); 
                                       ReDrawFlag |= RFColour; break;
 
@@ -2062,6 +2292,12 @@ static void ExecuteColourCommand()
                 case(ChainTok):       ScaleColourAttrib(ChainAttr);
                                       ReDrawFlag |= RFColour; break;
 
+                case(ModelTok):       ScaleColourAttrib(ModelAttr);
+                                      ReDrawFlag |= RFColour; break;
+
+                case(AltlTok):        ScaleColourAttrib(AltAttr);
+                                      ReDrawFlag |= RFColour; break;
+
                 case(ChargeTok):      ScaleColourAttrib(ChargeAttr);
                                       ReDrawFlag |= RFColour; break;
 
@@ -2074,55 +2310,55 @@ static void ExecuteColourCommand()
                 default:  if( ParseColour() )
                           {   MonoColourAttrib(RVal,GVal,BVal);
                               ReDrawFlag |= RFColour;
-                          } else CommandError(ErrorMsg[ErrColour]);
+                          } else if( CurToken )
+                          {      CommandError(MsgStrs[ErrColour]);
+                          } else CommandError(MsgStrs[ErrNoCol]);
             }
             break;
 
         case(BondTok):    
         case(DashTok):
             FetchToken();
-            if( !CurToken )
-            {   CommandError(ErrorMsg[ErrNoCol]);
-            } else if( CurToken==NoneTok )
+            if( CurToken==NoneTok )
             {   ColourBondNone();
                 ReDrawFlag |= RFColour;
             } else if( ParseColour() )
             {   ColourBondAttrib(RVal,GVal,BVal);
                 ReDrawFlag |= RFColour;
-            } else CommandError(ErrorMsg[ErrColour]);
+            } else if( CurToken )
+            {      CommandError(MsgStrs[ErrColour]);
+            } else CommandError(MsgStrs[ErrNoCol]);
             break;
 
         case(BackboneTok):
             FetchToken();
-            if( !CurToken )
-            {   CommandError(ErrorMsg[ErrNoCol]);
-            } else if( CurToken==NoneTok )
+            if( CurToken==NoneTok )
             {   ColourBackNone();
                 ReDrawFlag |= RFColour;
             } else if( ParseColour() )
             {   ColourBackAttrib(RVal,GVal,BVal);
                 ReDrawFlag |= RFColour;
-            } else CommandError(ErrorMsg[ErrColour]);
+            } else if( CurToken )
+            {      CommandError(MsgStrs[ErrColour]);
+            } else CommandError(MsgStrs[ErrNoCol]);
             break;
 
         case(SSBondTok):
             FetchToken();
-            if( !CurToken )
-            {   CommandError(ErrorMsg[ErrNoCol]);
-            } else if( CurToken==NoneTok )
+            if( CurToken==NoneTok )
             {   ReDrawFlag |= RFColour;
                 ColourHBondNone( False );
             } else if( ParseColour() )
             {   ReDrawFlag |= RFColour;
                 ColourHBondAttrib(False,RVal,GVal,BVal);
-            } else CommandError(ErrorMsg[ErrColour]);
+            } else if( CurToken )
+            {      CommandError(MsgStrs[ErrColour]);
+            } else CommandError(MsgStrs[ErrNoCol]);
             break;
 
         case(HBondTok):
             FetchToken();
-            if( !CurToken )
-            {   CommandError(ErrorMsg[ErrNoCol]);
-            } else if( CurToken==NoneTok )
+            if( CurToken==NoneTok )
             {   ReDrawFlag |= RFColour;
                 ColourHBondNone( True );
             } else if( CurToken==TypeTok )
@@ -2131,58 +2367,60 @@ static void ExecuteColourCommand()
             } else if( ParseColour() )
             {   ReDrawFlag |= RFColour;
                 ColourHBondAttrib(True,RVal,GVal,BVal);
-            } else CommandError(ErrorMsg[ErrColour]);
+            } else if( CurToken )
+            {      CommandError(MsgStrs[ErrColour]);
+            } else CommandError(MsgStrs[ErrNoCol]);
             break;
 
         case(DotsTok):
             FetchToken();
-            if( !CurToken )
-            {   CommandError(ErrorMsg[ErrNoCol]);
-            } else if( CurToken==PotentialTok )
+            if( CurToken==PotentialTok )
             {   ReDrawFlag |= RFColour;
                 ColourDotsPotential();
             } else if( ParseColour() )
             {   ReDrawFlag |= RFColour;
                 ColourDotsAttrib(RVal,GVal,BVal);
-            } else CommandError(ErrorMsg[ErrColour]);
+            } else if( CurToken )
+            {      CommandError(MsgStrs[ErrColour]);
+            } else CommandError(MsgStrs[ErrNoCol]);
             break;
 
         case(MonitorTok):
             FetchToken();
-            if( !CurToken )
-            {   CommandError(ErrorMsg[ErrNoCol]);
-            } else if( CurToken == NoneTok )
+            if( CurToken == NoneTok )
             {   ColourMonitNone();
             } else if( ParseColour() )
             {   ReDrawFlag |= RFColour;
                 ColourMonitAttrib(RVal,GVal,BVal);
-            } else CommandError(ErrorMsg[ErrColour]);
+            } else if( CurToken )
+            {      CommandError(MsgStrs[ErrColour]);
+            } else CommandError(MsgStrs[ErrNoCol]);
             break;
 
         case(AxesTok):
         case(BoundBoxTok):
         case(UnitCellTok):
             FetchToken();
-            if( !CurToken )
-            {   CommandError(ErrorMsg[ErrNoCol]);
-            } else if( ParseColour() )
+            if( ParseColour() )
             {   BoxR = RVal;  BoxG = GVal;  BoxB = BVal;
                 ReDrawFlag |= RFColour;
-            } else CommandError(ErrorMsg[ErrColour]);
+            } else if( CurToken )
+            {      CommandError(MsgStrs[ErrColour]);
+            } else CommandError(MsgStrs[ErrNoCol]);
             break;
 
         case(LabelTok):
             FetchToken();
-            if( !CurToken )
-            {   CommandError(ErrorMsg[ErrNoCol]);
-            } else if( CurToken==NoneTok )
+            if( CurToken==NoneTok )
             {   ReDrawFlag |= RFColour;
                 UseLabelCol = False;
             } else if( ParseColour() )
             {   LabR = RVal;  LabG = GVal;  LabB = BVal;
                 ReDrawFlag |= RFColour;
                 UseLabelCol = True;
-            } else CommandError(ErrorMsg[ErrColour]);
+            } else if( CurToken )
+            {      CommandError(MsgStrs[ErrColour]);
+            } else CommandError(MsgStrs[ErrNoCol]);
             break;
 
         case(TraceTok): 
@@ -2194,39 +2432,148 @@ static void ExecuteColourCommand()
 
     if( flag )
     {   FetchToken();
-        if( !CurToken )
-        {   CommandError(ErrorMsg[ErrNoCol]);
-        } else if( CurToken==NoneTok )
+        if( CurToken==NoneTok )
         {   ReDrawFlag |= RFColour;
             ColourRibbonNone(flag);
         } else if( ParseColour() )
         {   ReDrawFlag |= RFColour;
             ColourRibbonAttrib(flag,RVal,GVal,BVal);
-        } else CommandError(ErrorMsg[ErrColour]);
+        } else if( CurToken )
+        {      CommandError(MsgStrs[ErrColour]);
+        } else CommandError(MsgStrs[ErrNoCol]);
     }
 }
 
 
-static void DescribeSequence()
+/* prints out information about all selected objects to terminal */
+/* example: Describe(ATM) could print output in terms of:        */
+/*          Chain: ?  Group:  ???  ??  Atom:  ???  ????          */
+static void DescribeSelected( Selection type )
+{
+
+  register Chain __far *chain = (Chain __far*)NULL;
+  register Group __far *group = (Group __far*)NULL;
+  register Atom __far *ptr    = (Atom  __far*)NULL;
+  AtomRef current;
+  int touched    ;
+  int Aselect    ;
+  int Acount     ;
+  int Gselect    ;
+  int Gcount     ;
+  int model      ;
+  char buffer[40];
+
+  if(!Database)
+    return;
+    
+  model = -1;
+ 
+  for(chain=Database->clist;chain;chain=chain->cnext){
+    Gselect =  Gcount = 0;
+    touched = False;
+    current.chn = chain;
+    for(group=chain->glist;group;group=group->gnext){
+      Aselect =  Acount = 0;
+      current.grp = group;
+      for(ptr=group->alist;ptr;ptr=ptr->anext) {
+	current.atm = ptr;
+	if( !(ptr->flag&HeteroFlag) || type != CHN) { 
+	  if( ptr->flag&SelectFlag ) {
+	    Aselect++;
+	    touched = True;
+	    if( type == ATM || type == CRD){        /* Atom or Coordinates */
+	      WriteString(DescribeObj(&current, type));
+	      WriteChar('\n');
+	    }
+	  }
+	  Acount++; 
+	}	  	 
+      }     
+      if( Acount == Aselect )
+	  Gselect++;
+      Gcount++;       
+      if( Aselect && (type == GRP || type == CHN)) { 
+        if (!(model == group->model)) {
+          model = group->model;
+          if (model) {
+            sprintf(buffer,"Model: %d\n",model);
+            WriteString(buffer);
+          }
+        }
+      }
+      if( Aselect && type == GRP) {	              /* Group */
+	WriteString(DescribeObj(&current, GRP));
+	sprintf(buffer, "\t(%d/%d)\tatoms\n",Aselect, Acount); 
+        WriteString(buffer);
+      }
+    }
+    if( touched && type == CHN ) {                    /* Chain */      
+      WriteString(DescribeObj(&current, CHN));
+      if( Gselect > 0 ) {
+	    sprintf(buffer,"\t(%d/%d)\tgroups\n",Gselect, Gcount); 	
+        WriteString(buffer);
+	  }
+      else
+	WriteString("\tno group completely selected\n");	
+    }
+  } 
+}  
+
+  
+/* Selection for printing selected atoms || groups || chains to terminal  */
+static void ExecuteSelectedCommand()
+{
+  
+  switch( FetchToken() )
+    {
+    case(AtomTok):
+      DescribeSelected(ATM);
+      break;
+    case(CoordTok):
+      DescribeSelected(CRD);
+      break;
+    case(GroupTok):
+      DescribeSelected(GRP);
+      break;
+    case(ChainTok):
+      DescribeSelected(CHN);
+      break;
+    case(0):
+      DescribeSelected(GRP);  /* default option for show selected is 'group' */
+      break;
+    default:
+      CommandError(MsgStrs[ErrBadArg]);
+    }
+}
+
+
+static void DescribeSequence( void )
 {
     register Chain __far *chn;
     register Group __far *grp;
     register int chain,count;
     register char *str;
     char buffer[40];
+    int  model;
 
-    if( CommandActive )
-        WriteChar('\n');
-    CommandActive = False;
+    InvalidateCmndLine();
     if( !Database )
         return;
 
+    model = -1;
     for( chn=Database->clist; chn; chn=chn->cnext )
     {   chain = (Info.chaincount<2);  count = 0;
         for( grp=chn->glist; grp; grp=grp->gnext )
             if( grp->alist && !(grp->alist->flag&HeteroFlag) )
             {   if( !chain )
-                {   WriteString("Chain ");
+	        {   if (!(model==grp->model)) {
+                      model = grp->model;
+                      if (model) {
+                        sprintf(buffer,"Model: %d  ",model);
+                        WriteString(buffer);
+                      }
+	            }
+                    WriteString("Chain ");
                     WriteChar(chn->ident);
                     WriteString(":\n");
                     chain = True;
@@ -2262,7 +2609,7 @@ static void DescribeSequence()
 }
 
 
-static void ExecuteShowCommand()
+static void ExecuteShowCommand( void )
 {
     register Real temp;
     char buffer[40];
@@ -2276,42 +2623,53 @@ static void ExecuteShowCommand()
                 DescribeSequence();
                 break;
 
+        case(SelectedTok):
+	    ExecuteSelectedCommand();
+	    break;   
+
+        case(PhiPsiTok):
+	    WritePhiPsiAngles(NULL, False);  /* Writing to stderr/stdout */
+	    break;        	 
+        
+        case(RamPrintTok):
+	    WritePhiPsiAngles(NULL, -1);     /* Writing to stderr/stdout */
+	    break;        	 
+        
         case(SymmetryTok):
-                if( CommandActive )
-                    WriteChar('\n');
-                CommandActive = False;
+                InvalidateCmndLine();
 
                 if( *Info.spacegroup )
-                {   sprintf(buffer,"Space Group ...... %s\n",Info.spacegroup);
+                {   sprintf(buffer,"%s ...... %s\n",MsgStrs[StrSGroup],Info.spacegroup);
                     WriteString(buffer);
 
-                    sprintf(buffer,"Unit cell A ...... %g\n",Info.cella);
+                    sprintf(buffer,"%s A ...... %g\n",MsgStrs[StrUCell],Info.cella);
                     WriteString(buffer);
-                    sprintf(buffer,"Unit cell B ...... %g\n",Info.cellb);
+                    sprintf(buffer,"%s B ...... %g\n",MsgStrs[StrUCell],Info.cellb);
                     WriteString(buffer);
-                    sprintf(buffer,"Unit cell C ...... %g\n",Info.cellc);
+                    sprintf(buffer,"%s C ...... %g\n",MsgStrs[StrUCell],Info.cellc);
                     WriteString(buffer);
 
                     temp = Rad2Deg*Info.cellalpha;
-                    sprintf(buffer,"Unit cell alpha .. %g\n",temp);
+                    sprintf(buffer,"%s alpha .. %g\n",MsgStrs[StrUCell],temp);
                     WriteString(buffer);
                     temp = Rad2Deg*Info.cellbeta;
-                    sprintf(buffer,"Unit cell beta ... %g\n",temp);
+                    sprintf(buffer,"%s beta ... %g\n",MsgStrs[StrUCell],temp);
                     WriteString(buffer);
                     temp = Rad2Deg*Info.cellgamma;
-                    sprintf(buffer,"Unit cell gamma .. %g\n",temp);
+                    sprintf(buffer,"%s gamma .. %g\n",MsgStrs[StrUCell],temp);
                     WriteString(buffer);
 
-                } else WriteString("No crystal symmetry data!\n");
+                } else WriteString(MsgStrs[StrSymm]);
                 WriteChar('\n');
                 break;
 
         default:
-            CommandError(ErrorMsg[ErrBadArg]);
+            CommandError(MsgStrs[ErrBadArg]);
     }
 }
 
-void ZapDatabase()
+
+void ZapDatabase( void )
 {
     register int i;
 
@@ -2349,8 +2707,7 @@ void ZapDatabase()
 }
 
 
-static void WriteImageFile( name, type )
-    char *name;  int type;
+static void WriteImageFile( char *name, int type )
 {
     if( !type )
 #ifdef EIGHTBIT
@@ -2358,7 +2715,6 @@ static void WriteImageFile( name, type )
 #else
         type = PPMTok;
 #endif
-
 
     switch( type )
     {   case(GIFTok):     WriteGIFFile(name);             break;
@@ -2377,26 +2733,16 @@ static void WriteImageFile( name, type )
         case(KinemageTok):   WriteKinemageFile(name);   break;
         case(MolScriptTok):  WriteMolScriptFile(name);  break;
         case(POVRayTok):     WritePOVRayFile(name);     break;
+        case(POVRay3Tok):    WritePOVRay3File(name);    break;
+        case(PhiPsiTok):     WritePhiPsiAngles(name, False); break;
+        case(RamachanTok):   WritePhiPsiAngles(name, 1);  break;
+        case(RamPrintTok):   WritePhiPsiAngles(name, -1); break;     
         case(VRMLTok):       WriteVRMLFile(name);       break;
     }
 }
 
 
-void ExecutePauseCommand()
-{
-    /* Ignore Pause Commands via IPC! */
-    if( LineStack[FileDepth] )
-    {   CommandActive = True;
-        IsPaused = True;
-
-#ifdef IBMPC
-        /* Disable Drag & Drop! */
-        DragAcceptFiles(CanvWin,FALSE);
-#endif
-    }
-}
-
-void ResumePauseCommand()
+void ResumePauseCommand( void )
 {
     register int ch,len;
     register FILE *fp;
@@ -2405,7 +2751,7 @@ void ResumePauseCommand()
     CommandActive = False;
     IsPaused = False;
 
-#ifdef IBMPC
+#ifdef MSWIN
     /* Re-enable Drag & Drop! */
     DragAcceptFiles(CanvWin,TRUE);
 #endif
@@ -2437,7 +2783,7 @@ void ResumePauseCommand()
                         break;
                 } else if( IsPaused )
                     return;
-            } else CommandError("Script command line too long");
+            } else CommandError(MsgStrs[StrSLong]);
         } while( ch!=EOF );
         free(NameStack[FileDepth]);
         fclose( fp );
@@ -2446,13 +2792,13 @@ void ResumePauseCommand()
 }
 
 
-void InterruptPauseCommand()
+void InterruptPauseCommand( void )
 {
     WriteString("*** RasMol script interrupted! ***\n\n");
     CommandActive = False;
     IsPaused = False;
 
-#ifdef IBMPC
+#ifdef MSWIN
     /* Re-enable Drag & Drop! */
     DragAcceptFiles(CanvWin,TRUE);
 #endif
@@ -2465,31 +2811,36 @@ void InterruptPauseCommand()
 }
 
 
-
-static void ExecuteConnect( flag )
-    int flag;
+static void ExecuteConnectCommand( void )
 {
     register Bond __far *bptr;
-    register int info;
+    register int info,flag;
+
+    FetchToken();
+    if( !CurToken )
+    {   flag = (MainAtomCount+HetaAtomCount<256);
+    } else if( CurToken == TrueTok )
+    {   flag = True;
+    } else if( CurToken == FalseTok )
+    {   flag = False;
+    } else 
+    {   CommandError(MsgStrs[ErrSyntax]);
+        return;
+    }
 
     if( Database )
     {   ForEachBond
             if( bptr->col )
                 Shade[Colour2Shade(bptr->col)].refcount--;
         info = (FileDepth == -1);
-        CreateMoleculeBonds(info,flag);
+        CreateMoleculeBonds(info,flag,True);
         ReDrawFlag |= RFRefresh|RFColour;
         EnableWireframe(WireFlag,0);
     }
 }
 
-#ifdef IBMPC
-/* Avoid Optimizer Warning */
-#pragma optimize("g",off)
-#endif
 
-
-int ExecuteCommand()
+int ExecuteCommand( void )
 {
     register char *param;
     register int option;
@@ -2500,36 +2851,30 @@ int ExecuteCommand()
     TokenPtr = CurLine;
     if( !FetchToken() )
     {   TokenPtr = NULL;
-        return( False );
+        return False;
     }
 
     switch( CurToken )
-    {   case(LoadTok):    if( !Database )
-                          {   FetchToken();
-                              option = FormatPDB;
-                              if( !*TokenPtr || *TokenPtr==' ' )
-                              {   if( IsMoleculeFormat(CurToken) )
-                                  {   option = Tok2Format(CurToken);
-                                      FetchToken();
-                                  }
-                              }
+    {   case(AxesTok):       ExecuteAxesCommand();       break;
+        case(BoundBoxTok):   ExecuteBoundBoxCommand();   break;
+        case(CentreTok):     ExecuteCentreCommand();     break;
+        case(ClipboardTok):  ExecuteClipboardCommand();  break;
+        case(ColourTok):     ExecuteColourCommand();     break;
+        case(ConnectTok):    ExecuteConnectCommand();    break;
+        case(EnglishTok):    SwitchLang(English);        break;
+        case(LoadTok):       ExecuteLoadCommand();       break;
+        case(WaitTok):       ExecutePauseCommand();      break;
+        case(PickingTok):    ExecutePickingCommand();    break;
+        case(PrintTok):      ExecutePrintCommand();      break;
+        case(SetTok):        ExecuteSetCommand();        break;
+        case(ShowTok):       ExecuteShowCommand();       break;
+        case(SpanishTok):    SwitchLang(Spanish);        break;
+        case(TitleTok):      ExecuteTitleCommand();      break;
+        case(UnitCellTok):   ExecuteUnitCellCommand();   break;
 
-                              done = (FileDepth == -1);
-                              if( !CurToken )
-                              {   CommandError(ErrorMsg[ErrFilNam]);
-                                  break;
-                              } else if( CurToken==InLineTok )
-                              {   if( (FileDepth!=-1) && LineStack[FileDepth] )
-                                  {   param = NameStack[FileDepth];
-                                      FetchFile(option,done,param);
-                                  } else CommandError(ErrorMsg[ErrOutScrpt]);
-                              } else if( CurToken==StringTok )
-                              {      FetchFile(option,done,TokenIdent);
-                              } else FetchFile(option,done,TokenStart);
-                              DefaultRepresentation();
-                              CurToken = 0;
-                          } else CommandError(ErrorMsg[ErrBadLoad]);
-                          break;
+        case(RefreshTok):    RefreshScreen();            break;
+        case(ZapTok):        ZapDatabase();              break;
+ 
 
         case(SelectTok):  FetchToken();
                           if( !CurToken )
@@ -2542,12 +2887,14 @@ int ExecuteCommand()
                           } else if( CurToken==NoneTok )
                           {   SelectZone(0x00);
                           } else
-                              if( (QueryExpr=ParseExpression(0)) )
+                          {   QueryExpr = ParseExpression(0);
+                              if( QueryExpr )
                               {   if( !CurToken )
                                   {   SelectZoneExpr(QueryExpr);
-                                  } else CommandError(ErrorMsg[ErrSyntax]);
+                                  } else CommandError(MsgStrs[ErrSyntax]);
                                   DeAllocateExpr(QueryExpr);
                               }
+                          }
                           break;
 
         case(RestrictTok):
@@ -2565,18 +2912,17 @@ int ExecuteCommand()
                           {   RestrictZone(0x00);
                               ReDrawFlag |= RFRefresh;
                           } else
-                              if( (QueryExpr=ParseExpression(0)) )
+                          {   QueryExpr = ParseExpression(0);
+                              if( QueryExpr )
                               {   if( !CurToken )
                                   {   RestrictZoneExpr(QueryExpr);
                                       ReDrawFlag |= RFRefresh;
-                                  } else CommandError(ErrorMsg[ErrSyntax]);
+                                  } else CommandError(MsgStrs[ErrSyntax]);
                                   DeAllocateExpr(QueryExpr);
-                              } 
+                              }
+                          } 
                           break;
 
-
-        case(ColourTok):  ExecuteColourCommand();
-                          break;
 
 
         case(WireframeTok):
@@ -2600,15 +2946,15 @@ int ExecuteCommand()
                               {   EnableWireframe(CylinderFlag,
                                                   (int)TokenValue);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken=='.' )
                           {   FetchFloat(0,250);
                               if( TokenValue<=500 )
                               {   EnableWireframe(CylinderFlag,
                                                   (int)TokenValue);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
-                          } else CommandError(ErrorMsg[ErrBadArg]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
+                          } else CommandError(MsgStrs[ErrBadArg]);
                           break;
 
         case(BackboneTok):
@@ -2633,15 +2979,15 @@ int ExecuteCommand()
                               {   EnableBackbone(CylinderFlag,
                                                  (int)TokenValue);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken=='.' )
                           {   FetchFloat(0,250);
                               if( TokenValue<=500 )
                               {   EnableBackbone(CylinderFlag,
                                                  (int)TokenValue);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
-                          } else CommandError(ErrorMsg[ErrBadArg]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
+                          } else CommandError(MsgStrs[ErrBadArg]);
                           break;
 
         case(CPKTok):
@@ -2657,25 +3003,61 @@ int ExecuteCommand()
                               }
 
                               if( TokenValue<=750 )
-                              {   SetRadiusValue(MaxFun((int)TokenValue,1));
+                              {   SetRadiusValue(MaxFun((int)TokenValue,1),
+                                    SphereFlag);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken=='.' )
                           {   FetchFloat(0,250);
                               if( TokenValue<=750 )
-                              {   SetRadiusValue(MaxFun((int)TokenValue,1));
+                              {   SetRadiusValue(MaxFun((int)TokenValue,1),
+                                    SphereFlag);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken==UserTok )
                           {   UserMaskAttrib(MaskRadiusFlag);
                               ReDrawFlag |= RFRefresh;
                           } else if( CurToken==TemperatureTok )
                           {   ReDrawFlag |= RFRefresh;
-                              SetRadiusTemperature();
+                              SetRadiusTemperature( SphereFlag );
                           } else if( (CurToken==TrueTok) || !CurToken )
                           {   ReDrawFlag |= RFRefresh;
-                              SetVanWaalRadius();
-                          } else CommandError(ErrorMsg[ErrBadArg]);
+                              SetVanWaalRadius( SphereFlag );
+                          } else CommandError(MsgStrs[ErrBadArg]);
+                          break;
+
+        case(StarTok):
+                          FetchToken();
+                          if( CurToken==FalseTok )
+                          {   ReDrawFlag |= RFRefresh;
+                              DisableSpacefill();
+                          } else if( CurToken==NumberTok )
+                          {   if( *TokenPtr=='.' )
+                              {   TokenPtr++;
+                                  FetchFloat(TokenValue,250);
+                              }
+                              if( TokenValue<=750 )
+                              {   SetRadiusValue(MaxFun((int)TokenValue,1),
+                                    StarFlag);
+                                  ReDrawFlag |= RFRefresh;
+                              } else CommandError(MsgStrs[ErrBigNum]);
+                          } else if( CurToken=='.' )
+                          {   FetchFloat(0,250);
+                              if( TokenValue<=750 )
+                              {   SetRadiusValue(MaxFun((int)TokenValue,1),
+                                    StarFlag);
+                                  ReDrawFlag |= RFRefresh;
+                              } else CommandError(MsgStrs[ErrBigNum]);
+                          } else if( CurToken==UserTok )
+                          {   UserMaskAttrib(MaskRadiusFlag);
+                              ReDrawFlag |= RFRefresh;
+                          } else if( CurToken==TemperatureTok )
+                          {   ReDrawFlag |= RFRefresh;
+                              SetRadiusTemperature( StarFlag );
+                          } else if( (CurToken==TrueTok) || !CurToken )
+                          {   ReDrawFlag |= RFRefresh;
+                              SetVanWaalRadius( StarFlag );
+                          } else CommandError(MsgStrs[ErrBadArg]);
                           break;
 
         case(DashTok):    FetchToken();
@@ -2685,7 +3067,7 @@ int ExecuteCommand()
                           } else if( (CurToken==TrueTok) || !CurToken )
                           {   ReDrawFlag |= RFRefresh;
                               EnableWireframe(DashFlag,0);
-                          } else CommandError(ErrorMsg[ErrBadArg]);
+                          } else CommandError(MsgStrs[ErrBadArg]);
                           break;
 
         case(SSBondTok):  FetchToken();
@@ -2698,20 +3080,20 @@ int ExecuteCommand()
                               if( TokenValue<=500 )
                               {   SetHBondStatus(False,True,(int)TokenValue);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken=='.' )
                           {   FetchFloat(0,250);
                               if( TokenValue<=500 )
                               {   SetHBondStatus(False,True,(int)TokenValue);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken==FalseTok )
                           {   ReDrawFlag |= RFRefresh;
                               SetHBondStatus(False,False,0);
                           } else if( (CurToken==TrueTok) || !CurToken )
                           {   ReDrawFlag |= RFRefresh;
                               SetHBondStatus(False,True,0);
-                          } else CommandError(ErrorMsg[ErrBadArg]);
+                          } else CommandError(MsgStrs[ErrBadArg]);
                           break;
 
         case(HBondTok):   FetchToken();
@@ -2724,20 +3106,20 @@ int ExecuteCommand()
                               if( TokenValue<=500 )
                               {   SetHBondStatus(True,True,(int)TokenValue);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken=='.' )
                           {   FetchFloat(0,250);
                               if( TokenValue<=500 )
                               {   SetHBondStatus(True,True,(int)TokenValue);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken==FalseTok )
                           {   ReDrawFlag |= RFRefresh;
                               SetHBondStatus(True,False,0);
                           } else if( (CurToken==TrueTok) || !CurToken )
                           {   ReDrawFlag |= RFRefresh;
                               SetHBondStatus(True,True,0);
-                          } else CommandError(ErrorMsg[ErrBadArg]);
+                          } else CommandError(MsgStrs[ErrBadArg]);
                           break;
 
         case(RibbonTok):  FetchToken();
@@ -2751,21 +3133,21 @@ int ExecuteCommand()
                               {   SetRibbonStatus(True,RibbonFlag,
                                                   (int)TokenValue);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken=='.' )
                           {   FetchFloat(0,250);
                               if( TokenValue<=1000 )
                               {   SetRibbonStatus(True,RibbonFlag,
                                                   (int)TokenValue);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken==FalseTok )
                           {   ReDrawFlag |= RFRefresh;
                               SetRibbonStatus(False,RibbonFlag,0);
                           } else if( (CurToken==TrueTok) || !CurToken )
                           {   ReDrawFlag |= RFRefresh;
                               SetRibbonStatus(True,RibbonFlag,0);
-                          } else CommandError(ErrorMsg[ErrBadArg]);
+                          } else CommandError(MsgStrs[ErrBadArg]);
                           break;
 
         case(StrandsTok): FetchToken();
@@ -2783,20 +3165,20 @@ int ExecuteCommand()
                               if( TokenValue<=1000 )
                               {   SetRibbonStatus(True,option,(int)TokenValue);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken=='.' )
                           {   FetchFloat(0,250);
                               if( TokenValue<=1000 )
                               {   SetRibbonStatus(True,option,(int)TokenValue);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken==FalseTok )
                           {   ReDrawFlag |= RFRefresh;
                               SetRibbonStatus(False,option,0);
                           } else if( (CurToken==TrueTok) || !CurToken )
                           {   ReDrawFlag |= RFRefresh;
                               SetRibbonStatus(True,option,0);
-                          } else CommandError(ErrorMsg[ErrBadArg]);
+                          } else CommandError(MsgStrs[ErrBadArg]);
                           break;
 
         case(TraceTok):   FetchToken();
@@ -2822,15 +3204,15 @@ int ExecuteCommand()
                               {   SetRibbonStatus(True,TraceFlag,
                                                  (int)TokenValue);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken=='.' )
                           {   FetchFloat(0,250);
                               if( TokenValue<=500 )
                               {   SetRibbonStatus(True,TraceFlag,
                                                  (int)TokenValue);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
-                          } else CommandError(ErrorMsg[ErrBadArg]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
+                          } else CommandError(MsgStrs[ErrBadArg]);
                           break;
 
         case(CartoonTok): FetchToken();
@@ -2844,21 +3226,21 @@ int ExecuteCommand()
                               {   SetRibbonStatus(True,CartoonFlag,
                                                   (int)TokenValue);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken=='.' )
                           {   FetchFloat(0,250);
                               if( TokenValue<=1000 )
                               {   SetRibbonStatus(True,CartoonFlag,
                                                   (int)TokenValue);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken==FalseTok )
                           {   ReDrawFlag |= RFRefresh;
                               SetRibbonStatus(False,CartoonFlag,0);
                           } else if( (CurToken==TrueTok) || !CurToken )
                           {   ReDrawFlag |= RFRefresh;
                               SetRibbonStatus(True,CartoonFlag,0);
-                          } else CommandError(ErrorMsg[ErrBadArg]);
+                          } else CommandError(MsgStrs[ErrBadArg]);
                           break;
 
         case(DotsTok):    FetchToken();
@@ -2868,14 +3250,14 @@ int ExecuteCommand()
                                   {   CalculateSurface((int)TokenValue);
                                   } else CalculateSurface(1);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
                           } else if( CurToken==FalseTok )
                           {   ReDrawFlag |= RFRefresh;
                               DeleteSurface();
                           } else if( (CurToken==TrueTok) || !CurToken )
                           {   ReDrawFlag |= RFRefresh;
                               CalculateSurface(100);
-                          } else CommandError(ErrorMsg[ErrBadArg]);
+                          } else CommandError(MsgStrs[ErrBadArg]);
                           break;
 
         case(MonitorTok): FetchToken();
@@ -2888,11 +3270,11 @@ int ExecuteCommand()
                               if( CurToken == NumberTok )
                               {   CreateMonitor(temp,TokenValue);
                                   ReDrawFlag |= RFRefresh;
-                              } else CommandError(ErrorMsg[ErrNotNum]);
+                              } else CommandError(MsgStrs[ErrNotNum]);
                           } else if( CurToken == FalseTok )
                           {   ReDrawFlag |= RFRefresh;
                               DeleteMonitors();
-                          } else CommandError(ErrorMsg[ErrBadArg]);
+                          } else CommandError(MsgStrs[ErrBadArg]);
                           break;
 
         case(SlabTok):    FetchToken();
@@ -2910,7 +3292,7 @@ int ExecuteCommand()
                                   ReDrawFlag |= RFSlab;
                                   UseSlabPlane = True;
                                   UseShadow = False;
-                              } else CommandError(ErrorMsg[ErrBigNum]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
 
                           } else if( CurToken==FalseTok )
                           {   if( UseSlabPlane )
@@ -2923,7 +3305,7 @@ int ExecuteCommand()
                                   UseSlabPlane = True;
                                   UseShadow = False;
                               }
-                          } else CommandError(ErrorMsg[ErrSyntax]);
+                          } else CommandError(MsgStrs[ErrSyntax]);
                           break;
 
         case(ZoomTok):    FetchToken();
@@ -2945,7 +3327,7 @@ int ExecuteCommand()
                                   if( TokenValue<=temp )
                                   {   DialValue[3] = (Real)TokenValue/temp;
                                       ReDrawFlag |= RFZoom;
-                                  } else CommandError(ErrorMsg[ErrBigNum]);
+                                  } else CommandError(MsgStrs[ErrBigNum]);
                               }
                           } else if( CurToken==TrueTok )
                           {   ReDrawFlag |= RFZoom;
@@ -2953,7 +3335,7 @@ int ExecuteCommand()
                           } else if( !CurToken || (CurToken==FalseTok) )
                           {   ReDrawFlag |= RFZoom;
                               DialValue[3] = 0.0;
-                          } else CommandError(ErrorMsg[ErrSyntax]);
+                          } else CommandError(MsgStrs[ErrSyntax]);
                           /* UpdateScrollBars(); */
                           break;
 
@@ -2965,13 +3347,15 @@ int ExecuteCommand()
                           } else if( CurToken==ZTok )
                           {   option = 2;
                           } else
-                          {   CommandError(ErrorMsg[ErrSyntax]);
+                          {   CommandError(MsgStrs[ErrSyntax]);
                               break;
                           }
 
                           FetchToken();
-                          if( (done=(CurToken=='-')) )
-                              FetchToken();
+                          if( CurToken == '-' )
+                          {   FetchToken();
+                              done = True;
+                          } else done = False;
 #ifdef INVERT
                           if( option != 1 )
                               done = !done;
@@ -2999,7 +3383,7 @@ int ExecuteCommand()
                                   if( Interactive )
                                       UpdateScrollBars();
                               }
-                          } else CommandError(ErrorMsg[ErrNotNum]);
+                          } else CommandError(MsgStrs[ErrNotNum]);
                           break;
 
         case(TranslateTok):
@@ -3011,13 +3395,15 @@ int ExecuteCommand()
                           } else if( CurToken==ZTok )
                           {   option = 6;
                           } else
-                          {   CommandError(ErrorMsg[ErrSyntax]);
+                          {   CommandError(MsgStrs[ErrSyntax]);
                               break;
                           }
 
                           FetchToken();
-                          if( (done=(CurToken=='-')) )
-                              FetchToken();
+                          if( CurToken == '-' )
+                          {   FetchToken();
+                              done = True;
+                          } else done = False;
 #ifdef INVERT
                           if( option == 5 )
                               done = !done;
@@ -3036,8 +3422,8 @@ int ExecuteCommand()
                                   if( done ) TokenValue = -TokenValue;
                                   DialValue[option] = TokenValue/10000.0;
                                   /* UpdateScrollBars(); */
-                              } else CommandError(ErrorMsg[ErrBigNum]);
-                          } else CommandError(ErrorMsg[ErrNotNum]);
+                              } else CommandError(MsgStrs[ErrBigNum]);
+                          } else CommandError(MsgStrs[ErrNotNum]);
                           break;
 
         case(StereoTok):  FetchToken();
@@ -3053,19 +3439,7 @@ int ExecuteCommand()
                           } else if( CurToken==NumberTok )
                           {   StereoAngle = TokenValue;
                               SetStereoMode(True);
-                          } else CommandError(ErrorMsg[ErrSyntax]);
-                          break;
-
-        case(CentreTok):  FetchToken();
-                          if( !CurToken || (CurToken==AllTok) )
-                          {   CenX = CenY = CenZ = 0;
-                          } else
-                              if( (QueryExpr=ParseExpression(0)) )
-                              {   if( !CurToken )
-                                  {   CentreZoneExpr(QueryExpr);
-                                  } else CommandError(ErrorMsg[ErrSyntax]);
-                                  DeAllocateExpr(QueryExpr);
-                              }
+                          } else CommandError(MsgStrs[ErrSyntax]);
                           break;
 
         case(ResizeTok):  FetchToken();
@@ -3091,16 +3465,13 @@ int ExecuteCommand()
                           CurToken=0;
                           break;
 
-        case(SetTok):     ExecuteSetCommand();
-                          break;
-
         case(LabelTok):   FetchToken();
                           if( !CurToken || (CurToken==TrueTok) )
                           {   if( Info.chaincount>1 )
-                              {   DefineLabels("%n%r:%c.%a");
+                              {   DefineLabels("%n%r:%c.%a%A");
                               } else if( MainGroupCount>1 )
-                              {   DefineLabels("%n%r.%a");
-                              } else DefineLabels("%e%i");
+                              {   DefineLabels("%n%r.%a%A");
+                              } else DefineLabels("%e%i%A");
                           } else if( CurToken==FalseTok )
                           {   DeleteLabels();
                           } else if( CurToken!=StringTok )
@@ -3111,10 +3482,7 @@ int ExecuteCommand()
                           break;
 
         case(EchoTok):    FetchToken();
-                          if( CommandActive )
-                              WriteChar('\n');
-                          CommandActive = False;
-
+                          InvalidateCmndLine();
                           if( CurToken==StringTok )
                           {   WriteString(TokenIdent);
                           } else if( CurToken )
@@ -3123,37 +3491,30 @@ int ExecuteCommand()
                           CurToken = 0;
                           break;
 
-        case(WaitTok):    if( (FileDepth!=-1) && LineStack[FileDepth] )
-                          {   ExecutePauseCommand();
-                          } else CommandError(ErrorMsg[ErrOutScrpt]);
-                          break;
-
         case(DefineTok):  FetchToken();
                           if( CurToken != IdentTok ) 
-                          {   CommandError(ErrorMsg[ErrSetName]);
+                          {   CommandError(MsgStrs[ErrSetName]);
                               break;
                           }
 
-                          if( (param = (char*)malloc(TokenLength+1)) )
-                          {   for( i=0; i<=TokenLength; i++ )
-                                  param[i] = TokenIdent[i];
-
+                          param = (char*)malloc(TokenLength+1);
+                          if( param )
+                          {   memcpy(param,TokenIdent,TokenLength+1);
                               if( FetchToken() )
-                              {   if( (QueryExpr=ParseExpression(0)) )
+                              {   QueryExpr = ParseExpression(0);
+                                  if( QueryExpr )
                                   {   done = DefineSetExpr(param,QueryExpr);
                                   } else done = True;
                               } else done = DefineSetExpr(param,(Expr*)NULL);
                           } else done = False;
 
                           if( !done )
-                              CommandError(ErrorMsg[ErrBadSet]);
+                              CommandError(MsgStrs[ErrBadSet]);
                           break;
 
         case(BackgroundTok):
                           FetchToken();
-                          if( !CurToken )
-                          {   CommandError(ErrorMsg[ErrNoCol]);
-                          } else if( CurToken == TransparentTok )
+                          if( CurToken == TransparentTok )
                           {   UseTransparent = True;
                           } else if( CurToken == NormalTok )
                           {   UseTransparent = False;
@@ -3166,21 +3527,22 @@ int ExecuteCommand()
                               FBClear = False;
 #endif
                           } else if( CurToken )
-                              CommandError(ErrorMsg[ErrColour]);
+                          {      CommandError(MsgStrs[ErrColour]);
+                          } else CommandError(MsgStrs[ErrNoCol]);
                           break;
 
         case(WriteTok):
         case(SaveTok):    i = CurToken; /* Save keyword! */
                           if( !AllowWrite )
                               if( (FileDepth!=-1) && LineStack[FileDepth] )
-                              {   CommandError(ErrorMsg[ErrInScrpt]);
+                              {   CommandError(MsgStrs[ErrInScrpt]);
                                   break;
                               }
 
                           option = FetchToken();
                           if( (option==RasMolTok) || (option==ScriptTok)
-                              || IsMoleculeFormat(option)
-                              || IsImageFormat(option) )
+                              || IsMoleculeToken(option)
+                              || IsImageToken(option) )
                           {   if( !*TokenPtr || *TokenPtr==' ' )
                                   FetchToken();
                           } else if( i==SaveTok )
@@ -3188,7 +3550,7 @@ int ExecuteCommand()
                           } else option = 0;
 
                           if( !CurToken )
-                          {   CommandError(ErrorMsg[ErrFilNam]);
+                          {   CommandError(MsgStrs[ErrFilNam]);
                               break;
                           } else if( CurToken==StringTok )
                           {      ProcessFileName(TokenIdent);
@@ -3196,7 +3558,7 @@ int ExecuteCommand()
                           param = DataFileName;
                           CurToken = 0;
 
-                          if( !IsMoleculeFormat(option) )
+                          if( !IsMoleculeToken(option) )
                           {   if( ReDrawFlag ) RefreshScreen();
                               WriteImageFile( param, option );
 
@@ -3217,45 +3579,30 @@ int ExecuteCommand()
         case(ScriptTok):  FetchToken();
                           if( FileDepth<STACKSIZE )
                           {   if( !CurToken )
-                              {   CommandError(ErrorMsg[ErrFilNam]);
+                              {   CommandError(MsgStrs[ErrFilNam]);
                                   break;
                               } else if( CurToken==StringTok )
                               {      ProcessFileName(TokenIdent);
                               } else ProcessFileName(TokenStart);
                               CurToken = 0;
 
-                              script = fopen(DataFileName,"r");
+                              script = fopen(DataFileName,"rb");
                               LoadScriptFile(script,DataFileName);
-                          } else CommandError(ErrorMsg[ErrScript]);
-                          break;
-
-        case(PrintTok):   if( !PrintImage() )
-                          {   if( CommandActive )
-                                  WriteChar('\n');
-                              WriteString("Warning: No suitable printer!\n");
-                              CommandActive = False;
-                          }
-                          break;
-
-        case(ClipboardTok):
-                          if( !ClipboardImage() )
-                          {   if( CommandActive )
-                                  WriteChar('\n');
-                              WriteString("Unable to copy to clipboard!\n");
-                              CommandActive = False;
-                          }
+                          } else CommandError(MsgStrs[ErrScript]);
                           break;
 
         case(RenumTok):   FetchToken();
                           if( CurToken )
-                          {   if( (done = (CurToken=='-')) )
-                                  FetchToken();
+                          {   if( CurToken=='-' )
+                              {    FetchToken();
+                                  done = True;
+                              } else done = False;
 
-                              if( CurToken==NumberTok )
+                              if( CurToken == NumberTok )
                               {   if( done )
                                   {     RenumberMolecule(-(int)TokenValue);
                                   } else RenumberMolecule((int)TokenValue); 
-                              } else CommandError(ErrorMsg[ErrNotNum]);
+                              } else CommandError(MsgStrs[ErrNotNum]);
                           } else RenumberMolecule(1);
                           break;
 
@@ -3265,107 +3612,100 @@ int ExecuteCommand()
                           {   DetermineStructure(False);
                           } else if( CurToken==TrueTok )
                           {   DetermineStructure(True);
-                          } else CommandError(ErrorMsg[ErrSyntax]);
+                          } else CommandError(MsgStrs[ErrSyntax]);
                           break;
 
-        case(ConnectTok): FetchToken();
-                          if( !CurToken )
-                          {   if( MainAtomCount+HetaAtomCount > 255 )
-                              {   ExecuteConnect(False);
-                              } else ExecuteConnect(True);
-                          } else if( CurToken==TrueTok )
-                          {   ExecuteConnect(True);
-                          } else if( CurToken==FalseTok )
-                          {   ExecuteConnect(False);
-                          } else CommandError(ErrorMsg[ErrSyntax]);
-                          break;
+        case(HeaderTok):
+        case(CIFDataTok):
+	                  if( AcceptData[FileDepth] == 'Y' ) {
+	                    if( (FileDepth != -1) && LineStack[FileDepth] ) {
+                              Recycle = &CurLine[0];
+                              switch( CurToken )
+			      {  case(HeaderTok):
+                                   ProcessFile(FormatPDB,False,
+                                     FileStack[FileDepth]);
+                                   break;
 
-        case(RefreshTok): if( ReDrawFlag )
-                              RefreshScreen();
-                          break;
-
-        case(ShowTok):    ExecuteShowCommand();
-                          break;
-
-        case(ZapTok):     ZapDatabase();
-                          break;
+                                 case(CIFDataTok):
+                                   ProcessFile(FormatCIF,False,
+                                     FileStack[FileDepth]);
+			           break;
+                              }
+                              DefaultRepresentation();
+                            } else {
+                              CommandError(MsgStrs[ErrOutScrpt]);
+		  	    }
+                          }
+                          CurToken = 0;
+                          return( ExitTok );
 
         case(ExitTok):    return( ExitTok );
         case(QuitTok):    return( QuitTok );
-        default:          CommandError("Unrecognised command");
+        default:          CommandError(MsgStrs[StrUnrec]);
                           break;
     }
 
     if( CurToken )
         if( FetchToken() )
-            CommandError("Warning: Ignoring rest of command");
+            CommandError(MsgStrs[StrIgnore]);
     TokenPtr = NULL;
-    return( False );
+    return False;
 }
 
-#ifdef IBMPC
-/* Avoid Optimizer Warning! */
-#pragma optimize("g",)
-#endif
 
-
-int ExecuteIPCCommand( ptr )
-    char __huge *ptr;
+int ExecuteIPCCommand( char __huge *ptr )
 {
-    register char *src,*dst;
+    auto char buffer[256];
     register int stat,result;
     register int len,depth;
-    auto char buffer[256];
-
+    register char *dst;
 
     /* Ignore IPC commands while paused! */
-    if( IsPaused ) return( 0 );
+    if( IsPaused ) return 0;
 
     FileDepth = 0;
     *LineStack = 0;
     result = IPC_Ok;
-#ifdef IBMPC
-    *NameStack = "DDE Error";
-#else
     *NameStack = "IPC Error";
-#endif
 
     /* Save command line */
-    src=CurLine;  dst=buffer;
-    while( (*dst++ = *src++) );
+    strcpy(buffer,CurLine);
    
     while( *ptr && (*ptr==' ') )
         ptr++;
 
-    if( *ptr=='[' )
-    {   depth = 0;
-        while( *ptr++ == '[' )
+    if( *ptr == '[' )
+    {   while( *ptr++ == '[' )
         {   dst = CurLine;
-            depth=0;  len=1;
+            depth = 0;  
+            len = 0;
 
-        
-            do {
-                if( *ptr==']' )
+            while( *ptr )
+            {   if( *ptr == ']' )
                 {   if( !depth )
-                    {   *dst = '\0';
-                        ptr++; break;
+                    {   ptr++; 
+                        break;
                     } else depth--;
                 } else if( *ptr=='[' )
                     depth++;
 
-                if( len<255 )
-                {   *dst++ = *ptr;
+                if( len < MAXBUFFLEN-1 )
+                {   *dst++ = *ptr++;
                     len++;
-                }
-            } while( *ptr++ );
+                } else ptr++;
+            }
+            *dst = '\0';
 
-            if( len==255 )
-            {   if( CommandActive )
-                    WriteChar('\n');
-                WriteString("Warning: Remote command too long!\n");
-                CommandActive = False;
-            } else if( (stat=ExecuteCommand()) )
-                result = (stat==QuitTok)? IPC_Quit : IPC_Exit;
+            if( len < MAXBUFFLEN-1 )
+            {   stat = ExecuteCommand();
+                if( stat == QuitTok )
+                {  result = IPC_Quit;
+                } else if( stat )
+                   result = IPC_Exit;
+            } else
+            {   InvalidateCmndLine();
+                WriteString(MsgStrs[StrRCLong]);
+            }
 
             while( *ptr && ((*ptr==' ')||(*ptr==';')) )
                 ptr++;
@@ -3373,50 +3713,46 @@ int ExecuteIPCCommand( ptr )
     } else if( *ptr )
     {   dst = CurLine;
         len = 0;
+        while( *ptr )
+        {   if( len < MAXBUFFLEN-1 )
+            {   *dst++ = *ptr++;
+                len++;
+            } else break;
+        }
+        *dst = '\0';
 
-        while( True )
-        {   if( len==255 )
-            {   if( CommandActive )
-                    WriteChar('\n');
-                WriteString("Warning: Remote command too long!\n");
-                CommandActive = False;
-                break;
-            }
-
-            if( !(*dst++ = *ptr++) )
-            {   if( (stat=ExecuteCommand()) )
-                    result = (stat==QuitTok)? IPC_Quit : IPC_Exit;
-                break;
-            } else len++;
+        if( len < MAXBUFFLEN-1 )
+        {   stat = ExecuteCommand();
+            if( stat == QuitTok )
+            {  result = IPC_Quit;
+            } else if( stat )
+               result = IPC_Exit;
+        } else
+        {   InvalidateCmndLine();
+            WriteString(MsgStrs[StrRCLong]);
         }
     }
 
     FileDepth = -1;
     if( CommandActive )
-    {   src=buffer; dst=CurLine;
-        while( (*dst++ = *src++) );
+    {   strcpy(CurLine,buffer);
         if( !result ) result = IPC_Error;
     }
-
-    return( result );
+    return result;
 }
 
 
-void InitialiseCommand()
+void InitialiseCommand( void )
 {
-    MaxHist = MinHist = 1;
-    HistBuff[0] = 0;
-
     HelpFileName = NULL;
     FreeInfo = (void __far*)0;
     HelpInfo = (void __far*)0;
 
-    CommandActive = False;
     SelectCount = 0;
     TokenPtr = NULL;
     FileDepth = -1;
 
-    AllowWrite = False;
     SeqFormat = False;
     IsPaused = False;
 }
+

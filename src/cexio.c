@@ -1,8 +1,56 @@
+/***************************************************************************
+ *                              RasMol 2.7.1                               *
+ *                                                                         *
+ *                                 RasMol                                  *
+ *                 Molecular Graphics Visualisation Tool                   *
+ *                              22 June 1999                               *
+ *                                                                         *
+ *                   Based on RasMol 2.6 by Roger Sayle                    *
+ * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
+ *                      Stevenage, Hertfordshire, UK                       *
+ *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
+ *                   Copyright (C) Roger Sayle 1992-1999                   *
+ *                                                                         *
+ *                  and Based on Mods by Arne Mueller                      *
+ *                      Version 2.6x1, May 1998                            *
+ *                   Copyright (C) Arne Mueller 1998                       *
+ *                                                                         *
+ *           Version 2.7.0, 2.7.1 Mods by Herbert J. Bernstein             *
+ *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *                      yaya@bernstein-plus-sons.com                       *
+ *                    2.7.0 March 1999, 2.7.1 June 1999                    *
+ *              Copyright (C) Herbert J. Bernstein 1998-1999               *
+ *                                                                         *
+ * Please read the file NOTICE for important notices which apply to this   *
+ * package. If you are not going to make changes to RasMol, you are not    *
+ * only permitted to freely make copies and distribute them, you are       *
+ * encouraged to do so, provided you do the following:                     *
+ *   * 1. Either include the complete documentation, especially the file   *
+ *     NOTICE, with what you distribute or provide a clear indication      *
+ *     where people can get a copy of the documentation; and               *
+ *   * 2. Please give credit where credit is due citing the version and    *
+ *     original authors properly; and                                      *
+ *   * 3. Please do not give anyone the impression that the original       *
+ *     authors are providing a warranty of any kind.                       *
+ *                                                                         *
+ * If you would like to use major pieces of RasMol in some other program,  *
+ * make modifications to RasMol, or in some other way make what a lawyer   *
+ * would call a "derived work", you are not only permitted to do so, you   *
+ * are encouraged to do so. In addition to the things we discussed above,  *
+ * please do the following:                                                *
+ *   * 4. Please explain in your documentation how what you did differs    *
+ *     from this version of RasMol; and                                    *
+ *   * 5. Please make your modified source code available.                 *
+ *                                                                         *
+ * This version of RasMol is not in the public domain, but it is given     *
+ * freely to the community in the hopes of advancing science. If you make  *
+ * changes, please make them in a responsible manner, and please offer us  *
+ * the opportunity to include those changes in future versions of RasMol.  *
+ ***************************************************************************/
+
 /* cexio.c
- * RasMol2 Molecular Graphics
- * Roger Sayle, August 1995
- * Version 2.6
  */
+
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -24,6 +72,8 @@
 #define PROP_COORD   "coordinates"
 #define PROP_BVALU   "bvalue"
 #define PROP_CHARG   "charge"
+#define PROP_RADIU   "radius"
+
 
 static cx_String prop_alabs;
 static cx_String prop_resid;
@@ -33,12 +83,10 @@ static cx_String prop_coord;
 static cx_String prop_tempr;
 
 
-static cx_String get_atom_tuple( mol, prop )
-    cx_Object mol;  cx_String prop;
+
+static cx_String get_atom_tuple(  cx_Object mol,  cx_String prop )
 {
     cx_Object tupleseq, tuple;
-    cx_String result;
-    register int i,j;
 
     if( (tupleseq = cx_prefix2atuples(mol,prop)) )
     {   tuple = cx_next(tupleseq);
@@ -47,32 +95,45 @@ static cx_String get_atom_tuple( mol, prop )
     if( !tuple )
     {   /* No such property! */
         cx_destroy( tupleseq );
-        return( (cx_String)NULL );
+        return (cx_String)NULL;
     }
  
     /* Ambiguous atom property prefix! */
     /* cx_next(tupleseq) or !cx_atend(tupleseq) */
 
     cx_destroy(tupleseq);
-    return( cx_atomtuple_name(tuple) );
+    return cx_atomtuple_name(tuple);
 }
  
 
-static int process_cx_atom( atom, serno )
-    cx_Object atom;  int serno;
+static void padfield( char *dst, char *src, int len )
 {
+    register int i;
+
+    for( i=0; i<len; i++ )
+    {   if( *src )
+        {   *dst++ = *src++;
+        } else *dst++ = ' ';
+    }
+    *dst = '\0';
+}
+ 
+
+static int process_cx_atom( cx_Object atom, int serno )
+{
+    auto char buffer[5];
     register Group __far *group;
     register Atom __far *ptr;
     register int refno,resno;
-    register int elem,chain;
+    register int chain;
     cx_String prop;
     float x,y,z,t;
 
     /* Test for valid 3D co-ordinates */
-    if( !(prop=cx_sprop(atom,prop_coord)) )
-        return( False );
+    prop = cx_sprop(atom,prop_coord);
+    if( !prop ) return False;
     if( sscanf(prop,"%g,%g,%g",&x,&y,&z) != 3 )
-        return( False );
+        return False;
 
     /* Determine Chain */
     prop = cx_sprop(atom,prop_chain);
@@ -119,25 +180,30 @@ static int process_cx_atom( atom, serno )
     ptr = CreateAtom();
     ptr->serno = serno;
 
-    if( !(prop=cx_sprop(atom,prop_alabs)) )
+    prop = cx_sprop(atom,prop_alabs);
+    if( prop )
+    {   padfield(buffer,prop,4);
+        ptr->refno = ComplexAtomType(buffer);
+    } else
     {   prop = cx_sprop(atom,PROP_ATSYM);
-        if( !prop ) prop = "Du  ";
-        ptr->refno = SimpleAtomType(prop);
-    } else ptr->refno = ComplexAtomType(prop);
+        if( prop )
+        {   padfield(buffer,prop,4);
+            ptr->refno = SimpleAtomType(buffer);
+        } else ptr->refno = SimpleAtomType("Du  ");
+    }
 
-    t = cx_rprop(atom,prop_tempr);
+    t = (float)cx_rprop(atom,prop_tempr);
     ptr->temp = (short)(t*100.0);
 
     ptr->xorg =  (Long)(x*250.0);
     ptr->yorg =  (Long)(y*250.0);
     ptr->zorg = -(Long)(z*250.0);
     ProcessAtom( ptr );
-    return( True );
+    return True;
 }
 
 
-static int process_cx_bond( bond )
-    cx_Object bond;
+static void process_cx_bond( cx_Object bond )
 {
     cx_Object atoms,atom;
     register int src,dst;
@@ -160,8 +226,7 @@ static int process_cx_bond( bond )
 }
 
 
-static void load_cx_molecule( mol )
-    cx_Object *mol;
+static void load_cx_molecule( cx_Object mol )
 {
     cx_String molname;
     cx_Object atoms,atom;
@@ -171,9 +236,9 @@ static void load_cx_molecule( mol )
 
     if( (molname = cx_sprop(mol,PROP_MNAME)) )
     {   for( i=0; molname[i] && (i<62); i++ )
-            InfoMoleculeName[i] = molname[i];
+            Info.moleculename[i] = molname[i];
         while( i && molname[i-1]==' ' ) i--;
-        InfoMoleculeName[i] = '\0';
+        Info.moleculename[i] = '\0';
     }
 
     /* Molecule must have 3d co-ordinates */
@@ -182,8 +247,10 @@ static void load_cx_molecule( mol )
 
     prop_alabs = get_atom_tuple(mol,PROP_ALABS);
     prop_resid = get_atom_tuple(mol,PROP_RESID);
-    if( !(prop_tempr=get_atom_tuple(mol,PROP_BVALU)) )
-        prop_tempr = get_atom_tuple(mol,PROP_CHARG);
+
+    prop_tempr=get_atom_tuple(mol,PROP_BVALU);
+    if( !prop_tempr ) prop_tempr = get_atom_tuple(mol,PROP_CHARG);
+    if( !prop_tempr ) prop_tempr = get_atom_tuple(mol,PROP_RADIU);
 
     prop_chain = get_atom_tuple(mol,PROP_CHAIN);
     prop_resno = get_atom_tuple(mol,PROP_RESNO);
@@ -204,15 +271,13 @@ static void load_cx_molecule( mol )
 }
 
 
-int LoadCEXMolecule( fp )
-    FILE *fp;
+int LoadCEXMolecule( FILE *fp )
 {
 #ifdef CX_OB_IOSTREAM
     register cx_Object ins;
     register cx_Object obj;
 
-    if( fp != stdin )
-        fclose(fp);
+    UnusedArgument(fp);
 
     cx_molecule_pkg();
     ins = cx_create_iostream(DataFileName,CX_IO_READ);
@@ -225,10 +290,12 @@ int LoadCEXMolecule( fp )
     }
     cx_destroy(ins);
     /* cx_cleanup(); */
-    return( True );
+    return True;
     
 #else
     register cx_Object obj;
+
+    if( !fp ) return False;
 
     cx_molecule_pkg();
     while( (obj = cx_receive(NULL,fp,NULL)) ) 
@@ -239,18 +306,16 @@ int LoadCEXMolecule( fp )
         } else cx_destroy(obj);
     }
     /* cx_cleanup(); */
-    fclose(fp);
-    return( True );
+    return True;
 #endif
 }
  
  
-int SaveCEXMolecule( filename )
-    char *filename;
+int SaveCEXMolecule( char *filename )
 {
-    if( !Database )
-        return( False );
-    return( True );
-}
- 
+    UnusedArgument(filename);
 
+    if( !Database )
+        return False;
+    return True;
+}

@@ -1,8 +1,56 @@
+/***************************************************************************
+ *                            RasMol 2.7.1.1                               *
+ *                                                                         *
+ *                                RasMol                                   *
+ *                 Molecular Graphics Visualisation Tool                   *
+ *                            21 January 2001                              *
+ *                                                                         *
+ *                   Based on RasMol 2.6 by Roger Sayle                    *
+ * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
+ *                      Stevenage, Hertfordshire, UK                       *
+ *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
+ *                   Copyright (C) Roger Sayle 1992-1999                   *
+ *                                                                         *
+ *                  and Based on Mods by Arne Mueller                      *
+ *                      Version 2.6x1, May 1998                            *
+ *                   Copyright (C) Arne Mueller 1998                       *
+ *                                                                         *
+ *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
+ *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *                      yaya@bernstein-plus-sons.com                       *
+ *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
+ *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *                                                                         *
+ * Please read the file NOTICE for important notices which apply to this   *
+ * package. If you are not going to make changes to RasMol, you are not    *
+ * only permitted to freely make copies and distribute them, you are       *
+ * encouraged to do so, provided you do the following:                     *
+ *   * 1. Either include the complete documentation, especially the file   *
+ *     NOTICE, with what you distribute or provide a clear indication      *
+ *     where people can get a copy of the documentation; and               *
+ *   * 2. Please give credit where credit is due citing the version and    *
+ *     original authors properly; and                                      *
+ *   * 3. Please do not give anyone the impression that the original       *
+ *     authors are providing a warranty of any kind.                       *
+ *                                                                         *
+ * If you would like to use major pieces of RasMol in some other program,  *
+ * make modifications to RasMol, or in some other way make what a lawyer   *
+ * would call a "derived work", you are not only permitted to do so, you   *
+ * are encouraged to do so. In addition to the things we discussed above,  *
+ * please do the following:                                                *
+ *   * 4. Please explain in your documentation how what you did differs    *
+ *     from this version of RasMol; and                                    *
+ *   * 5. Please make your modified source code available.                 *
+ *                                                                         *
+ * This version of RasMol is not in the public domain, but it is given     *
+ * freely to the community in the hopes of advancing science. If you make  *
+ * changes, please make them in a responsible manner, and please offer us  *
+ * the opportunity to include those changes in future versions of RasMol.  *
+ ***************************************************************************/
+
 /* mswin31.c
- * RasMol2 Molecular Graphics
- * Roger Sayle, August 1995
- * Version 2.6
  */
+
 #include <windows.h>
 #include <stdlib.h>
 #include <malloc.h>
@@ -12,7 +60,9 @@
 
 #define GRAPHICS
 #include "rasmol.h"
+#include "raswin.idm"
 #include "graphics.h"
+#include "langsel.h"
 
 
 static int ColCount;
@@ -22,7 +72,7 @@ static HCURSOR OldCursor;
 static HMENU hMenu;
 
 
-void AllocateColourMap()
+void AllocateColourMap( void )
 {
     register COLORREF ref;      
     register int i;
@@ -58,18 +108,18 @@ void AllocateColourMap()
 
 
 
-int CreateImage()
+int CreateImage( void )
 {
     register Long size;
 
     if( FBufHandle ) GlobalFree(FBufHandle);
     size = (Long)XRange*YRange*sizeof(Pixel)+16;
     FBufHandle = GlobalAlloc(GMEM_MOVEABLE,size);
-    return( (int)FBufHandle );
+    return (int)FBufHandle;
 }
 
 
-void TransferImage()
+void TransferImage( void )
 {
     HPALETTE OldCMap;
     HDC hDC;
@@ -103,7 +153,7 @@ void TransferImage()
 }
 
 
-void ClearImage()
+void ClearImage( void )
 {
     HBRUSH hand;
     RECT rect;
@@ -123,27 +173,50 @@ void ClearImage()
 }
 
 
-int PrintImage()
+int PrintImage( void )
 {
     register char *device, *driver, *output;
     register int xsize, xres, yres;
     register int dx, dy, caps;
-    char printer[80];
+    char printer[255];
+    PRINTDLG mypdlg;
+    
 
     DOCINFO info;
     RECT rect;
     HDC hDC;
 
-    GetProfileString("windows","device", "", printer, 80 );
-    if( !(device = strtok(printer,",")) ) return( False );
-    if( !(driver = strtok((char*)NULL,", ")) ) return( False );
-    if( !(output = strtok((char*)NULL,", ")) ) return( False );
-
-    hDC = CreateDC(driver,device,output,NULL);
-    if( !hDC ) return( False );
+    GetProfileString("windows","device",",,,", printer, 255 );
+    if( !(device = strtok(printer,",")) ||
+        !(driver = strtok((char*)NULL,", ")) ||
+        !(output = strtok((char*)NULL,", ")) ) {
+        memset ((void *) &mypdlg, 0, sizeof(PRINTDLG));
+        mypdlg.lStructSize = sizeof(PRINTDLG);
+        mypdlg.hwndOwner = NULL;
+        mypdlg.Flags = PD_RETURNDC;
+        mypdlg.hInstance = NULL;
+        
+        if (PrintDlg(&mypdlg) == True) {
+          if (mypdlg.hDevMode) GlobalFree (mypdlg.hDevMode);
+          if (!mypdlg.hDC) return False;
+          hDC = mypdlg.hDC;
+        } else {
+          WriteString("Unable to locate printer\n");
+          return False;
+        }
+    } else {
+      hDC = CreateDC(driver,device,output,NULL);
+      if( !hDC ) {
+        WriteString("Unable to locate printer\n");
+        return False;
+      }
+    }
 
     caps = GetDeviceCaps( hDC, RASTERCAPS );
-    if( !(caps & RC_STRETCHDIB) ) return( False );
+    if( !(caps & RC_STRETCHDIB) ) {
+       WriteString("Unable to get necessary caps\n");
+       return False;
+    }
     
     xres = GetDeviceCaps( hDC, LOGPIXELSX );
     yres = GetDeviceCaps( hDC, LOGPIXELSY );
@@ -181,15 +254,15 @@ int PrintImage()
     EndDoc( hDC );
 
     DeleteDC( hDC );
-    return( True );
+    return True;
 }
 
 
-int ClipboardImage()
+int ClipboardImage( void )
 {
     register BITMAPINFO __far *bitmap;
-    register char __huge *src;
-    register char __huge *dst;
+    register Pixel __huge *src;
+    register Pixel __huge *dst;
     register long size,len;
     register HANDLE hand;
     register int i;
@@ -243,12 +316,18 @@ int ClipboardImage()
                 SetClipboardData(CF_PALETTE,hand);
         }
         CloseClipboard();
-        return( True );
-    } else return( False );
+        return True;
+    } else return False;
 }
 
 
-void UpdateScrollBars()
+void SetCanvasTitle( char *ptr )
+{
+    SetWindowText(CanvWin,ptr);
+}
+
+
+void UpdateScrollBars( void )
 {
     register int pos;
     
@@ -259,23 +338,104 @@ void UpdateScrollBars()
     SetScrollPos(CanvWin,SB_HORZ,pos,TRUE);
 }
 
-
-void SetMouseMode( mode )
-    int mode;
+void ReDrawWindow( void )
 {
-    MouseMode = mode;
+ 
+  HMENU mentop[7];
+  int ii;
+
+  ModifyMenu(hMenu,IDM_OPEN,     MF_STRING, IDM_OPEN,    MsgStrs[StrMOpen]);
+  ModifyMenu(hMenu,IDM_INFO,     MF_STRING, IDM_INFO,    MsgStrs[StrMInfo]);
+  ModifyMenu(hMenu,IDM_CLOSE,    MF_STRING, IDM_CLOSE,   MsgStrs[StrMClose]);
+  ModifyMenu(hMenu,IDM_PRINT,    MF_STRING, IDM_PRINT,   MsgStrs[StrMPrint]);
+  ModifyMenu(hMenu,IDM_SETUP,    MF_STRING, IDM_SETUP,   MsgStrs[StrMPSetup]);
+  ModifyMenu(hMenu,IDM_EXIT,     MF_STRING, IDM_EXIT,    MsgStrs[StrMExit]);
+
+  ModifyMenu(hMenu,IDM_SELECT,   MF_STRING, IDM_SELECT,  MsgStrs[StrMSelAll]);
+  ModifyMenu(hMenu,IDM_CUT,      MF_STRING, IDM_CUT,     MsgStrs[StrMCut]);
+  ModifyMenu(hMenu,IDM_COPY,     MF_STRING, IDM_COPY,    MsgStrs[StrMCopy]);
+  ModifyMenu(hMenu,IDM_PASTE,    MF_STRING, IDM_PASTE,   MsgStrs[StrMPaste]);
+  ModifyMenu(hMenu,IDM_DELETE,   MF_STRING, IDM_DELETE,  MsgStrs[StrMDelete]);
+
+  ModifyMenu(hMenu,IDM_WIREFRAME,MF_STRING,IDM_WIREFRAME,MsgStrs[StrMWirefr]);
+  ModifyMenu(hMenu,IDM_BACKBONE, MF_STRING,IDM_BACKBONE, MsgStrs[StrMBackbn]);
+  ModifyMenu(hMenu,IDM_STICKS,   MF_STRING,IDM_STICKS,   MsgStrs[StrMSticks]);
+  ModifyMenu(hMenu,IDM_SPHERES,  MF_STRING,IDM_SPHERES,  MsgStrs[StrMSpacefl]);
+  ModifyMenu(hMenu,IDM_BALLSTICK,MF_STRING,IDM_BALLSTICK,MsgStrs[StrMBallStk]);
+  ModifyMenu(hMenu,IDM_RIBBONS,  MF_STRING,IDM_RIBBONS,  MsgStrs[StrMRibbons]);
+  ModifyMenu(hMenu,IDM_STRANDS,  MF_STRING,IDM_STRANDS,  MsgStrs[StrMStrands]);
+  ModifyMenu(hMenu,IDM_CARTOONS, MF_STRING,IDM_CARTOONS, MsgStrs[StrMCartoon]);
+
+  ModifyMenu(hMenu,IDM_MONO,     MF_STRING,IDM_MONO,     MsgStrs[StrMMonochr]);
+  ModifyMenu(hMenu,IDM_CPK,      MF_STRING,IDM_CPK,      MsgStrs[StrMCPK]);
+  ModifyMenu(hMenu,IDM_SHAPELY,  MF_STRING,IDM_SHAPELY,  MsgStrs[StrMShapely]);
+  ModifyMenu(hMenu,IDM_GROUP,    MF_STRING,IDM_GROUP,    MsgStrs[StrMGroup]);
+  ModifyMenu(hMenu,IDM_CHAIN,    MF_STRING,IDM_CHAIN,    MsgStrs[StrMChain]);
+  ModifyMenu(hMenu,IDM_TEMPER,   MF_STRING,IDM_TEMPER,   MsgStrs[StrMTemp]);
+  ModifyMenu(hMenu,IDM_STRUCT,   MF_STRING,IDM_STRUCT,   MsgStrs[StrMStruct]);
+  ModifyMenu(hMenu,IDM_USER,     MF_STRING,IDM_USER,     MsgStrs[StrMUser]);
+  ModifyMenu(hMenu,IDM_MODEL,    MF_STRING,IDM_MODEL,    MsgStrs[StrMModel]);
+  ModifyMenu(hMenu,IDM_ALT,      MF_STRING,IDM_ALT,      MsgStrs[StrMAlt]);
+
+  ModifyMenu(hMenu,IDM_SLAB,     MF_STRING,IDM_SLAB,     MsgStrs[StrMSlab]);
+  ModifyMenu(hMenu,IDM_HYDROGEN, MF_STRING,IDM_HYDROGEN, MsgStrs[StrMHydr]);
+  ModifyMenu(hMenu,IDM_HETERO,   MF_STRING,IDM_HETERO,   MsgStrs[StrMHet]);
+  ModifyMenu(hMenu,IDM_SPECULAR, MF_STRING,IDM_SPECULAR, MsgStrs[StrMSpec]);
+  ModifyMenu(hMenu,IDM_SHADOW,   MF_STRING,IDM_SHADOW,   MsgStrs[StrMShad]);
+  ModifyMenu(hMenu,IDM_STEREO,   MF_STRING,IDM_STEREO,   MsgStrs[StrMStereo]);
+  ModifyMenu(hMenu,IDM_LABELS,   MF_STRING,IDM_LABELS,   MsgStrs[StrMLabel]);
+
+  ModifyMenu(hMenu,IDM_BMP,      MF_STRING,IDM_BMP,      MsgStrs[StrMBMP]);
+  ModifyMenu(hMenu,IDM_GIF,      MF_STRING,IDM_GIF,      MsgStrs[StrMGIF]);
+  ModifyMenu(hMenu,IDM_EPSF,     MF_STRING,IDM_EPSF,     MsgStrs[StrMPostscr]);
+  ModifyMenu(hMenu,IDM_PPM,      MF_STRING,IDM_PPM,      MsgStrs[StrMPPM]);
+  ModifyMenu(hMenu,IDM_RAST,     MF_STRING,IDM_RAST,     MsgStrs[StrMSRast]);
+
+  ModifyMenu(hMenu,IDM_ABOUT,    MF_STRING,IDM_ABOUT,    MsgStrs[StrMAbout]);
+  ModifyMenu(hMenu,IDM_HELP,     MF_STRING,IDM_HELP,     MsgStrs[StrMUserM]);
+  
+  for (ii = 7; ii > 0; ii--) {
+    mentop[ii-1] = GetSubMenu(hMenu,ii-1);
+    RemoveMenu(hMenu,ii-1,MF_BYPOSITION);
+  }
+  for (ii = 0; ii < 7; ii++) {
+    AppendMenu(hMenu, MF_POPUP | MF_STRING , (UINT) mentop[ii], MsgStrs[StrMFile+ii]);
+  }
+  
+  DrawMenuBar(CanvWin);
+
+}
+
+void SetMouseUpdateStatus( int bool )
+{
+    MouseUpdateStatus = bool;
+}
+                         
+                         
+void SetMouseCaptureStatus( int bool )
+{
+    if( bool )
+    {   if( !MouseCaptureStatus )
+            SetCapture(CanvWin);
+    } else
+        if( MouseCaptureStatus )
+            ReleaseCapture();
+    MouseCaptureStatus = bool;
 }
 
 
-int LookUpColour( name, r, g, b )
-    char *name; int *r, *g, *b;
+int LookUpColour( char *name, int *r, int *g, int *b )
 {
-    return( False );
+    UnusedArgument(name);
+    UnusedArgument(r);
+    UnusedArgument(g);
+    UnusedArgument(b);
+
+    return False;
 }    
 
 
-void EnableMenus( flag )
-    int flag;
+void EnableMenus( int flag )
 {
     if( flag )
     {   SetMenu(CanvWin,hMenu);
@@ -284,15 +444,20 @@ void EnableMenus( flag )
 }
 
 
-int OpenDisplay( instance, mode )
-    HANDLE instance; int mode;
+int OpenDisplay( HANDLE instance, int mode )
 {
     register int i,size;
     long style;
     RECT rect;
+    static char VersionStr[50];
+
+    sprintf (VersionStr,"RasMol Version %s", VERSION);
 
     PixMap = NULL;
     ColourMap = NULL;
+
+    MouseCaptureStatus = False;
+    MouseUpdateStatus = False;   
     UseHourGlass = True;
     DisableMenu = False;
 
@@ -313,23 +478,23 @@ int OpenDisplay( instance, mode )
 
     hMenu = LoadMenu(instance,"RasWinMenu");
     AdjustWindowRect(&rect,style,TRUE);
-    CanvWin = CreateWindow("RasWinClass","RasMol Version 2.6", style,
+    CanvWin = CreateWindow("RasWinClass",VersionStr, style,
                             CW_USEDEFAULT, CW_USEDEFAULT,
                             rect.right-rect.left, 
                             rect.bottom-rect.top,
                             NULL,hMenu,instance,NULL);
                             
-
-    WaitCursor = LoadCursor(NULL,IDC_WAIT);
+    if( !CanvWin) return False;
 
     size = sizeof(LOGPALETTE) + 256*sizeof(PALETTEENTRY);
     Palette = (LOGPALETTE __far*)_fmalloc( size );
     size = sizeof(BITMAPINFOHEADER) + 256*sizeof(RGBQUAD);
     BitInfo = (BITMAPINFO __far*)_fmalloc( size );
 
-
-    if( !CanvWin || !Palette || !BitInfo )
-        return( False );
+    if( !Palette || !BitInfo )
+        return False;
+   
+    WaitCursor = LoadCursor(NULL,IDC_WAIT);
         
     Palette->palVersion = 0x300;   
     
@@ -350,27 +515,25 @@ int OpenDisplay( instance, mode )
     ShowWindow(CanvWin,mode);
     UpdateScrollBars();
     UpdateWindow(CanvWin);
-    
-    SetMouseMode(MMRasMol);
-    return(True);                       
+    return True;                       
 }
 
     
-void BeginWait()
+void BeginWait( void )
 {
     if( UseHourGlass )
         OldCursor = SetCursor(WaitCursor);
 }
 
 
-void EndWait()
+void EndWait( void )
 {
     if( UseHourGlass )
         SetCursor(OldCursor);
 }
 
 
-void CloseDisplay()
+void CloseDisplay( void )
 {
     if( ColourMap )
         DeleteObject(ColourMap);

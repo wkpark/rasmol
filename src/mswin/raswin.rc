@@ -48,17 +48,19 @@ BEGIN
         MENUITEM "&Group",         IDM_GROUP
         MENUITEM "C&hain",         IDM_CHAIN
         MENUITEM "&Temperature",   IDM_TEMPER
-        MENUITEM "&Structure",     IDM_STRUCT
+        MENUITEM "St&ructure",     IDM_STRUCT
         MENUITEM "&User",          IDM_USER
+        MENUITEM "Mo&del",         IDM_MODEL
+        MENUITEM "&Alt",           IDM_ALT
     END
 
     POPUP "&Options"
     BEGIN
         MENUITEM "&Slab Mode",     IDM_SLAB,      CHECKED
         MENUITEM "H&ydrogens",     IDM_HYDROGEN,  CHECKED
-        MENUITEM "&Hetero Atoms",  IDM_HETERO,    CHECKED
+        MENUITEM "He&tero Atoms",  IDM_HETERO,    CHECKED
         MENUITEM "S&pecular",      IDM_SPECULAR,  CHECKED
-        MENUITEM "&Shadows",       IDM_SHADOW,    CHECKED
+        MENUITEM "S&hadows",       IDM_SHADOW,    CHECKED
         MENUITEM "S&tereo",        IDM_STEREO,    CHECKED
         MENUITEM "&Labels",        IDM_LABELS,    CHECKED
     END
@@ -81,17 +83,19 @@ END
 
 
 
-AboutBox DIALOG 25, 20, 150, 88
+AboutBox DIALOG 25, 20, 150, 116
 STYLE DS_MODALFRAME | WS_CAPTION | WS_SYSMENU
 CAPTION "About RasMol"
 FONT 8,"Helv"    
 BEGIN
     ICON "RasWinIcon" -1, 2, 2, 0, 0, SS_ICON
     CTEXT "RasWin Molecular Graphics"       -1, 25,  5, 125, 8
-    CTEXT "Windows Version 2.6"             -1, 25, 14, 125, 8
-    CTEXT "Copyright (c) 1993-1995 R.Sayle" -1, 0,  32, 150, 8
-    CTEXT "" IDD_HARDWARE,                      0,  50, 150, 8
-    DEFPUSHBUTTON "OK" IDOK, 56, 70, 32, 14, WS_GROUP
+    CTEXT "Copyright (C) R.Sayle 1992-1999" -1, 0,  23, 150, 8
+    CTEXT "Windows Version 2.7.1.1"         -1, 0,  32, 150, 8
+    CTEXT "Copyright (C) H. Bernstein 1998-2001" -1, 0,  41, 150, 8
+    CTEXT "yaya@bernstein-plus-sons.com"    -1, 0,  50, 150, 8
+    CTEXT "" IDD_HARDWARE,                      0,  68, 150, 8
+    DEFPUSHBUTTON "OK" IDOK, 56, 88, 32, 14, WS_GROUP
 END
 
 
@@ -102,7 +106,7 @@ FONT 8,"Helv"
 BEGIN
     ICON "RasWinIcon" -1, 2, 2, 0, 0, SS_ICON
     CTEXT "RasWin Molecular Graphics"   -1, 25,  5, 175, 8
-    CTEXT "Windows Version 2.6"         -1, 25, 14, 175, 8
+    CTEXT "Windows Version 2.7.1.1"     -1, 25, 14, 175, 8
     DEFPUSHBUTTON "OK" IDOK, 81, 96, 32, 14, WS_GROUP
 
     LTEXT "" IDD_INFOTEXT1, 0,  32, 200, 8, SS_LEFTNOWORDWRAP

@@ -1,14 +1,63 @@
+/***************************************************************************
+ *                              RasMol 2.7.1                               *
+ *                                                                         *
+ *                                 RasMol                                  *
+ *                 Molecular Graphics Visualisation Tool                   *
+ *                              22 June 1999                               *
+ *                                                                         *
+ *                   Based on RasMol 2.6 by Roger Sayle                    *
+ * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
+ *                      Stevenage, Hertfordshire, UK                       *
+ *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
+ *                   Copyright (C) Roger Sayle 1992-1999                   *
+ *                                                                         *
+ *                  and Based on Mods by Arne Mueller                      *
+ *                      Version 2.6x1, May 1998                            *
+ *                   Copyright (C) Arne Mueller 1998                       *
+ *                                                                         *
+ *           Version 2.7.0, 2.7.1 Mods by Herbert J. Bernstein             *
+ *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *                      yaya@bernstein-plus-sons.com                       *
+ *                    2.7.0 March 1999, 2.7.1 June 1999                    *
+ *              Copyright (C) Herbert J. Bernstein 1998-1999               *
+ *                                                                         *
+ * Please read the file NOTICE for important notices which apply to this   *
+ * package. If you are not going to make changes to RasMol, you are not    *
+ * only permitted to freely make copies and distribute them, you are       *
+ * encouraged to do so, provided you do the following:                     *
+ *   * 1. Either include the complete documentation, especially the file   *
+ *     NOTICE, with what you distribute or provide a clear indication      *
+ *     where people can get a copy of the documentation; and               *
+ *   * 2. Please give credit where credit is due citing the version and    *
+ *     original authors properly; and                                      *
+ *   * 3. Please do not give anyone the impression that the original       *
+ *     authors are providing a warranty of any kind.                       *
+ *                                                                         *
+ * If you would like to use major pieces of RasMol in some other program,  *
+ * make modifications to RasMol, or in some other way make what a lawyer   *
+ * would call a "derived work", you are not only permitted to do so, you   *
+ * are encouraged to do so. In addition to the things we discussed above,  *
+ * please do the following:                                                *
+ *   * 4. Please explain in your documentation how what you did differs    *
+ *     from this version of RasMol; and                                    *
+ *   * 5. Please make your modified source code available.                 *
+ *                                                                         *
+ * This version of RasMol is not in the public domain, but it is given     *
+ * freely to the community in the hopes of advancing science. If you make  *
+ * changes, please make them in a responsible manner, and please offer us  *
+ * the opportunity to include those changes in future versions of RasMol.  *
+ ***************************************************************************/
+
 /* outfile.c
- * RasMol2 Molecular Graphics
- * Roger Sayle, August 1995
- * Version 2.6
  */
-#define OUTFILE
+
 #include "rasmol.h"
 
 #ifdef IBMPC
-#include <windows.h>
 #include <malloc.h>
+#endif
+#ifdef MSWIN
+#include <windows.h>
 #endif
 #ifdef APPLEMAC
 #include <Types.h>
@@ -27,9 +76,11 @@
 #include <ctype.h>
 #include <math.h>
 
+#define OUTFILE
 #include "outfile.h"
 #include "molecule.h"
 #include "command.h"
+#include "cmndline.h"
 #include "abstree.h"
 #include "transfor.h"
 #include "render.h"
@@ -38,6 +89,17 @@
 #include "pixutils.h"
 #include "script.h"
 
+
+/* #define BIGGIF */
+
+
+#define Round(x)       ((int)(x))
+
+#ifdef INVERT
+#define InvertY(y) (y)
+#else
+#define InvertY(y) (-(y))
+#endif
 
 #ifdef EIGHTBIT
 #define RComp(x)   (RLut[LutInv[x]])
@@ -49,12 +111,13 @@
 #define BComp(x)   ((x)&0xff)
 #endif
 
-
-#ifdef INVERT
-#define InvertY(y) (y)
-#else
-#define InvertY(y) (-(y))
-#endif
+/* Macros for commonly used loops */
+#define ForEachAtom  for(chain=Database->clist;chain;chain=chain->cnext) \
+                     for(group=chain->glist;group;group=group->gnext)    \
+                     for(aptr=group->alist;aptr;aptr=aptr->anext)
+#define ForEachBond  for(bptr=Database->blist;bptr;bptr=bptr->bnext)
+#define ForEachBack  for(chain=Database->clist;chain;chain=chain->cnext) \
+                     for(bptr=chain->blist;bptr;bptr=bptr->bnext)
 
 
 /* Sun rasterfile.h macro defns */
@@ -74,9 +137,6 @@
 /* Compression Ratio   0<x<127 */
 #define EPSFCompRatio  32
 
-#define Round(x)       ((int)(x))
-
-
 #define PSBond      0x00
 #define PSHBond     0x01
 #define PSSSBond    0x02
@@ -84,11 +144,18 @@
 #define PSRibbon    0x04
 #define PSMonit     0x05
 
-
+/* Apple PICT macros */
+#define PICTcliprgn         0x0001
+#define PICTpicversion      0x0011
+#define PICTpackbitsrect    0x0098
+#define PICTdirectbitsrect  0x009a
+#define PICTendofpict       0x00ff
+#define PICTheaderop        0x0c00
 
 typedef void __far* PSItemPtr;
 
 
+#ifdef EIGHTBIT
 #if defined(IBMPC) || defined(APPLEMAC)
 static short __far *ABranch;
 static short __far *DBranch;
@@ -100,28 +167,25 @@ static short DBranch[4096];
 static short Hash[256];
 static Byte Node[4096];
 #endif
+#endif
 
 
-/* Apple PICT macros */
-#define PICTcliprgn         0x0001
-#define PICTpicversion      0x0011
-#define PICTpackbitsrect    0x0098
-#define PICTdirectbitsrect  0x009a
-#define PICTendofpict       0x00ff
-#define PICTheaderop        0x0c00
-
+#ifdef EIGHTBIT
 typedef struct {
         Byte len;
         Byte ch;
         } BMPPacket;
         
-
 static BMPPacket BMPBuffer[10];
 static int BMPCount,BMPTotal;        
 static int BMPPad;
+#endif
 
+
+#ifdef EIGHTBIT
 static int GIFClrCode; 
 static int GIFEOFCode;
+#endif
 
 static short RLELineSize;
 static Card RLEFileSize;
@@ -133,83 +197,93 @@ static int RLEChar;
 
 
 static Byte Buffer[256];
-static Byte LutInv[256];
 static int LineLength;
 static FILE *OutFile;
+static int PacketLen;
+#ifdef EIGHTBIT
+static Byte LutInv[256];
 static Card BitBuffer;
 static int BitBufLen;
-static int PacketLen;
 static int CodeSize;
+#endif
 
 static Real LineWidth;
 static int VectSolid;
 static int VectCol;
 
-/* Macros for commonly used loops */
-#define ForEachAtom  for(chain=Database->clist;chain;chain=chain->cnext) \
-                     for(group=chain->glist;group;group=group->gnext)    \
-                     for(aptr=group->alist;aptr;aptr=aptr->anext)
-#define ForEachBond  for(bptr=Database->blist;bptr;bptr=bptr->bnext)
-#define ForEachBack  for(chain=Database->clist;chain;chain=chain->cnext) \
-                     for(bptr=chain->blist;bptr;bptr=bptr->bnext)
 
 
+/*=======================*/
+/*  Function Prototypes  */
+/*=======================*/
+
+static int FindDepth( PSItemPtr, int );
+static void DepthSort( PSItemPtr __far*, char __far*, int );
+static int ClipVectSphere( Atom __far* );
+static int ClipVectBond( Atom __far*, Atom __far* );
+static void WriteVectSphere( PSItemPtr __far*, char __far*, int );
+static void WriteVectStick( Atom __far*, Atom __far*, int, int );
+static void WriteVectWire( Atom __far*, Atom __far*, int, int );
+static void FetchPSItems( PSItemPtr __far*, char __far* );
+static void WritePSItems( PSItemPtr __far*, char __far*, int );
+
+static void DetermineIRISSizes( Long __far*, short __far*, int*, int* );
+static void WriteIRISHeader( Long __far*, short __far*, int, int );
 
 #ifdef APPLEMAC
 /* External RasMac Function Declaration! */
 void SetFileInfo( char*, OSType, OSType, short );
 #endif
 
-static void FatalOutputError( ptr )
-    char *ptr;
+
+
+static void FatalOutputError( char *ptr )
 {
-    if( CommandActive ) WriteChar('\n');
+    InvalidateCmndLine();
     WriteString("Output Error: Unable to create file `");
     WriteString( ptr );  WriteString("'!\n");
-    CommandActive = False;
 }
 
 
-/*  Integer Output Routines  */
-#ifdef FUNCPROTO
-static void WriteByte( int );
-static void WriteLSBShort( int );
-static void WriteMSBShort( int );
-static void WriteLSBLong( Card );
-static void WriteMSBLong( Card );
-#endif
 
-static void WriteByte( val )
-    int val;
+/*===========================*/
+/*  Integer Output Routines  */
+/*===========================*/
+
+static void WriteByte( int val )
 {
     putc( val, OutFile );
 }
 
-static void WriteLSBShort( val )
-    int val;
+
+#ifdef EIGHTBIT
+static void WriteLSBShort( int val )
 {
     putc( val&0xff, OutFile );
     putc( (val>>8)&0xff, OutFile );
 }
+#endif
 
-static void WriteMSBShort( val )
-    int val;
+
+static void WriteMSBShort( int val )
 {
     putc( (val>>8)&0xff, OutFile );
     putc( val&0xff, OutFile );
 }
 
-static void WriteLSBLong( val )
-    Card val;
+
+#ifdef EIGHTBIT
+static void WriteLSBLong( Card val )
 {
     putc((int)(val&0xff),OutFile);
     putc((int)((val>>8) &0xff),OutFile);
     putc((int)((val>>16)&0xff),OutFile);
     putc((int)((val>>24)&0xff),OutFile);
 }
+#endif
 
-static void WriteMSBLong( val )
-    Card val;
+
+static void WriteMSBLong( Card val )
 {
     putc((int)((val>>24)&0xff),OutFile);
     putc((int)((val>>16)&0xff),OutFile);
@@ -218,7 +292,7 @@ static void WriteMSBLong( val )
 }
 
 
-static void CalcInvColourMap()
+static void CalcInvColourMap( void )
 {
 #ifdef EIGHTBIT
     register int i;
@@ -231,7 +305,7 @@ static void CalcInvColourMap()
 
 
 #ifdef EIGHTBIT
-static int CompactColourMap()
+static int CompactColourMap( void )
 {
     register Pixel __huge *ptr;
     register Long pos, count;
@@ -243,7 +317,7 @@ static int CompactColourMap()
         Node[i] = 5;
     }
 
-#ifdef IBMPC
+#ifdef MSWIN
     ptr = (Pixel __huge*)GlobalLock(FBufHandle);    
 #else
     ptr = FBuffer;
@@ -261,18 +335,20 @@ static int CompactColourMap()
 
     for( i=0; i<256; i++ )
         LutInv[i] = Buffer[LutInv[i]]-1;
-#ifdef IBMPC
+#ifdef MSWIN
     GlobalUnlock(FBufHandle);
 #endif
-    return( cols );
+    return cols;
 }
 #endif
 
 
 
+/*==============================*/
+/*  Portable Pixmap Generation  */
+/*==============================*/
 
-static void WritePPMWord( i )
-    int i;
+static void WritePPMWord( int i )
 {
     if( i>99 )
     {   putc((i/100)+'0',OutFile); i %= 100;
@@ -284,8 +360,7 @@ static void WritePPMWord( i )
 }
 
 
-int WritePPMFile( name, raw )
-    char *name;  int raw;
+int WritePPMFile( char *name, int raw )
 {
     register Pixel __huge *ptr;
     register int i,col;
@@ -305,7 +380,7 @@ int WritePPMFile( name, raw )
     CalcInvColourMap();
     fprintf(OutFile,"P%c %d %d 255\n",(raw?'6':'3'),XRange,YRange);
 
-#ifdef IBMPC
+#ifdef MSWIN
     FBuffer = (Pixel __huge*)GlobalLock(FBufHandle);
 #endif
 
@@ -350,15 +425,20 @@ int WritePPMFile( name, raw )
     /* Avoid ANSI trigraph problems! */
     SetFileInfo(name,'\?\?\?\?','\?\?\?\?',134);
 #endif
-#ifdef IBMPC
+#ifdef MSWIN
     GlobalUnlock(FBufHandle); 
 #endif
     return( True );
 }
 
 
-static void WriteGIFCode( code )
-    int code;
+
+/*=============================*/
+/*  Compuserve GIF Generation  */
+/*=============================*/
+
+#ifdef EIGHTBIT
+static void WriteGIFCode( int code )
 {
     register int max;
 
@@ -384,8 +464,8 @@ static void WriteGIFCode( code )
     }
 }
 
-int WriteGIFFile( name )
-    char *name;
+
+int WriteGIFFile( char *name )
 {
     register int i,j,cols;
     register int pref,next,last;
@@ -394,7 +474,6 @@ int WriteGIFFile( name )
     register short __far *prev;
     register int x,y,init;
 
-#ifdef EIGHTBIT
     cols = CompactColourMap();
     if( cols<2 ) return( False );
 
@@ -449,7 +528,7 @@ int WriteGIFFile( name )
     for( i=0; i<cols; i++ )
         Hash[i]=0;
 
-#ifdef IBMPC
+#ifdef MSWIN
     FBuffer = (Pixel __huge*)GlobalLock(FBufHandle);    
 #endif
 
@@ -468,7 +547,16 @@ int WriteGIFFile( name )
         ptr = FBuffer + (Long)y*XRange;
 #endif
         for( x=0; x<XRange; x++ )
-        {   if( !init )
+        {   
+#ifdef BIGGIF
+            i = LutInv[*ptr++];
+            WriteGIFCode(i);
+            if( next == ilast-1 )
+            {   WriteGIFCode(GIFClrCode);
+                next = 1;
+            } else next++;
+#else
+            if( !init )
             {   pref = LutInv[*ptr++];
                 prev = Hash+pref;
                 init = True;
@@ -485,8 +573,8 @@ int WriteGIFFile( name )
                 prev = DBranch+*prev;
             } else
             {   WriteGIFCode(pref);
-                if( next==last )
-                {   if( CodeSize==12 )
+                if( next == last )
+                {   if( CodeSize == 12 )
                     {   WriteGIFCode(GIFClrCode);
                         pref = i;  prev = Hash+i;
                         for( i=0; i<cols; i++ )
@@ -507,11 +595,14 @@ int WriteGIFFile( name )
                 pref = i;
                 next++;
             }
+#endif
         }
     }
 
-
+#ifndef BIGGIF
     WriteGIFCode(pref);
+#endif
+
     WriteGIFCode(GIFEOFCode);
     if( PacketLen )
     {   WriteByte(PacketLen);
@@ -526,21 +617,30 @@ int WriteGIFFile( name )
     /* Avoid ANSI trigraph problems! */
     SetFileInfo(name,'\?\?\?\?','GIFf',134);
 #endif
-#ifdef IBMPC
+#ifdef MSWIN
     GlobalUnlock(FBufHandle);
 #endif
-    return( True );
-#else
-    if( CommandActive ) WriteChar('\n');
-    WriteString("Output Error: 24 bit GIF files unsupported!\n");
-    CommandActive = False;
-    return( False );
-#endif
+    return True;
 }
+#else /* EIGHTBIT */
+
+int WriteGIFFile( char *name )
+{
+    UnusedArgument(name);
+
+    InvalidateCmndLine();
+    WriteString("Output Error: Only 8-bit GIF files supported!\n");
+    return False;
+}
+#endif
 
 
 
-static void FlushRastRLE()
+/*================================*/
+/*  SUN Raster Format Generation  */
+/*================================*/
+
+static void FlushRastRLE( void )
 {
     if( RLEChar==RAS_RLE )
     {   if( RLEOutput )
@@ -561,8 +661,7 @@ static void FlushRastRLE()
 }
 
 
-static void WriteRastRLECode( val )
-    int val;
+static void WriteRastRLECode( int val )
 {
     if( RLEEncode )
     {   if( !RLELength )
@@ -576,7 +675,8 @@ static void WriteRastRLECode( val )
     } else WriteByte(val);
 }
 
-static void WriteRastRLEPad()
+
+static void WriteRastRLEPad( void )
 {
     if( RLEEncode )
     {   if( !RLELength || (RLELength==256) )
@@ -586,8 +686,7 @@ static void WriteRastRLEPad()
 }
 
 
-static void WriteRastData( output )
-    int output;
+static void WriteRastData( int output )
 {
     register Pixel __huge *ptr;
     register int x,y,pad;
@@ -595,7 +694,7 @@ static void WriteRastData( output )
     register int i;
 #endif
 
-#ifdef IBMPC
+#ifdef MSWIN
     FBuffer = (Pixel __huge*)GlobalLock(FBufHandle);
 #endif
 
@@ -629,18 +728,18 @@ static void WriteRastData( output )
 
     if( RLEEncode && RLELength )
         FlushRastRLE();
-#ifdef IBMPC
+#ifdef MSWIN
     GlobalUnlock(FBufHandle);
 #endif
 }
 
 
-
-int WriteRastFile( name, encode )
-    char *name;
-    int encode;
+int WriteRastFile( char *name, int encode )
 {
-    register int i,size,cols;
+#ifdef EIGHTBIT
+    register int i,cols;
+#endif
+    register int size;
 
 #if defined(IBMPC) || defined(APPLEMAC)
     OutFile = fopen(name,"wb");
@@ -656,7 +755,6 @@ int WriteRastFile( name, encode )
     WriteMSBLong(XRange);  
     WriteMSBLong(YRange);
     RLEEncode = encode;
-
 
 #ifdef EIGHTBIT
     WriteMSBLong(8);
@@ -701,12 +799,16 @@ int WriteRastFile( name, encode )
     /* Avoid ANSI trigraph problems! */
     SetFileInfo(name,'\?\?\?\?','\?\?\?\?',134);
 #endif
-    return( True );
+    return True;
 }
 
 
-static void OutputEPSFByte( val )
-    int val;
+
+/*===============================*/
+/*  PostScript Image Generation  */
+/*===============================*/
+
+static void OutputEPSFByte( int val )
 {
     static char *hex = "0123456789ABCDEF";
 
@@ -718,8 +820,8 @@ static void OutputEPSFByte( val )
     }
 }
 
-static void EncodeEPSFPixel( val, col )
-    int val, col;
+
+static void EncodeEPSFPixel( int val, int col )
 {
     register int r, g, b;
     register int i;
@@ -738,8 +840,8 @@ static void EncodeEPSFPixel( val, col )
     }
 }
 
-int WriteEPSFFile( name, col, compr )
-    char *name;  int col, compr;
+
+int WriteEPSFFile( char *name, int col, int compr )
 {
     register int x, y, i, j;
     register int xsize, ysize;
@@ -779,7 +881,7 @@ int WriteEPSFFile( name, col, compr )
     ypos = (int)(PAGEHIGH-ysize)/2;
 
     fputs("%!PS-Adobe-2.0 EPSF-2.0\n",OutFile);
-    fputs("%%Creator: RasMol Version 2.6\n",OutFile);
+    fprintf(OutFile,"%%Creator: RasMol Version %s\n",VERSION);
     fprintf(OutFile,"%%%%Title: %s\n",name);
     fprintf(OutFile,"%%%%BoundingBox: %d %d ",xpos,ypos);
     fprintf(OutFile,"%d %d\n",xpos+xsize,ypos+ysize);
@@ -871,7 +973,7 @@ int WriteEPSFFile( name, col, compr )
     if( col ) fputs("false 3 color",OutFile);
     fputs("image\n",OutFile);
 
-#ifdef IBMPC
+#ifdef MSWIN
     FBuffer = (Pixel __huge*)GlobalLock(FBufHandle);
 #endif
 
@@ -947,16 +1049,20 @@ int WriteEPSFFile( name, col, compr )
     /* Avoid ANSI trigraph problems! */
     SetFileInfo(name,'vgrd','TEXT',134);
 #endif
-#ifdef IBMPC
+#ifdef MSWIN
     GlobalUnlock(FBufHandle);
 #endif
-    return( True );
+    return True;
 }
 
 
-
+/*============================*/
+/*  Microsoft BMP Generation  */
+/*============================*/
+  
+#ifdef EIGHTBIT
 /* Flush AbsMode buffer */
-static void FlushBMPBuffer()
+static void FlushBMPBuffer( void )
 {
     if( RLEOutput )
     {   WriteByte(0x00);
@@ -968,8 +1074,9 @@ static void FlushBMPBuffer()
     PacketLen = 0;
 }
 
+
 /* Flush RLEMode buffer */
-static void FlushBMPPackets()
+static void FlushBMPPackets( void )
 {
     register int i;
     
@@ -985,7 +1092,8 @@ static void FlushBMPPackets()
     BMPCount = BMPTotal = 0;
 }
 
-static void ProcessBMPPacket()
+
+static void ProcessBMPPacket( void )
 {
     register int cost;
     register int i,j;
@@ -995,7 +1103,6 @@ static void ProcessBMPPacket()
     BMPTotal += RLELength;
     RLELength = 0;
     BMPCount++; 
-
 
     /* RLEMode is more efficient */
     if( BMPTotal > BMPCount+5 )
@@ -1007,7 +1114,6 @@ static void ProcessBMPPacket()
     if( PacketLen+BMPTotal>255 )
         FlushBMPBuffer();
     
-
     /* Cannot leave RLEMode */
     if( PacketLen+BMPTotal<3 )
         return;
@@ -1027,9 +1133,9 @@ static void ProcessBMPPacket()
     }
 }
  
+
 /* Collect pixels into RLE Packets */
-static void WriteBMPCode( val )
-    int val;
+static void WriteBMPCode( int val )
 {
     if( !RLELength )
     {   RLELength = 1;
@@ -1043,8 +1149,8 @@ static void WriteBMPCode( val )
             RLELength++;
 }
 
-static void WriteBMPData( output )
-    int output;
+
+static void WriteBMPData( int output )
 {
     register Pixel __huge *ptr;
     register int x,y;
@@ -1081,10 +1187,8 @@ static void WriteBMPData( output )
     }
 }
 
-
-    
-int WriteBMPFile( name )
-    char *name;
+  
+int WriteBMPFile( char *name )
 {
     register Pixel __huge *ptr;
     register int x,y,i,raw;
@@ -1100,8 +1204,7 @@ int WriteBMPFile( name )
          return( False );
     }
 
-#ifdef EIGHTBIT
-#ifdef IBMPC
+#ifdef MSWIN
     FBuffer = (Pixel __huge*)GlobalLock(FBufHandle);
 #endif
 
@@ -1117,7 +1220,6 @@ int WriteBMPFile( name )
     {   size = RLEFileSize;
         raw = False;
     } else raw = True;
-
 
     WriteByte('B'); 
     WriteByte('M');
@@ -1168,27 +1270,29 @@ int WriteBMPFile( name )
     /* Avoid ANSI trigraph problems! */
     SetFileInfo(name,'\?\?\?\?','\?\?\?\?',134);
 #endif
-#ifdef IBMPC
+#ifdef MSWIN
     GlobalUnlock(FBufHandle);
 #endif
-    return(True);
-#else
-    if( CommandActive ) WriteChar('\n');
-    WriteString("Output Error: 24 bit BMP files unsupported!\n");
-    CommandActive = False;
-    return( False );
-#endif
+    return True;
 }
-
-
-
-#ifdef FUNCPROTO
-static int FindDepth( PSItemPtr, int );
-static void DepthSort( PSItemPtr __far*, char __far*, int );
+#else /* EIGHTBIT */
+int WriteBMPFile( char *name )
+{
+    UnusedArgument(name);
+ 
+    InvalidateCmndLine();
+    WriteString("Output Error: Only 8-bit BMP files supported!\n");
+    return False;
+}
 #endif
 
-static int FindDepth( item, type )
-     PSItemPtr item;  int type;
+
+
+/*================================*/
+/*  Vector PostScript Generation  */
+/*================================*/
+
+static int FindDepth( PSItemPtr item,  int type )
 {
     register Monitor __far *monit;
     register HBond __far *hbond;
@@ -1198,13 +1302,13 @@ static int FindDepth( item, type )
 
     switch( type )
     {   case(PSAtom):    atom = (Atom __far*)item;
-                         return( atom->z );
+                         return atom->z;
 
         case(PSBond):    bond = (Bond __far*)item;
                          result = bond->srcatom->z;
                          if( result < bond->dstatom->z )
                              result = bond->dstatom->z;
-                         return( result );
+                         return result;
 
         case(PSSSBond):  
         case(PSHBond):   hbond = (HBond __far*)item;
@@ -1217,22 +1321,19 @@ static int FindDepth( item, type )
                              if( result < hbond->dst->z )
                                  result = hbond->dst->z;
                          }
-                         return( result );
+                         return result;
 
         case(PSMonit):   monit = (Monitor __far*)item;
                          result = monit->src->z;
                          if( result < monit->dst->z )
                              result = monit->dst->z;
-                         return( result );
+                         return result;
     }
-    return( 0 );
+    return 0;
 }
 
 
-static void DepthSort( data, type, count )
-    PSItemPtr __far *data;
-    char __far *type;
-    int count;
+static void DepthSort( PSItemPtr __far *data, char __far *type, int count )
 {
     register char ttmp;
     register void __far *dtmp;
@@ -1264,51 +1365,33 @@ static void DepthSort( data, type, count )
     }
 }
 
-#ifdef FUNCPROTO
-static int ClipVectSphere( Atom __far* );
-static int ClipVectBond( Atom __far*, Atom __far* );
 
-static void WriteVectSphere( PSItemPtr __far*, char __far*, int );
-static void WriteVectStick( Atom __far*, Atom __far*, int, int );
-static void WriteVectWire( Atom __far*, Atom __far*, int, int );
-
-static Long CountPSItems();
-static void FetchPSItems( PSItemPtr __far*, char __far* );
-static void WritePSItems( PSItemPtr __far*, char __far*, int );
-#endif
-
-
-static int ClipVectSphere( ptr )
-    Atom __far *ptr;
+static int ClipVectSphere( Atom __far *ptr )
 {
     register int rad;
 
     rad = ptr->irad;
 
-    if( ptr->x + rad < 0 )  return( True );
-    if( ptr->y + rad < 0 )  return( True );
-    if( ptr->x - rad >= XRange )  return( True );
-    if( ptr->y - rad >= YRange )  return( True );
-    return( False );
+    if( ptr->x + rad < 0 )  return True;
+    if( ptr->y + rad < 0 )  return True;
+    if( ptr->x - rad >= XRange )  return True;
+    if( ptr->y - rad >= YRange )  return True;
+    return False;
 }
 
 
-static int ClipVectBond( src, dst )
-    Atom __far *src;
-    Atom __far *dst;
+static int ClipVectBond( Atom __far *src, Atom __far *dst )
 {
-    if( !src || !dst )  return( True );
-    if( (src->x<0) && (dst->x<0) )  return( True );
-    if( (src->y<0) && (dst->y<0) )  return( True );
-    if( (src->x>=XRange) && (dst->x>=XRange) )  return( True );
-    if( (src->y>=YRange) && (dst->y>=YRange) )  return( True );
-    return( False );
+    if( !src || !dst )  return True;
+    if( (src->x<0) && (dst->x<0) )  return True;
+    if( (src->y<0) && (dst->y<0) )  return True;
+    if( (src->x>=XRange) && (dst->x>=XRange) )  return True;
+    if( (src->y>=YRange) && (dst->y>=YRange) )  return True;
+    return False;
 }
 
 
-
-static void WriteVectColour( col )
-    int col;
+static void WriteVectColour( int col )
 {
     if( col != VectCol )
     {   fprintf(OutFile,"%g ",(Real)RLut[col]/255.0);
@@ -1335,8 +1418,7 @@ typedef struct {
     } SphereSect;
 
 
-static int VectClipContain( x, y )
-    SphereSect *x; SphereSect *y;
+static int VectClipContain( SphereSect *x, SphereSect *y )
 {
     if( x->erad != 0.0 )
     {   if( y->erad != 0.0 )
@@ -1345,14 +1427,12 @@ static int VectClipContain( x, y )
                     ((x->sphi-x->spsi)<=(y->sphi-y->spsi)) );
     } else if( y->erad == 0.0 )
         return( x->srad >= y->srad );
-    return( False );
+    return False;
 }
 
 
-static void WriteVectSphere( data, type, index )
-    PSItemPtr __far*data; 
-    char __far *type;
-    int index;
+static void WriteVectSphere( PSItemPtr __far *data, char __far *type, 
+                             int index )
 {
     register int ecount, count;
     register Atom __far *atm;
@@ -1397,7 +1477,6 @@ static void WriteVectSphere( data, type, index )
 
         /* Atoms don't intersect! */
         if( dist3 > temp*temp ) continue;
-
 
         d = sqrt( (double)dist3 );
         f = (temp*(radf-radb)+dist3)/(2.0*d);
@@ -1534,10 +1613,8 @@ static void WriteVectSphere( data, type, index )
 }
 
 
-static void WriteVectWire( src, dst, col, dash )
-    Atom __far *src;
-    Atom __far *dst;
-    int col, dash;
+static void WriteVectWire( Atom __far *src, Atom __far *dst,
+                           int col, int dash )
 {
     register Atom __far *tmp;
     register Real radius;
@@ -1550,7 +1627,6 @@ static void WriteVectWire( src, dst, col, dash )
     register int dx, dy, dz;
     register Long dist2;
     register int inten;
-
 
     if( src->z > dst->z )
     {   tmp = src;
@@ -1591,7 +1667,6 @@ static void WriteVectWire( src, dst, col, dash )
             col1 = col2;
     }
 
-
     WriteVectColour( col1+inten );
 
     dz = (src->z+dst->z)>>1;
@@ -1611,7 +1686,6 @@ static void WriteVectWire( src, dst, col, dash )
         {   fputs("[] 0 setdash\n",OutFile);
             VectSolid = True;
         }
-
 
     if( src->flag & SphereFlag )
     {   dz = dst->z - src->z;
@@ -1634,10 +1708,8 @@ static void WriteVectWire( src, dst, col, dash )
 }
 
 
-static void WriteVectStick( src, dst, col, rad )
-    Atom __far *src;  
-    Atom __far *dst;
-    int col, rad;
+static void WriteVectStick( Atom __far *src, Atom __far *dst, 
+                            int col, int rad )
 {
     register Atom __far *tmp;
     register Real midx, midy;
@@ -1789,7 +1861,7 @@ static void WriteVectStick( src, dst, col, rad )
 }
 
 
-static void WriteVectDots()
+static void WriteVectDots( void )
 {
     register DotStruct __far *ptr;
     register Real x,y,z;
@@ -1798,7 +1870,6 @@ static void WriteVectDots()
     register int temp;
     register int zi;
     register int i;
-
 
     if( LineWidth != 1.0 )
     {   fputs("1 setlinewidth\n",OutFile);
@@ -1828,7 +1899,7 @@ static void WriteVectDots()
 }
 
 
-static void WriteVectLabels()
+static void WriteVectLabels( void )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -1858,7 +1929,7 @@ static void WriteVectLabels()
 }
 
 
-static void WriteVectMonitors()
+static void WriteVectMonitors( void )
 {
     register Atom __far *s;
     register Atom __far *d;
@@ -1910,7 +1981,7 @@ static void WriteVectMonitors()
 }
 
 
-static Long CountPSItems()
+static Long CountPSItems( void )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -1921,9 +1992,9 @@ static Long CountPSItems()
     register Long result;
 
     result = 0;
-    if( DrawAtoms )
+    if( DrawAtoms || DrawStars)
         ForEachAtom 
-            if( aptr->flag&SphereFlag ) 
+            if( aptr->flag&(SphereFlag|StarFlag) ) 
                 if( !UseClipping || !ClipVectSphere(aptr) )
                     result++;
 
@@ -1960,13 +2031,11 @@ static Long CountPSItems()
         if( !UseClipping || !ClipVectBond(mptr->src,mptr->dst) )
             result++;
 
-    return( result );
+    return result;
 }
 
 
-static void FetchPSItems( data, type )
-    PSItemPtr __far *data;
-    char __far *type;
+static void FetchPSItems( PSItemPtr __far *data, char __far *type )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -1977,9 +2046,9 @@ static void FetchPSItems( data, type )
     register int i,flag;
 
     i = 0;
-    if( DrawAtoms )
+    if( DrawAtoms || DrawStars )
         ForEachAtom
-            if( aptr->flag&SphereFlag )
+            if( aptr->flag&(SphereFlag | StarFlag) )
                 if( !UseClipping || !ClipVectSphere(aptr) )
                 {   type[i] = PSAtom; 
                     data[i++] = aptr;
@@ -2032,10 +2101,7 @@ static void FetchPSItems( data, type )
 }
 
 
-static void WritePSItems( data, type, count )
-    PSItemPtr __far *data;
-    char __far *type;
-    int count;
+static void WritePSItems( PSItemPtr __far *data, char __far *type, int count )
 {
     register Monitor __far *monit;
     register HBond __far *hbond;
@@ -2086,9 +2152,7 @@ static void WritePSItems( data, type, count )
 }
 
 
-
-int WriteVectPSFile( name )
-    char *name;
+int WriteVectPSFile( char *name )
 {
     register Real ambi;
     register Real temp, inten;
@@ -2105,9 +2169,8 @@ int WriteVectPSFile( name )
 
 #ifdef IBMPC
     if( count > 16383 )
-    {   if( CommandActive ) WriteChar('\n');
+    {   InvalidateCmndLine();
         WriteString("Output Error: Too many PostScript objects!\n");
-        CommandActive = False;
         return( False );
     }
 #endif
@@ -2116,9 +2179,8 @@ int WriteVectPSFile( name )
     data = (PSItemPtr __far*)_fmalloc((size_t)count*sizeof(PSItemPtr));
     type = (char __far*)_fmalloc((size_t)count*sizeof(char));
     if( !data || !type )
-    {   if( CommandActive ) WriteChar('\n');
+    {   InvalidateCmndLine();
         WriteString("Output Error: Not enough memory to create PostScript!\n");
-        CommandActive = False;
 
         if( data ) _ffree( data );
         if( type ) _ffree( type );
@@ -2142,7 +2204,7 @@ int WriteVectPSFile( name )
     ypos = (int)(PAGEHIGH-ysize)/2;
 
     fputs("%!PS-Adobe-2.0 EPSF-2.0\n",OutFile);
-    fputs("%%Creator: RasMol Version 2.6\n",OutFile);
+    fprintf(OutFile,"%%Creator: RasMol Version %s\n",VERSION);
     fprintf(OutFile,"%%%%Title: %s\n",name);
     fprintf(OutFile,"%%%%BoundingBox: %d %d ",xpos,ypos);
     fprintf(OutFile,"%d %d\n",xpos+xsize,ypos+ysize);
@@ -2262,11 +2324,11 @@ int WriteVectPSFile( name )
         VectSolid = True;
     }
 
-    if( DrawDots )
+    if( DotPtr )
         WriteVectDots();
     if( DrawMonitDistance && MonitList )
         WriteVectMonitors();
-    if( DrawLabels )
+    if( LabelList )
         WriteVectLabels();
 
     fputs("newpath 0 0 moveto 0 ",OutFile);
@@ -2288,7 +2350,11 @@ int WriteVectPSFile( name )
 
 
 
-static void FlushPICTBuffer()
+/*==================================*/
+/*  Macintosh PICT File Generation  */
+/*==================================*/
+
+static void FlushPICTBuffer( void )
 {
     if( PacketLen )
     {   if( RLEOutput )
@@ -2300,7 +2366,7 @@ static void FlushPICTBuffer()
 }
 
 
-static void FlushPICTPacket()
+static void FlushPICTPacket( void )
 {
     register int i;
 
@@ -2320,8 +2386,7 @@ static void FlushPICTPacket()
 }
 
 
-static void WritePICTCode( val )
-    int val;
+static void WritePICTCode( int val )
 {
     if( !RLELength )
     {   RLEChar = val;
@@ -2333,24 +2398,15 @@ static void WritePICTCode( val )
     } else RLELength++;
 }
 
-static void WritePICTData()
+
+static void WritePICTData( void )
 {
-#ifndef EIGHTBIT
-    register Pixel data;
-#endif
     register Pixel __huge *ptr;
     register Pixel __huge *tmp;
-    register int rowbytes;
     register int x,y;
 
-#ifdef IBMPC
+#ifdef MSWIN
     FBuffer = (Pixel __huge*)GlobalLock(FBufHandle);
-#endif
-
-#ifdef EIGHTBIT
-    rowbytes = XRange;
-#else
-    rowbytes = XRange*3;
 #endif
 
     RLEFileSize = 0;
@@ -2388,7 +2444,7 @@ static void WritePICTData()
         FlushPICTBuffer();
 
 #ifdef EIGHTBIT
-        if( rowbytes > 250 )
+        if( XRange > 250 )
         {   WriteMSBShort(RLELineSize);
             RLEFileSize += (RLELineSize+2);
         } else
@@ -2421,19 +2477,18 @@ static void WritePICTData()
         FlushPICTBuffer();
     }
 
-#ifdef IBMPC
+#ifdef MSWIN
     GlobalUnlock(FBufHandle);
 #endif
 }
 
 
-int WritePICTFile( name )
-    char *name;
+int WritePICTFile( char *name )
 {
 #ifdef EIGHTBIT
     register int j,r,g,b;
-#endif
     register int cols;
+#endif
     register int i;
 
 #if defined(IBMPC) || defined(APPLEMAC)
@@ -2548,16 +2603,16 @@ int WritePICTFile( name )
 #ifdef APPLEMAC
     SetFileInfo(name,'ttxt','PICT',134);
 #endif
-    return( True );
+    return True;
 }
 
 
-#ifdef FUNCPROTO
-static void DetermineIRISSizes( Long __far*, short __far*, int*, int* );
-static void WriteIRISHeader( Long __far*, short __far*, int, int );
-#endif
 
-static void FlushIRISBuffer()
+/*===========================*/
+/*  SGI IRIS RGB Generation  */
+/*===========================*/
+  
+static void FlushIRISBuffer( void )
 {
     if( PacketLen )
     {   if( RLEOutput )
@@ -2569,7 +2624,7 @@ static void FlushIRISBuffer()
 }
 
 
-static void FlushIRISPacket()
+static void FlushIRISPacket( void )
 {
     register int i;
 
@@ -2590,8 +2645,7 @@ static void FlushIRISPacket()
 }
 
 
-static void WriteIRISCode( val )
-    int val;
+static void WriteIRISCode( int val )
 {
     if( !RLELength )
     {   RLELength = 1;
@@ -2604,9 +2658,9 @@ static void WriteIRISCode( val )
 }
 
 
-static void DetermineIRISSizes( rowstart, rowsize, min, max )
-    Long __far *rowstart;  short __far *rowsize;
-    int *min, *max;
+static void DetermineIRISSizes(  Long __far *rowstart, 
+                                 short __far *rowsize,
+                                 int *min, int *max )
 {                    
     register Pixel __huge *ptr;
     register Pixel __huge *tmp;
@@ -2683,10 +2737,9 @@ static void DetermineIRISSizes( rowstart, rowsize, min, max )
 }
 
                              
-static void WriteIRISHeader( rowstart, rowsize, min, max )
-    register Long __far *rowstart;
-    register short __far *rowsize;
-    int min, max;
+static void WriteIRISHeader( Long __far *rowstart,
+                             short __far *rowsize, 
+                             int min, int max )
 {              
     register int i,size;
     
@@ -2712,7 +2765,7 @@ static void WriteIRISHeader( rowstart, rowsize, min, max )
 }
 
 
-static void WriteIRISData()
+static void WriteIRISData( void )
 {
     register Pixel __huge *ptr;
     register Pixel __huge *tmp;
@@ -2762,8 +2815,7 @@ static void WriteIRISData()
 }
 
                              
-int WriteIRISFile( name )
-    char *name;
+int WriteIRISFile( char *name )
 {
     register Long __far *rowstart;
     register short __far *rowsize;
@@ -2783,7 +2835,7 @@ int WriteIRISFile( name )
 
     CalcInvColourMap();
 
-#ifdef IBMPC
+#ifdef MSWIN
     FBuffer = (Pixel __huge*)GlobalLock(FBufHandle);
 #endif
 
@@ -2793,11 +2845,10 @@ int WriteIRISFile( name )
     rowstart = (Long __far*)_fmalloc(size*sizeof(Long));
 
     if( !rowsize || !rowstart )
-    {   if( CommandActive ) WriteChar('\n');
+    {   InvalidateCmndLine();
         WriteString("Output Error: Unable to allocate memory!\n");
         if( rowstart ) _ffree(rowstart);
         if( rowsize ) _ffree(rowsize);
-        CommandActive = False;
         fclose(OutFile);
         return( False );
     }
@@ -2813,21 +2864,24 @@ int WriteIRISFile( name )
     /* Avoid ANSI trigraph problems! */
     SetFileInfo(name,'\?\?\?\?','\?\?\?\?',134);
 #endif
-#ifdef IBMPC
+#ifdef MSWIN
     GlobalUnlock(FBufHandle); 
 #endif
-    return( True );
+    return True;
 }
 
 
-void InitialiseOutFile()
+
+void InitialiseOutFile( void )
 {
+#ifdef EIGHTBIT
 #if defined(IBMPC) || defined(APPLEMAC)
     /* Allocate Tables on FAR Heap */
     ABranch = (short __far*)_fmalloc(4096*sizeof(short));
     DBranch = (short __far*)_fmalloc(4096*sizeof(short));
     Hash = (short __far*)_fmalloc(256*sizeof(short));
     Node = (Byte __far*)_fmalloc(4096*sizeof(Byte));
+#endif
 #endif
 
     UseTransparent = False;

@@ -1,7 +1,54 @@
+/***************************************************************************
+ *                            RasMol 2.7.1.1                               *
+ *                                                                         *
+ *                                RasMol                                   *
+ *                 Molecular Graphics Visualisation Tool                   *
+ *                            17 January 2001                              *
+ *                                                                         *
+ *                   Based on RasMol 2.6 by Roger Sayle                    *
+ * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
+ *                      Stevenage, Hertfordshire, UK                       *
+ *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
+ *                   Copyright (C) Roger Sayle 1992-1999                   *
+ *                                                                         *
+ *                  and Based on Mods by Arne Mueller                      *
+ *                      Version 2.6x1, May 1998                            *
+ *                   Copyright (C) Arne Mueller 1998                       *
+ *                                                                         *
+ *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
+ *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *                      yaya@bernstein-plus-sons.com                       *
+ *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
+ *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *                                                                         *
+ * Please read the file NOTICE for important notices which apply to this   *
+ * package. If you are not going to make changes to RasMol, you are not    * 
+ * only permitted to freely make copies and distribute them, you are       * 
+ * encouraged to do so, provided you do the following:                     *
+ *   * 1. Either include the complete documentation, especially the file   *
+ *     NOTICE, with what you distribute or provide a clear indication      *
+ *     where people can get a copy of the documentation; and               *
+ *   * 2. Please give credit where credit is due citing the version and    * 
+ *     original authors properly; and                                      *  
+ *   * 3. Please do not give anyone the impression that the original       *   
+ *     authors are providing a warranty of any kind.                       *
+ *                                                                         *
+ * If you would like to use major pieces of RasMol in some other program,  *
+ * make modifications to RasMol, or in some other way make what a lawyer   *
+ * would call a "derived work", you are not only permitted to do so, you   *
+ * are encouraged to do so. In addition to the things we discussed above,  *
+ * please do the following:                                                *
+ *   * 4. Please explain in your documentation how what you did differs    *
+ *     from this version of RasMol; and                                    *
+ *   * 5. Please make your modified source code available.                 *
+ *                                                                         *
+ * This version of RasMol is not in the public domain, but it is given     *
+ * freely to the community in the hopes of advancing science. If you make  *
+ * changes, please make them in a responsible manner, and please offer us  *
+ * the opportunity to include those changes in future versions of RasMol.  *
+ ***************************************************************************/
+
 /* raswin.c
- * RasWin Molecular Graphics
- * Roger Sayle, August 1995
- * Version 2.6
  */
 
 #include <windows.h>
@@ -14,6 +61,7 @@
 #include <string.h>
 #include <malloc.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <math.h>
 
 #define RASMOL
@@ -24,10 +72,19 @@
 #include "graphics.h"
 #include "pixutils.h"
 #include "transfor.h"
+#include "cmndline.h"
 #include "command.h"
 #include "render.h"
 #include "repres.h"
 #include "outfile.h"
+#include "langsel.h"
+
+
+#ifdef SOCKETS
+#include <winsock.h>
+#define WM_WINSOCK  WM_USER+1
+#endif
+
 
 /* Microsoft C vs Borland Turbo C */
 #ifndef __TURBOC__
@@ -35,12 +92,18 @@
 #define getcwd  _getcwd
 #endif
 
-/* Determine Mouse Sensitivity! */
-#define IsClose(u,v) (((u)>=(v)-1) && ((u)<=(v)+1))
 
-#define DefaultTimeOut 10000
-#define MaxAdviseNum   32
-#define MaxConvNum     8
+#define TwoPi 2.0*PI
+#define IsIdentChar(x)  ((isalnum(x))||((x)=='_')||((x)=='$'))
+
+
+/*===========================*/
+/* Microsoft Windows DDE IPC */
+/*===========================*/
+
+#define DefaultDDETimeOut 10000
+#define MaxDDEAdviseNum   32
+#define MaxDDEConvNum     8
 
 #define ColdLink       0x01
 #define WarmLink       0x02
@@ -65,24 +128,70 @@ typedef struct {
        } DDEAdvise;
 
 static int DDETimeOut;
-static DDEAdvise AdviseData[MaxAdviseNum];
-static DDEConv ConvData[MaxConvNum];
-static int RasWinReady;
-static int AdviseCount;
-static int ConvCount;
+static DDEAdvise DDEAdviseData[MaxDDEAdviseNum];
+static DDEConv DDEConvData[MaxDDEConvNum];
+static int RasWinDDEReady;
+static int DDEAdviseCount;
+static int DDEConvCount;
 
- 
-static char *ItemName[ItemCount] = {
-	"Pick",      /* AdvPickAtom    */
-	"PickNo",    /* AdvPickNumber  */
-	"Count",     /* AdvSelectCount */
-	"Name",      /* AdvName        */
-	"Ident",     /* AdvIdent       */
-	"Class",     /* AdvClass       */
-	"Image",     /* AdvImage       */
-	"PickXYZ"    /* AdvPickCoord   */
-    };
 
+#ifdef SOCKETS
+/*===============================*/
+/* Microsoft Windows Socket IPC  */
+/*===============================*/
+
+/* Supported Protocols */
+#define ProtoRasMol   0x01
+
+typedef struct {
+        SOCKET socket;
+        int protocol;
+        int advise;
+    } IPCConv;
+
+#define MaxIPCConvNum     8
+static IPCConv IPCConvData[MaxIPCConvNum];
+
+static SOCKET SocketNo;
+static int ServerPort;
+static int UseSockets;
+#endif
+
+
+/*=============================*/
+/* Generic Advise Information  */
+/*=============================*/
+
+#define AMNone         0x00
+#define AMPickAtom     0x01
+#define AMPickNumber   0x02
+#define AMSelectCount  0x04
+#define AMMolName      0x08
+#define AMPickCoord    0x10
+
+typedef struct {
+        int bitmask;
+        char *name;
+    } AdviseType;
+
+static AdviseType AdviseMap[ItemCount] = {
+    { AMPickAtom,    "Pick"    },  /* AdvPickAtom    */
+    { AMPickNumber,  "PickNo"  },  /* AdvPickNumber  */
+    { AMSelectCount, "Count"   },  /* AdvSelectCount */
+    { AMMolName,     "Name"    },  /* AdvName        */
+    { AMNone,        "Ident"   },  /* AdvIdent       */
+    { AMNone,        "Class"   },  /* AdvClass       */
+    { AMNone,        "Image"   },  /* AdvImage       */
+    { AMPickCoord,   "PickXYZ" }   /* AdvPickCoord   */
+        };
+
+static char AdviseBuffer[256];
+static int AdviseLen;
+
+
+/*================================*/
+/* Command Line Terminal Emulator */
+/*================================*/
 
 #define CmndSize   (CmndRows*CmndCols)
 #define ScrlMax    80
@@ -112,59 +221,100 @@ static char ifilters[512];
 static char ofilters[512];
 static OPENFILENAME ofn1;
 static OPENFILENAME ofn2;
-static HANDLE hInstance;
+static HINSTANCE hInstance;
 static char Text[256];
 
 
-long FAR PASCAL MainCallB(HWND, UINT, WPARAM, LPARAM);
-long FAR PASCAL CmndCallB(HWND, UINT, WPARAM, LPARAM);
-long FAR PASCAL DDECallB( HWND, UINT, WPARAM, LPARAM); 
-BOOL FAR PASCAL AboutCallB(HWND, unsigned, WORD, LONG);
-BOOL FAR PASCAL InfoCallB(HWND, unsigned, WORD, LONG);
+#ifdef _WIN32
+LRESULT CALLBACK MainCallB(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK CmndCallB(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK DDECallB( HWND, UINT, WPARAM, LPARAM);
+BOOL CALLBACK AboutCallB(  HWND, UINT, WPARAM, LPARAM);
+BOOL CALLBACK InfoCallB(   HWND, UINT, WPARAM, LPARAM);
+#else
+LONG FAR PASCAL MainCallB( HWND, UINT, WPARAM, LPARAM);
+LONG FAR PASCAL CmndCallB( HWND, UINT, WPARAM, LPARAM);
+LONG FAR PASCAL DDECallB(  HWND, UINT, WPARAM, LPARAM); 
+BOOL FAR PASCAL AboutCallB(HWND, UINT, WPARAM, LPARAM);
+BOOL FAR PASCAL InfoCallB( HWND, UINT, WPARAM, LPARAM);
+#endif
 
 
 
-static void CloseDDELinks()
+static void CloseDDELinks( void )
 {
     register long alarm;
     register int i;
     MSG message;
     
-    for( i=0; i<MaxConvNum; i++ )
-	if( ConvData[i].server )
-	{   ConvData[i].closed = True;
-	    PostMessage( ConvData[i].client, WM_DDE_TERMINATE,
-			 (WPARAM)ConvData[i].server, 0L );
+    for( i=0; i<MaxDDEConvNum; i++ )
+	if( DDEConvData[i].server )
+	{   DDEConvData[i].closed = True;
+	    PostMessage( DDEConvData[i].client, WM_DDE_TERMINATE,
+			 (WPARAM)DDEConvData[i].server, (LPARAM)0 );
 	} 
    
     alarm = GetTickCount() + DDETimeOut;
     while( PeekMessage(&message,NULL,WM_DDE_FIRST,WM_DDE_LAST,PM_REMOVE) )
     {   DispatchMessage( &message );
 	if( message.message == WM_DDE_TERMINATE )
-	    if( !ConvCount ) break;
+	    if( !DDEConvCount ) break;
 	    
 	/* Terminate Time Out */
 	if( (long)GetTickCount() > alarm )
-	{   for( i=0; i<MaxConvNum; i++ )
-		if( ConvData[i].server )
-		    DestroyWindow( ConvData[i].server );
+	{   for( i=0; i<MaxDDEConvNum; i++ )
+		if( DDEConvData[i].server )
+		    DestroyWindow( DDEConvData[i].server );
 	    break;
 	}
     }
+
+    for( i=0; i<MaxDDEAdviseNum; i++ )
+        if( DDEAdviseData[i].server && DDEAdviseData[i].wait )
+        {   GlobalDeleteAtom(DDEAdviseData[i].atom);
+            GlobalFree(DDEAdviseData[i].data);
+            DDEAdviseData[i].wait = False;
+            break;
+        }
 }
 
 
-void RasMolExit()
+#ifdef SOCKETS
+static void CloseSockets( void )
+{
+    register int i;
+
+    if( UseSockets )
+    {   if( SocketNo != INVALID_SOCKET )
+            closesocket(SocketNo);
+
+        for( i=0; i<MaxIPCConvNum; i++ )
+            if( IPCConvData[i].protocol )
+            {   closesocket(IPCConvData[i].socket);
+                IPCConvData[i].protocol = 0;
+            }
+
+        SocketNo = INVALID_SOCKET;
+        UseSockets = False;
+        WSACleanup();
+    }
+}
+#endif
+
+
+void RasMolExit( void )
 {
     DeleteObject(TermFont);
     CloseDDELinks();
+#ifdef SOCKETS
+    CloseSockets();
+#endif
     CloseDisplay();
     exit(0);
 }
 
 
-void RasMolFatalExit( msg )
-    char *msg;
+void RasMolFatalExit( char *msg )
 {
     MessageBox(NULL,msg,"RasMol Fatal Error!",
 	MB_OK | MB_ICONEXCLAMATION | MB_APPLMODAL );
@@ -172,19 +322,22 @@ void RasMolFatalExit( msg )
     /* PostQuitMessage(0); */
     DeleteObject(TermFont);
     CloseDDELinks();
+#ifdef SOCKETS
+    CloseSockets();
+#endif
     CloseDisplay();
     exit(1);    
 }
 
 
-static void LoadInitFile()
+static void LoadInitFile( void )
 {
     register char *src,*dst;
     register FILE *initrc;
     register char *fname;
 
     fname = "RASMOL.INI";
-    initrc = fopen(fname,"r");
+    initrc = fopen(fname,"rb");
     if( !initrc && (src=(char*)getenv("HOME")) )
     {   dst = fnamebuf; 
 	while( *src )
@@ -193,7 +346,7 @@ static void LoadInitFile()
 
 	src = fname; fname = fnamebuf;
 	while( *dst++ = *src++ );
-	initrc = fopen(fname,"r");
+	initrc = fopen(fname,"rb");
     }
 
     if( initrc )
@@ -201,8 +354,7 @@ static void LoadInitFile()
 }
 
 
-static void SetTermScroll( pos )
-    int pos;
+static void SetTermScroll( int pos )
 {
     SetScrollPos(CmndWin,SB_VERT,pos,True);
     InvalidateRect(CmndWin,NULL,True);
@@ -210,8 +362,7 @@ static void SetTermScroll( pos )
 }
 
 
-void WriteChar( ch )
-    char ch;
+void WriteChar( int ch )
 {
     register int i;
     RECT rect;
@@ -291,23 +442,20 @@ void WriteChar( ch )
 }
 
 
-void WriteString( ptr )
-    char *ptr;
+void WriteString( char *ptr )
 {
     while( *ptr )
 	WriteChar(*ptr++);
 }
 
 
-static int InitTerminal( instance )
-    HANDLE instance;
+static int InitTerminal( HANDLE instance )
 {
     TEXTMETRIC Text;
     LOGFONT LogFont;
     long style;
     RECT rect;
     HDC hDC;
-
     
     LogFont.lfHeight     = 12;
     LogFont.lfWidth      = 8;
@@ -317,11 +465,11 @@ static int InitTerminal( instance )
     LogFont.lfUnderline  = 0;
     LogFont.lfStrikeOut  = 0;
     
-    LogFont.lfCharSet        = OEM_CHARSET;
+    LogFont.lfCharSet        = ANSI_CHARSET;
     LogFont.lfOutPrecision   = OUT_DEFAULT_PRECIS;
     LogFont.lfClipPrecision  = CLIP_DEFAULT_PRECIS;
-    LogFont.lfQuality        = DEFAULT_QUALITY;
-    LogFont.lfPitchAndFamily = FIXED_PITCH | FF_MODERN;
+    LogFont.lfQuality        = PROOF_QUALITY;
+    LogFont.lfPitchAndFamily = FIXED_PITCH | FF_SWISS;
     LogFont.lfFaceName[0]    = '\0';
     TermFont = CreateFontIndirect(&LogFont);
 
@@ -337,7 +485,6 @@ static int InitTerminal( instance )
     _fmemset(TermScreen,' ',CmndSize);
     TermCursor = False;
 
-
     hDC = GetDC(NULL);
     SelectObject(hDC,TermFont);
     GetTextMetrics(hDC,&Text);  
@@ -348,12 +495,10 @@ static int InitTerminal( instance )
 
     rect.top  = 0;   rect.bottom = TermRows*CharHigh;
     rect.left = 0;   rect.right  = TermCols*CharWide;
-    
-    style = WS_OVERLAPPED | WS_CAPTION | WS_THICKFRAME | 
-	    WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_VSCROLL;
+    style = WS_OVERLAPPEDWINDOW | WS_VSCROLL;
     
     AdjustWindowRect(&rect,style,False);
-#ifdef _WIN32
+#ifdef WS_EX_CLIENTEDGE
     CmndWin = CreateWindowEx(WS_EX_CLIENTEDGE,
                            "RasCliClass", "RasMol Command Line",
 			   style, CW_USEDEFAULT, CW_USEDEFAULT,
@@ -371,12 +516,11 @@ static int InitTerminal( instance )
     SetScrollRange(CmndWin,SB_VERT,0,ScrlMax,FALSE); 
     SetScrollPos(CmndWin,SB_VERT,ScrlMax,FALSE);
     ShowWindow(CmndWin,SW_SHOWMINNOACTIVE);
-    return( True );
+    return True;
 }
 
 
-
-static void PaintScreen()
+static void PaintScreen( void )
 {
     int SRow,ERow,SCol,ECol;
     register char __far *ptr;
@@ -469,68 +613,164 @@ static void PaintScreen()
 }
 
 
-
-BOOL FAR PASCAL AboutCallB(hWin,uMsg,wArg,lArg)
-    HWND hWin; unsigned uMsg; WORD wArg; LONG lArg;
+static void DetermineHostInfo( void )
 {
 #ifdef _WIN32
+    auto OSVERSIONINFO osinfo;
     auto SYSTEM_INFO sysinfo;
-    register char *ptr;
+    register char *winver;
+    register char *cpu;
+    register int count;
+
+    osinfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+#ifdef XPROCARCH
+    GetVersionEx(&osinfo);
+    if( osinfo.dwPlatformId == VER_PLATFORM_WIN32_NT )
+    {   winver = "Windows NT";
+    } else if( osinfo.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS )
+    {   winver = "Windows95";
+    } else if( osinfo.dwPlatformId == VER_PLATFORM_WIN32s )
+    {   winver = "Win32s";
+    } else winver = "Win32";
+#else
+    winver = "Windows";
+#endif
+
+#ifdef XPROCARCH
+    if( osinfo.dwPlatformId == VER_PLATFORM_WIN32_NT )
+    {   GetSystemInfo(&sysinfo);
+        switch( sysinfo.wProcessorArchitecture )
+        {   case PROCESSOR_ARCHITECTURE_INTEL:
+                switch( sysinfo.wProcessorLevel )
+                {   case 3:  cpu = "Intel 386";     break;
+                    case 4:  cpu = "Intel 486";     break;
+                    case 5:  cpu = "Intel Pentium"; break;
+                    default: cpu = "Unknown Intel"; break;
+                }
+                break;
+
+            case PROCESSOR_ARCHITECTURE_MIPS:
+                switch( sysinfo.wProcessorLevel )
+                {   case  1: cpu = "MIPS R2000";    break;
+                    case  2: cpu = "MIPS R3000";    break;
+                    case  3: cpu = "MIPS R6000";    break;
+                    case  4: cpu = "MIPS R4000";    break;
+                    case  6: cpu = "MIPS R6000A";   break;
+                    case  9: cpu = "MIPS R10000";   break;
+                    case 10: cpu = "MIPS R4200";    break;
+                    case 11: cpu = "MIPS R4300";    break;
+                    case 16: cpu = "MIPS R8000";    break;
+                    case 32: cpu = "MIPS R4600";    break;
+                    case 33: cpu = "MIPS R4700";    break;
+                    case 34: cpu = "MIPS R4650";    break;
+                    case 35: cpu = "MIPS R5000";    break;
+                    default: cpu = "Unknown MIPS";  break;
+                }
+                break;
+
+            case PROCESSOR_ARCHITECTURE_ALPHA:
+                switch( sysinfo.wProcessorLevel )
+                {   case 21064:  cpu = "Alpha 21064";  break;
+                    case 21066:  cpu = "Alpha 21066";  break;
+                    case 21164:  cpu = "Alpha 21164";  break;
+                    default: cpu = "Unknown Alpha";    break;
+                }
+                break;
+
+            case PROCESSOR_ARCHITECTURE_PPC:
+                switch( sysinfo.wProcessorLevel )
+                {   case 1:  cpu = "PPC 601";     break;
+                    case 3:  cpu = "PPC 603";     break;
+                    case 4:  cpu = "PPC 604";     break;
+                    case 6:  cpu = "PPC 603+";    break;
+                    case 9:  cpu = "PPC 604+";    break;
+                    case 20: cpu = "PPC 620";     break;
+                    default: cpu = "Unknown PPC"; break;
+                }
+                break;
+
+            default:
+                cpu = "unrecognised";
+                break;
+        }
+    } else /* Windows 95 or Windows98 */
+    {  
+#endif 
+        GetSystemInfo(&sysinfo);
+        switch( sysinfo.dwProcessorType )
+        {   case (386):   cpu = "Intel 386";       break;
+            case (486):   cpu = "Intel 486";       break;
+            case (586):   cpu = "Intel Pentium";   break;
+            case (860):   cpu = "Intel i860";      break;
+            case (2000):  cpu = "MIPS R2000";      break;
+            case (3000):  cpu = "MIPS R3000";      break;
+            case (4000):  cpu = "MIPS R4000";      break;
+            case (4400):  cpu = "MIPS R4400";      break;
+            case (4600):  cpu = "MIPS R4600";      break;
+            case (5000):  cpu = "MIPS R5000";      break;
+            case (8000):  cpu = "MIPS R8000";      break;
+            case (10000): cpu = "MIPS R10000";     break;
+            case (21064): cpu = "DEC Alpha 21064"; break;
+            case (21066): cpu = "DEC Alpha 21066"; break;
+            case (21164): cpu = "DEC Alpha 21164"; break;
+            default:     cpu = "unrecognised";
+        }
+#ifdef XPROCARCH
+    }
+#endif
+
+    count = sysinfo.dwNumberOfProcessors;
+    if( count > 1 )
+    {   sprintf(Text,"%s on %d %s CPUs\n",winver,count,cpu);
+    } else sprintf(Text,"%s on a single %s CPU",winver,cpu);
 #else
     register DWORD flags;
+    register char *cpu;
+
+    flags = GetWinFlags();
+    if( flags & WF_CPU286 )
+    {      cpu = "286";
+    } else if( flags & WF_CPU386 )
+    {      cpu = "386";
+    } else cpu = "486";
+                              
+    if( !(flags&WF_80x87) )
+    {   sprintf(Text,"%s without maths coprocessor",cpu);
+    } else sprintf(Text,"%s with maths coprocessor",cpu); 
 #endif
-    register int len; 
-   
-    switch(uMsg)
-    {   case(WM_INITDIALOG):  
-#ifdef _WIN32
-				GetSystemInfo(&sysinfo);
-				if( sysinfo.dwNumberOfProcessors > 1 )
-				{   len = sprintf(Text,"%d processor ",
-					       sysinfo.dwNumberOfProcessors);
-				} else len = 0;
-
-				switch(sysinfo.dwProcessorType)
-				{   case(386): ptr = "Intel 386";     break;
-				    case(486): ptr = "Intel 486";     break;
-				    case(586): ptr = "Intel Pentium"; break;
-				    case(860): ptr = "Intel i860";    break;
-
-				    case(2000):  ptr = "MIPS R2000"; break;
-				    case(3000):  ptr = "MIPS R3000"; break;
-				    case(4000):  ptr = "MIPS R4000"; break;
-
-				    case(21064): ptr = "DEC Alpha";  break;
-				    default:     ptr = "unrecognised";
-				}
-				sprintf(Text+len,"%s machine",ptr);
-#else
-				flags = GetWinFlags();
-				if( flags & WF_CPU286 )
-				{      len = sprintf(Text,"286 with");
-				} else if( flags & WF_CPU386 )
-				{      len = sprintf(Text,"386 with");
-				} else len = sprintf(Text,"486 with");
-			      
-				if( !(flags&WF_80x87) )
-				{   sprintf(Text+len,"out maths coprocessor");
-				} else sprintf(Text+len," maths coprocessor"); 
-#endif
-				SetDlgItemText(hWin,IDD_HARDWARE,Text);         
-				return(TRUE);
-    
-	case(WM_COMMAND):     if( wArg == IDOK )
-			      {   EndDialog(hWin,TRUE);
-				  return(TRUE);
-			      }
-			      break;
-    }
-    return(FALSE);
 }
 
 
-static void DisplayMoleculeInfo( hWin )
-    HWND hWin;
+#ifdef _WIN32
+BOOL CALLBACK AboutCallB( HWND hWin, UINT uMsg, WPARAM wArg, LPARAM lArg )
+#else
+BOOL FAR PASCAL AboutCallB( HWND hWin, UINT uMsg, WPARAM wArg, LPARAM lArg )
+#endif
+{
+    UnusedArgument(lArg);
+
+    switch(uMsg)
+    {   case(WM_INITDIALOG):  
+                DetermineHostInfo();
+                SetDlgItemText(hWin,IDD_HARDWARE,Text);         
+                return TRUE;
+    
+        case(WM_COMMAND):     
+#ifdef _WIN32
+                if( LOWORD(wArg) == IDOK )
+#else
+                if( wArg == IDOK )
+#endif
+                {   EndDialog(hWin,TRUE);
+                    return TRUE;
+                }
+                break;
+    }
+    return 0;
+}
+
+
+static void DisplayMoleculeInfo( HWND hWin )
 {
     register int line;
     register int len;
@@ -538,94 +778,104 @@ static void DisplayMoleculeInfo( hWin )
     line = IDD_INFOTEXT;
     
     if( *Info.moleculename )
-    {   sprintf(Text," Molecule name ...... %s",Info.moleculename);
+    {   sprintf(Text," %s%s",MsgStrs[StrMolNam],Info.moleculename);
 	SetDlgItemText(hWin,line++,Text);
     }
     
     if( *Info.classification )
-    {   sprintf(Text," Classification ......... %s",Info.classification);
+    {   sprintf(Text," %s%s",MsgStrs[StrClass],Info.classification);
 	SetDlgItemText(hWin,line++,Text);
     }
     
     if( *Info.identcode )
-    {   sprintf(Text," Brookhaven code .. %s",Info.identcode);
+    {   sprintf(Text," %s%s",MsgStrs[StrDBCode],Info.identcode);
 	SetDlgItemText(hWin,line++,Text);
     }
     
     if( Info.chaincount>1 )
-    {   sprintf(Text," Number of chains .. %d",Info.chaincount);
+    {   sprintf(Text," %s%d",MsgStrs[StrNumChn],Info.chaincount);
 	SetDlgItemText(hWin,line++,Text);
     }
     
-    len = sprintf(Text," Number of groups .. %d",MainGroupCount);
+    len = sprintf(Text," %s%d",MsgStrs[StrNumGrp],MainGroupCount);
     if( HetaGroupCount ) sprintf(Text+len," (%d)",HetaGroupCount);
     SetDlgItemText(hWin,line++,Text);
 
-    len = sprintf(Text," Number of atoms ... %ld",MainAtomCount);
+    len = sprintf(Text," %s%ld",MsgStrs[StrNumAtm],MainAtomCount);
     if( HetaAtomCount ) sprintf(Text+len," (%d)",HetaAtomCount);
     SetDlgItemText(hWin,line++,Text);
 
-
-    sprintf(Text," Number of bonds ... %ld",Info.bondcount);
+    sprintf(Text," %s%ld",MsgStrs[StrNumBnd],Info.bondcount);
     SetDlgItemText(hWin,line++,Text);
 }
 
 	
-BOOL FAR PASCAL InfoCallB(hWin,uMsg,wArg,lArg)
-    HWND hWin; unsigned uMsg; WORD wArg; LONG lArg;
+#ifdef _WIN32
+BOOL CALLBACK InfoCallB( HWND hWin, UINT uMsg, WPARAM wArg, LPARAM lArg )
+#else
+BOOL FAR PASCAL InfoCallB( HWND hWin, UINT uMsg, WPARAM wArg, LPARAM lArg )
+#endif
 {
+    UnusedArgument(lArg);
+
     switch(uMsg)
-    {   case(WM_INITDIALOG):  DisplayMoleculeInfo(hWin);
-			      return(TRUE);
+    {   case(WM_INITDIALOG):
+                DisplayMoleculeInfo(hWin);
+	        return TRUE;
 			      
-	case(WM_COMMAND):     if( wArg == IDOK )
-			      {   EndDialog(hWin,TRUE);
-				  return(TRUE);
-			      }
-			      break;
+	case(WM_COMMAND):
+#ifdef _WIN32
+                if( LOWORD(wArg) == IDOK )
+#else
+                if( wArg == IDOK )
+#endif
+	        {   EndDialog(hWin,TRUE);
+		    return TRUE;
+		}
+	        break;
     }
-    return(FALSE);
+    return 0;
 }
 
 
-static char *GetItemName( item )
-    int item;
+static char *GetItemName( int item )
 {
     switch( item )
-    {   case(-1):  return("Topics");
-	case(-2):  return("SysItems");
-	case(-3):  return("Formats");
-	case(-4):  return("Status");
-	case(-5):  return("Items");
+    {   case  0:  return (char*)0;
+        case -1:  return "Topics";
+        case -2:  return "SysItems";
+        case -3:  return "Formats";
+        case -4:  return "Status";
+        case -5:  return "Items";
     }
 
-    if( item<=ItemCount )
-	return( ItemName[item-1] );
-    return( "" );
+    if( item <= ItemCount )
+        return AdviseMap[item-1].name;
+    return "";
 }
 
-static HANDLE RenderClipboard( format )
-    WPARAM format;
+
+static HANDLE RenderClipboard( WPARAM format )
 {
     register BITMAPINFO __far *bitmap;
-    register char __huge *src;
-    register char __huge *dst;
+    register Pixel __huge *src;
+    register Pixel __huge *dst;
     register HANDLE result;
     register long size,len;
     register int i; 
    
     if( format==CF_PALETTE )
     {   if( ColourMap )
-	{   return( CreatePalette(Palette) );
-	} else return( NULL );
+	{   return CreatePalette(Palette);
+	} else return NULL;
     }    
     
     if( !PixMap || (format!=CF_DIB) )
-	return( NULL );
+	return NULL;
 
     len = (long)XRange*YRange*sizeof(Pixel);
     size = sizeof(BITMAPINFOHEADER) + 256*sizeof(RGBQUAD);
-    if( !(result=GlobalAlloc(GHND,size+len)) ) return( NULL );
+    if( !(result=GlobalAlloc(GHND,size+len)) ) return NULL;
     
     bitmap = (BITMAPINFO __far *)GlobalLock(result);
     bitmap->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -656,16 +906,17 @@ static HANDLE RenderClipboard( format )
     
     GlobalUnlock(FBufHandle);
     GlobalUnlock(result);
-    return( result );    
+    return result;    
 }
 
 
-static void SendItemData( hSrc, hDst, mode, item, advise )
-    HWND hSrc, hDst;  int mode, item, advise;
+static void SendItemData( HWND hSrc, HWND hDst, 
+                          int mode, int item, int advise )
 {
     DDEDATA FAR *data;
     HANDLE FAR *hImage;
     HANDLE hData;
+    LPARAM lArg;
     ATOM atom;
 
     register char __far *dest;
@@ -676,18 +927,20 @@ static void SendItemData( hSrc, hDst, mode, item, advise )
 
     name = GetItemName(item);
 
-    if( mode==WarmLink )
+    if( mode == WarmLink )
     {   atom = GlobalAddAtom(name);
-	if( !PostMessage(hDst,WM_DDE_DATA,(WPARAM)hSrc,MAKELONG(0,atom)) )
+#ifdef _WIN32
+        lArg = PackDDElParam(WM_DDE_DATA,0,atom);
+#else
+        lArg = MAKELONG(0,atom);
+#endif
+	if( !PostMessage(hDst,WM_DDE_DATA,(WPARAM)hSrc,lArg) )
 	    GlobalDeleteAtom(atom);
 	return;
     }
 
-    dst = Text;
-    if( item>0 )
-	item--;
-	
-    switch( item )
+    dst = AdviseBuffer;
+    switch( (item<0)? item : item-1 )
     {   case(-1): /* Topics */
 		  src="System\tRemoteControl"; 
 		  while( *dst++ = *src++ ); break;
@@ -701,13 +954,13 @@ static void SendItemData( hSrc, hDst, mode, item, advise )
 		  while( *dst++ = *src++ ); break;
 
 	case(-4): /* Status */
-		  src = RasWinReady? "Ready" : "Busy";
+		  src = RasWinDDEReady? "Ready" : "Busy";
 		  while( *dst++ = *src++ ); break;
 
 	case(-5): /* Items */
 		  for( i=0; i<ItemCount; i++ )
 		  {   if( i ) *dst++ = '\t';
-		      src = GetItemName(i); 
+		      src = AdviseMap[i].name;
 		      while( *src )
 			  *dst++ = *src++;
 		  }
@@ -765,8 +1018,11 @@ static void SendItemData( hSrc, hDst, mode, item, advise )
     len = sizeof(DDEDATA);
     if( item == AdvImage )
     {   len += sizeof(HANDLE);
-    } else for( dst=Text; *dst; dst++ )
-	len++;
+        AdviseLen = 0;
+    } else
+    {   AdviseLen = strlen(AdviseBuffer)+1;
+        len += AdviseLen;
+    }
 
     if( hData = GlobalAlloc(GHND|GMEM_DDESHARE,len) )
     {   if( data = (DDEDATA FAR*)GlobalLock(hData) )
@@ -782,33 +1038,35 @@ static void SendItemData( hSrc, hDst, mode, item, advise )
 	    } else 
 	    {   data->cfFormat = CF_TEXT;
 		dest = (char __far*)&data->Value[0];
-		for( src=Text; *src; *dest++ = *src++ );
+		memcpy(dest,AdviseBuffer,len+1);
 		/* Correctly terminate the data string */
 		/* *dest++ = '\r'; *dest++ = '\n';     */
-		*dest = '\0';
 	    }
 	    
 	    GlobalUnlock(hData);
 	    atom = GlobalAddAtom(name);
-	    if( PostMessage(hDst,WM_DDE_DATA,(WPARAM)hSrc,MAKELONG(hData,atom)) )
+#ifdef _WIN32
+            lArg = PackDDElParam(WM_DDE_DATA,(UINT)hData,(UINT)atom);
+#else
+            lArg = MAKELONG((UINT)hData,(UINT)atom);
+#endif
+            if( PostMessage(hDst,WM_DDE_DATA,(WPARAM)hSrc,lArg) )
 	    {   if( mode==AckLink )
 		{   SetTimer( hSrc, (UINT)hDst, DDETimeOut, NULL );
-		    AdviseData[advise].data = hData;
-		    AdviseData[advise].atom = atom;
-		    AdviseData[advise].wait = True;
+		    DDEAdviseData[advise].data = hData;
+		    DDEAdviseData[advise].atom = atom;
+		    DDEAdviseData[advise].wait = True;
 		}
 		return;
 	    }
 	    GlobalDeleteAtom(atom);
 	}
-	GlobalFree( hData );
+	GlobalFree(hData);
     }
-    return;
 }
 
 
-static int GetItemNumber( atom )
-    ATOM atom;
+static int GetItemNumber( ATOM atom )
 {
     register int i;
 
@@ -816,39 +1074,132 @@ static int GetItemNumber( atom )
 
     for( i=1; i<6; i++ )
 	if( !stricmp(Text,GetItemName(-i)) )
-	    return( -i );
+	    return -i;
 
     for( i=0; i<ItemCount; i++ )
-	if( !stricmp(Text,ItemName[i]) )
-	    return( i+1 );
-    return( 0 );
+        if( !stricmp(Text,AdviseMap[i].name) )
+	    return i+1;
+    return 0;
 }
 
-void AdviseUpdate( item )
-    int item;
+
+#ifdef SOCKETS
+static void PrepareIPCAdviseItem( int item )
+{
+    register char *src, *dst;
+    register int i,flag;
+
+    dst = AdviseBuffer;
+    src = AdviseMap[item].name;
+    while( *src ) *dst++ = *src++;
+    *dst++ = ':';  *dst++ = ' ';
+
+    switch( item )
+    {   case(AdvPickAtom):
+                  if( QAtom )
+                  {   src = Residue[QGroup->refno];
+                      flag = False;
+                      for( i=0; i<3; i++ )
+                          if( (src[i]!=' ') && !isalpha(src[i]) )
+                              flag = True;
+
+                      if( flag ) *dst++ = '[';
+                      for( i=0; i<3; i++ )
+                          if( src[i]!=' ' )
+                              *dst++ = src[i];
+                      if( flag ) *dst++ = ']';
+                      sprintf(dst,"%d",QGroup->serno);
+                      for( dst=AdviseBuffer; *dst; dst++ );
+                      if( QChain->ident!=' ' )
+                      {   if( isdigit(QChain->ident) ) *dst++ = ':';
+                          *dst++ = QChain->ident;
+                      }
+                      *dst++ = '.';
+
+                      src = ElemDesc[QAtom->refno];
+                      for( i=0; i<4; i++ )
+                          if( src[i]!=' ' )
+                              *dst++ = src[i];
+                  }
+                  *dst++ = '\n';
+                  *dst = '\0';
+                  break;
+
+        case(AdvPickNumber):
+                  if( !QAtom )
+                  {   *dst++ = '\n'; *dst = '\0';
+                  } else sprintf(dst,"%ld\n",(long)QAtom->serno);
+                  break;
+
+        case(AdvSelectCount):
+                  sprintf(dst,"%ld\n",(long)SelectCount);
+                  break;
+
+        case(AdvName):
+                  src = Info.moleculename;
+                  while( *src ) *dst++ = *src++;
+                  *dst++ = '\n'; *dst = '\0';
+                  break;
+
+        case(AdvPickCoord):
+                  if( !QAtom )
+                  {   *dst++ = '\n'; *dst = '\0';
+                  } else sprintf( dst, "%ld\t%ld\t%ld\n",
+                             (long)QAtom->xorg,
+                             (long)QAtom->yorg,
+                             (long)QAtom->zorg);
+                  break;
+
+        default:  *dst++ = '\n';
+                  *dst = '\0';
+                  break;
+    }
+    AdviseLen = strlen(AdviseBuffer)+1;
+}
+#endif
+
+
+void AdviseUpdate( int item )
 {
     register DDEAdvise *ptr;
     register int i;
 
-    if( AdviseCount )
+#ifdef SOCKETS
+    register int mask;
+
+    if( (item>=0) && UseSockets )
+    {   mask = AdviseMap[item].bitmask;
+        if( mask )
+        {   AdviseLen = 0;
+            for( i=0; i<MaxIPCConvNum; i++ )
+                if( IPCConvData[i].protocol && (IPCConvData[i].advise&mask) )
+                {   if( !AdviseLen ) PrepareIPCAdviseItem(item);
+                    send(IPCConvData[i].socket,AdviseBuffer,AdviseLen,0);
+                }
+        }
+    }
+#endif
+
+    if( DDEAdviseCount )
     {   if( item >= 0 ) item++;
-	for( i=0; i<MaxAdviseNum; i++ )
-	{   ptr = AdviseData + i;
-	    if( ptr->server && (ptr->item==(Byte)item) )
-		SendItemData(ptr->server,ptr->client,ptr->mode,item,i);
+        ptr = DDEAdviseData;
+        for( i=0; i<MaxDDEAdviseNum; i++ )
+        {   if( ptr->server && (ptr->item==(Byte)item) && !ptr->wait )
+                SendItemData(ptr->server,ptr->client,ptr->mode,item,i);
+            ptr++;
 	}
     }
 }
 
 
 
-void RefreshScreen()
+void RefreshScreen( void )
 {
-    ReDrawFlag &= ~(RFTransZ|RFPoint);
+    ReDrawFlag &= ~RFTransZ;
 
     if( ReDrawFlag )
-    {   if( RasWinReady )
-	{   RasWinReady = False;
+    {   if( RasWinDDEReady )
+	{   RasWinDDEReady = False;
 	    AdviseUpdate( -4 );
 	}
 	
@@ -876,10 +1227,28 @@ void RefreshScreen()
 }
 
 
-long FAR PASCAL DDECallB(hWin,uMsg,wArg,lArg)
-    HWND hWin; UINT uMsg; WPARAM wArg; LPARAM lArg;
+static void GenerateDDEReply( HWND hDst, HWND hSrc, int flag, UINT data )
+{
+    register LPARAM lArg;
+
+#ifdef _WIN32
+    lArg = PackDDElParam(WM_DDE_ACK,(flag?0x8000:0),data);
+#else
+    lArg = MAKELPARAM((flag?0x8000:0),data);
+#endif
+    PostMessage( (HWND)hDst, WM_DDE_ACK, (WPARAM)hSrc, lArg );
+}
+
+  
+#ifdef _WIN32
+LRESULT CALLBACK DDECallB( HWND hWin, UINT uMsg, WPARAM wArg, LPARAM lArg )
+#else
+LONG FAR PASCAL DDECallB( HWND hWin, UINT uMsg, WPARAM wArg, LPARAM lArg )
+#endif
 {
     DDEADVISE FAR *options;
+    auto UINT loword;
+    auto UINT hiword;
     HWND hDest;
 
     register DDEConv *ptr;
@@ -888,162 +1257,222 @@ long FAR PASCAL DDECallB(hWin,uMsg,wArg,lArg)
     register int format,i;
     register int flag;
     
-    stat = IPC_Ok;
-    flag = False;
-
     switch( uMsg )
     {   case( WM_TIMER ):    
-		    /* Simulate DDE NAck */
-		    lArg = 0L;  
+                    KillTimer( hWin, wArg );
+                    for( i=0; i<MaxDDEAdviseNum; i++ )
+                        if( (DDEAdviseData[i].server==hWin) &&
+                             DDEAdviseData[i].wait )
+                        {   GlobalDeleteAtom(DDEAdviseData[i].atom);
+                            GlobalFree(DDEAdviseData[i].data);
+                            DDEAdviseData[i].wait = False;
+                            break;
+                        }
+                    return 0L;
+
 	case( WM_DDE_ACK ):
 		    KillTimer( hWin, wArg );
-		    if( !(LOWORD(lArg)&0x8000) )
-		    {   item = GetItemNumber( HIWORD(lArg) );
-			for( i=0; i<MaxAdviseNum; i++ )
-			    if( (AdviseData[i].server==hWin) &&
-				(AdviseData[i].item==(Byte)item) &&
-				 AdviseData[i].wait )
-			    {   GlobalDeleteAtom(AdviseData[i].atom);
-				GlobalFree(AdviseData[i].data);
-				AdviseData[i].wait = False;
-				break;
-			    }
-		    }
+#ifdef _WIN32
+                    if( UnpackDDElParam(uMsg,lArg,&loword,&hiword) )
+                    {   FreeDDElParam(uMsg,lArg);
+                    } else return 0L;
+#else
+                    loword = LOWORD(lArg);
+                    hiword = HIWORD(lArg);
+#endif
 
-		    if( HIWORD(lArg) )
-			GlobalDeleteAtom( HIWORD(lArg) );
-		    return( 0L );
+                    if( hiword )
+                    {   item = GetItemNumber( (ATOM)hiword );
+                        GlobalDeleteAtom( (ATOM)hiword );
+                    } else item = 0;
+
+                    if( !item )
+                        return 0L;
+
+                    if( !(loword&0x8000) )
+                    {   for( i=0; i<MaxDDEAdviseNum; i++ )
+                            if( (DDEAdviseData[i].server==hWin) &&
+                                (DDEAdviseData[i].item==(Byte)item) &&
+                                 DDEAdviseData[i].wait )
+                            {   if( DDEAdviseData[i].atom != (ATOM)hiword )
+                                    GlobalDeleteAtom(DDEAdviseData[i].atom);
+                                GlobalFree(DDEAdviseData[i].data);
+                                DDEAdviseData[i].wait = False;
+                                break;
+                            }
+                    }
+                    return 0L;
 
 	case( WM_DDE_REQUEST ):
-		    if( item=GetItemNumber(HIWORD(lArg)) )
-		    {   format = (item==AdvImage+1)? CF_DIB : CF_TEXT; 
-			if( format == (int)(LOWORD(lArg)) )
-			{   SendItemData( hWin, wArg, ColdLink, item, 0 );
-			    GlobalDeleteAtom( HIWORD(lArg) );
-			    return( 0L );
-			}
-		    } 
-		    break;
+                    hiword = HIWORD(lArg);
+                    if( hiword )
+                    {   item = GetItemNumber( (ATOM)hiword );
+                    } else item = 0;
+
+                    if( !item )
+                    {   GenerateDDEReply((HWND)wArg,hWin,False,hiword);
+                        return 0L;
+                    }
+
+                    format = (item==AdvImage+1)? CF_DIB : CF_TEXT; 
+                    if( format == (int)LOWORD(lArg) )
+                    {   SendItemData(hWin,(HWND)wArg,ColdLink,item,0);
+                        GlobalDeleteAtom( (ATOM)hiword );
+                    } else GenerateDDEReply((HWND)wArg,hWin,False,hiword);
+                    return 0L;
 
 	case( WM_DDE_UNADVISE ):
-		    if( HIWORD(lArg) )
-		    {   item = GetItemNumber( HIWORD(lArg) );
-			if( !item ) break;
-		    } else item = 0;
+                    hiword = HIWORD(lArg);
+                    if( hiword )
+                    {   item = GetItemNumber( (ATOM)hiword );
+                        if( !item )
+                        {   GenerateDDEReply((HWND)wArg,hWin,False,hiword);
+                            return 0L;
+                        }
+                    } else item = 0;
 
-		    for( i=0; i<MaxAdviseNum; i++ )
-			if( (AdviseData[i].server==hWin) &&
-			    ( !item || AdviseData[i].item==(Byte)item ) )
-			{   if( AdviseData[i].wait )
-			    {   GlobalDeleteAtom(AdviseData[i].atom);
-				GlobalFree(AdviseData[i].data);
-			    }
-			    AdviseData[i].server = NULL;
-			    AdviseCount--;
-			    flag = True;
-			}
-		    break;
+                    flag = False;
+                    for( i=0; i<MaxDDEAdviseNum; i++ )
+                        if( (DDEAdviseData[i].server==hWin) &&
+                            ( !hiword || DDEAdviseData[i].item==(Byte)item ) )
+                        {   if( DDEAdviseData[i].wait )
+                            {   GlobalDeleteAtom(DDEAdviseData[i].atom);
+                                GlobalFree(DDEAdviseData[i].data);
+                            }
+                            DDEAdviseData[i].server = NULL;
+                            DDEAdviseCount--;
+                            flag = True;
+                        }
+                    GenerateDDEReply((HWND)wArg,hWin,flag,hiword);
+                    return 0L;
 
 	case( WM_DDE_ADVISE ):
-		    item = GetItemNumber( HIWORD(lArg) );
-		    if( !item || (AdviseCount==MaxAdviseNum ) )
-			break;
+#ifdef _WIN32
+                    if( UnpackDDElParam(uMsg,lArg,&loword,&hiword) )
+                    {   FreeDDElParam(uMsg,lArg);
+                    } else return 0L;
+#else
+                    loword = LOWORD(lArg);
+                    hiword = HIWORD(lArg);
+#endif
+                    if( hiword )
+                    {   item = GetItemNumber( (ATOM)hiword );
+                    } else item = 0;
 
-		    /* Check for established link! */
-		    for( i=0; i<MaxAdviseNum; i++ )
-			if( (AdviseData[i].server==hWin) &&
-			    (AdviseData[i].item==(Byte)item) ) break;
-		    if( i<MaxAdviseNum ) break;
+                    if( !item || (DDEAdviseCount==MaxDDEAdviseNum ) )
+                    {   GenerateDDEReply((HWND)wArg,hWin,False,hiword);
+                        return 0L;
+                    }
 
-		    options = (DDEADVISE FAR*)GlobalLock((HGLOBAL)LOWORD(lArg));
-		    if( !options ) break;
+                    /* Check for established link! */
+                    for( i=0; i<MaxDDEAdviseNum; i++ )
+                        if( (DDEAdviseData[i].server==hWin) &&
+                            (DDEAdviseData[i].item==(Byte)item) )
+                            break;
 
-		    format = (item==AdvImage+1)? CF_DIB : CF_TEXT;
-		    if( options->cfFormat == format ) 
-		    {   for( i=0; i<MaxConvNum; i++ )
-			   if( ConvData[i].server==hWin )
-			   {   hDest = ConvData[i].client;
-			       break;
-			   }
+                    if( i < MaxDDEAdviseNum )
+                    {   /* Should we reuse the existing advise? */
+                        GenerateDDEReply((HWND)wArg,hWin,False,hiword);
+                        return 0L;
+                    }
 
-		       for( i=0; i<MaxAdviseNum; i++ )
-			   if( !AdviseData[i].server )
-			       break;
+                    options = (DDEADVISE FAR*)GlobalLock((HGLOBAL)loword);
+                    if( !options )
+                    {   GenerateDDEReply((HWND)wArg,hWin,False,hiword);
+                        return 0L;
+                    }
 
-		       AdviseData[i].server = hWin;
-		       AdviseData[i].client = hDest;
-		       AdviseData[i].atom = HIWORD(lArg);
-		       AdviseData[i].wait = False;
-		       AdviseData[i].item = item;
-		       AdviseCount++;
+                    format = (item==AdvImage+1)? CF_DIB : CF_TEXT;
+                    if( options->cfFormat == format ) 
+                    {   for( i=0; i<MaxDDEConvNum; i++ )
+                           if( DDEConvData[i].server == hWin )
+                           {   hDest = DDEConvData[i].client;
+                               break;
+                           }
 
-		       if( options->fDeferUpd )
-		       {      AdviseData[i].mode = WarmLink;
-		       } else if( options->fAckReq )
-		       {      AdviseData[i].mode = AckLink;
-		       } else AdviseData[i].mode = HotLink;
+                       for( i=0; i<MaxDDEAdviseNum; i++ )
+                           if( !DDEAdviseData[i].server )
+                               break;
 
-		       PostMessage( (HWND)wArg, WM_DDE_ACK, (WPARAM)hWin,
-				 MAKELONG(0x8000,HIWORD(lArg)) ); 
-		    /* SendItemData(hWin,hDest,AdviseData[i].mode,item,i); */
-		    }
-		    GlobalUnlock((HGLOBAL)LOWORD(lArg));
-		    return( 0L );
+                       DDEAdviseData[i].server = hWin;
+                       DDEAdviseData[i].client = hDest;
+                       DDEAdviseData[i].atom = hiword;
+                       DDEAdviseData[i].wait = False;
+                       DDEAdviseData[i].item = item;
+                       DDEAdviseCount++;
+
+                       if( options->fDeferUpd )
+                       {      DDEAdviseData[i].mode = WarmLink;
+                       } else if( options->fAckReq )
+                       {      DDEAdviseData[i].mode = AckLink;
+                       } else DDEAdviseData[i].mode = HotLink;
+
+                       GenerateDDEReply((HWND)wArg,hWin,True,hiword);
+
+                /* We could advise client of the current item value!      */
+                /* SendItemData(hWin,hDest,DDEAdviseData[i].mode,item,i); */
+
+                    } else GenerateDDEReply((HWND)wArg,hWin,False,hiword);
+                    GlobalUnlock((HGLOBAL)loword);
+                    return 0L;
 
 	case( WM_DDE_EXECUTE ):  
-		    if( cmnd=(char __huge*)GlobalLock((HANDLE)HIWORD(lArg)) )
-		    {   flag = stat = ExecuteIPCCommand( cmnd );
-			GlobalUnlock((HANDLE)HIWORD(lArg));
-		    }
-		    break;
+#ifdef _WIN32
+                    hiword = lArg;
+#else
+                    hiword = HIWORD(lArg);
+#endif
+                    cmnd = (char __huge*)GlobalLock((HANDLE)hiword);
+                    if( !cmnd )
+                    {   GenerateDDEReply((HWND)wArg,hWin,False,hiword);
+                        return 0L;
+                    }
 
+                    stat = ExecuteIPCCommand( cmnd );
+                    GlobalUnlock((HANDLE)hiword);
+                    GenerateDDEReply((HWND)wArg,hWin,stat,hiword);
+
+                    if( (stat==IPC_Quit) || (stat==IPC_Exit) )
+                        RasMolExit();
+
+                    if( ReDrawFlag )
+                        RefreshScreen();
+                    if( !CommandActive )
+                        ResetCommandLine(0);
+                    return 0L;
 		    
 	case( WM_DDE_TERMINATE ):
-		    /* Destroy all Hot/Warm Links */
-		    for( i=0; i<MaxAdviseNum; i++ )
-			if( AdviseData[i].server == hWin )
-			{   AdviseData[i].server = NULL;
-			    if( AdviseData[i].wait )
-			    {   GlobalDeleteAtom(AdviseData[i].atom);
-				GlobalFree(AdviseData[i].data);
-			    }
-			    AdviseCount--;
-			}
+                    /* Destroy all Hot/Warm Links */
+                    for( i=0; i<MaxDDEAdviseNum; i++ )
+                        if( DDEAdviseData[i].server == hWin )
+                        {   DDEAdviseData[i].server = NULL;
+                            if( DDEAdviseData[i].wait )
+                            {   GlobalDeleteAtom(DDEAdviseData[i].atom);
+                                GlobalFree(DDEAdviseData[i].data);
+                            }
+                            DDEAdviseCount--;
+                        }
 
-		    /* Remove the Conversation */
-		    for( i=0; i<MaxConvNum; i++ )
-			if( ConvData[i].server == hWin )
-			{   ptr = ConvData+i;
-			    if( !ptr->closed )
-				PostMessage( ptr->client, WM_DDE_TERMINATE,
-					     (WPARAM)ptr->server, 0L );
-			    DestroyWindow( ptr->server );
-			    ptr->server = NULL;
-			    ConvCount--;
-			    break;
-			}
-		    return( 0L );
+                    /* Remove the Conversation */
+                    for( i=0; i<MaxDDEConvNum; i++ )
+                        if( DDEConvData[i].server == hWin )
+                        {   ptr = &DDEConvData[i];
+                            if( !ptr->closed )
+                                PostMessage( ptr->client, WM_DDE_TERMINATE,
+                                             (WPARAM)ptr->server, 0L );
+                            DestroyWindow( ptr->server );
+                            ptr->server = NULL;
+                            DDEConvCount--;
+                            break;
+                        }
+                    return 0L;
 		    
-	default:  return( DefWindowProc(hWin,uMsg,wArg,lArg) );
+	default:    return DefWindowProc(hWin,uMsg,wArg,lArg);
     }
-
-    /* Return a DDE acknowledgement */
-    PostMessage( (HWND)wArg, WM_DDE_ACK, (WPARAM)hWin,
-		 MAKELONG( (flag?0x8000:0), HIWORD(lArg)) ); 
-
-    if( (stat==IPC_Quit) || (stat==IPC_Exit) )
-        RasMolExit();
-
-    if( ReDrawFlag ) 
-	RefreshScreen();
-    if( !CommandActive ) 
-	ResetCommandLine(0);
-    return( 0L );
 }
 
 
-static void ResizeTerminal( x, y )
-    int x, y;
+static void ResizeTerminal( int x, int y )
 {
     register int rows, cols;
     register int sr, er;
@@ -1101,8 +1530,11 @@ static void ResizeTerminal( x, y )
 }
 
 
-long FAR PASCAL CmndCallB(hWin,uMsg,wArg,lArg)
-    HWND hWin; UINT uMsg; WPARAM wArg; LPARAM lArg;
+#ifdef _WIN32
+LRESULT CALLBACK CmndCallB( HWND hWin, UINT uMsg, WPARAM wArg, LPARAM lArg )
+#else
+LONG FAR PASCAL CmndCallB( HWND hWin, UINT uMsg, WPARAM wArg, LPARAM lArg )
+#endif
 {
     register int row;
     
@@ -1117,15 +1549,15 @@ long FAR PASCAL CmndCallB(hWin,uMsg,wArg,lArg)
 			      PostQuitMessage(0);
 			      break;
 
-	 case(WM_SYSCHAR):    if( lArg & (1L<<29) )  /* ALT-key pressed? */
+        case(WM_SYSCHAR):     if( lArg & (1L<<29) )  /* ALT-key pressed? */
 				  return(DefWindowProc(hWin,uMsg,wArg,lArg));
 
-	 case(WM_CHAR):       if( ProcessCharacter(LOBYTE(wArg)) )
+	case(WM_CHAR):        if( ProcessCharacter(LOBYTE(wArg)) )
 				  if( ExecuteCommand() )
 				      RasMolExit();
 			      break;
 
-	 case(WM_PAINT):      PaintScreen();
+	case(WM_PAINT):       PaintScreen();
 			      return(0L);
 			      
 	case(WM_SYSKEYDOWN):
@@ -1166,7 +1598,12 @@ long FAR PASCAL CmndCallB(hWin,uMsg,wArg,lArg)
 			      }
 			      return(0L);
 
-	 case(WM_VSCROLL):    switch( wArg )
+	 case(WM_VSCROLL):
+#ifdef _WIN32
+                              switch( LOWORD(wArg) )
+#else
+                              switch( wArg )
+#endif
 			      {  case(SB_TOP):    SetTermScroll(0);  break;
 				 case(SB_BOTTOM): SetTermScroll(ScrlMax);  
 						  break;
@@ -1195,25 +1632,28 @@ long FAR PASCAL CmndCallB(hWin,uMsg,wArg,lArg)
 				     
 				 case(SB_THUMBTRACK):
 				 case(SB_THUMBPOSITION):
-				     SetTermScroll(LOWORD(lArg));
+#ifdef _WIN32
+                                     SetTermScroll(HIWORD(wArg));
+#else
+                                     SetTermScroll(LOWORD(lArg));
+#endif
 				     break;
 			      }
 			      break;
 							    
-	 default:  return( DefWindowProc(hWin,uMsg,wArg,lArg) );
+	 default:  return DefWindowProc(hWin,uMsg,wArg,lArg);
     }
 
     if( ReDrawFlag )
 	RefreshScreen();
     if( !CommandActive )
 	ResetCommandLine(0);
-    return(0L);
+    return 0L;
 }
 
 
 
-static void LoadInputFile( format )
-    int format;
+static void LoadInputFile( int format )
 {
     register char *ext;
     register int num;
@@ -1225,7 +1665,8 @@ static void LoadInputFile( format )
 	case(FormatMDL):      ext = "MOL";  num = 4;  break;
 	case(FormatXYZ):      ext = "XYZ";  num = 5;  break;
 	case(FormatCharmm):   ext = "CHM";  num = 6;  break;
-        case(FormatMOPAC):    ext = "MOP";  num = 7;  break;
+	case(FormatMOPAC):    ext = "MOP";  num = 7;  break;
+	case(FormatCIF):      ext = "CIF";  num = 8;  break;
     }
 
     ofn1.nFilterIndex = num;
@@ -1240,21 +1681,21 @@ static void LoadInputFile( format )
 	    case(4): FetchFile(FormatMDL,False,fnamebuf);     break;
 	    case(5): FetchFile(FormatXYZ,False,fnamebuf);     break;
 	    case(6): FetchFile(FormatCharmm,False,fnamebuf);  break;
-            case(7): FetchFile(FormatMOPAC,False,fnamebuf);   break;
+	    case(7): FetchFile(FormatMOPAC,False,fnamebuf);   break;
+	    case(8): FetchFile(FormatCIF,False,fnamebuf);     break;
 	}
         DefaultRepresentation();
     }
 }
 
 
-static void SaveOutputFile( format )
-    int format;
+static void SaveOutputFile( int format )
 {
     register char *ext;
     register int num;
 
     switch( format )
-    {   case(IDM_BMP):   ext="BMP";  num=1;   break;
+    {	case(IDM_BMP):   ext="BMP";  num=1;   break;
 	case(IDM_GIF):   ext="GIF";  num=2;   break;
 	case(IDM_EPSF):  ext="PS";   num=3;   break;
 	case(IDM_PPM):   ext="PPM";  num=6;   break;
@@ -1288,7 +1729,8 @@ static void SaveOutputFile( format )
 	}
 }
 
-static void HandlePrintSetUp()
+
+static void HandlePrintSetUp( void )
 {
     PRINTDLG pd;
 
@@ -1304,11 +1746,12 @@ static void HandlePrintSetUp()
 }
 
 
-static BOOL HandleMenu( option )
-    WPARAM option;
+static BOOL HandleMenu( WPARAM option )
 {
-    register char *src, *dst;
+#ifndef _WIN32
     register FARPROC lpProc;
+#endif
+    register char *src, *dst;
     register int mask;
    
     switch(option)
@@ -1317,9 +1760,14 @@ static BOOL HandleMenu( option )
 			      LoadInputFile(FormatPDB);
 			  break;
 			  
-	case(IDM_INFO):   lpProc = MakeProcInstance(InfoCallB,hInstance);
+	case(IDM_INFO):
+#ifdef _WIN32
+                          DialogBox(hInstance,"InfoBox",CanvWin,InfoCallB);
+#else   
+                          lpProc = MakeProcInstance(InfoCallB,hInstance);
 			  DialogBox(hInstance,"InfoBox",CanvWin,lpProc);
 			  FreeProcInstance(lpProc);
+#endif
 			  break;
 			  
 	case(IDM_CLOSE):  ZapDatabase();
@@ -1339,7 +1787,6 @@ static BOOL HandleMenu( option )
 	case(IDM_EXIT):   PostMessage(CanvWin,WM_CLOSE,0,0L);
 			  break;
 			  
-
         /* Edit Menu */
         case(IDM_SELECT): mask = NormAtomFlag;
                           if( HetaGroups ) mask |= HeteroFlag;
@@ -1356,9 +1803,14 @@ static BOOL HandleMenu( option )
 			  break;
 	
 	/* Help Menu */
-	case(IDM_ABOUT):  lpProc = MakeProcInstance(AboutCallB,hInstance);
+	case(IDM_ABOUT):  
+#ifdef _WIN32
+                          DialogBox(hInstance,"AboutBox",CanvWin,AboutCallB);
+#else
+                          lpProc = MakeProcInstance(AboutCallB,hInstance);
 			  DialogBox(hInstance,"AboutBox",CanvWin,lpProc);
 			  FreeProcInstance(lpProc);
+#endif
 			  break;
 
 	case(IDM_HELP):   if( getcwd(fnamebuf,100) )
@@ -1373,7 +1825,6 @@ static BOOL HandleMenu( option )
 			  }
 			  break;
        
-
 	/* Display Menu */
 	case(IDM_WIREFRAME):  DisableSpacefill();
 			      EnableWireframe(WireFlag,0);
@@ -1398,14 +1849,14 @@ static BOOL HandleMenu( option )
 			      ReDrawFlag |= RFRefresh;
 			      break;
 
-	case(IDM_SPHERES):    SetVanWaalRadius();
+	case(IDM_SPHERES):    SetVanWaalRadius( SphereFlag );
 			      DisableWireframe();
 			      SetRibbonStatus(False,0,0);
 			      DisableBackbone();
 			      ReDrawFlag |= RFRefresh;
 			      break;
 
-	case(IDM_BALLSTICK):  SetRadiusValue(120);
+	case(IDM_BALLSTICK):  SetRadiusValue(120, SphereFlag);
 			      EnableWireframe(CylinderFlag,40);
 			      SetRibbonStatus(False,0,0);
 			      DisableBackbone();
@@ -1450,6 +1901,10 @@ static BOOL HandleMenu( option )
 	case(IDM_TEMPER):   ScaleColourAttrib( TempAttr );
 			    ReDrawFlag |= RFColour;  break;
 	case(IDM_USER):     UserMaskAttrib(MaskColourFlag);
+			    ReDrawFlag |= RFColour;  break;
+	case(IDM_MODEL):    ScaleColourAttrib( ModelAttr );
+			    ReDrawFlag |= RFColour;  break;
+	case(IDM_ALT):      ScaleColourAttrib( AltAttr   );
 			    ReDrawFlag |= RFColour;  break;
 	
        
@@ -1516,15 +1971,13 @@ static BOOL HandleMenu( option )
 	case(IDM_RAST):    SaveOutputFile( option ); 
 			   break;
 	
-	default:  return(FALSE);
+	default:  return FALSE;
     }
-    return(TRUE);
+    return TRUE;
 }    
 
 
-
-static void InitiateServer( hWinCli, lParam )
-    HWND hWinCli;  LONG lParam;
+static void InitiateServer( HWND hWinCli, LPARAM lParam )
 {
     HWND hWinServ;
     ATOM aTopicIn, aTopicOut;
@@ -1534,12 +1987,13 @@ static void InitiateServer( hWinCli, lParam )
     char ApplName[16];
     register int i;
 
-    if( ConvCount == MaxConvNum )
+    if( DDEConvCount == MaxDDEConvNum )
 	return;
 	    
     if( aApplIn = LOWORD(lParam) )
     {   GlobalGetAtomName(aApplIn,ApplName,14);
-	if( stricmp(ApplName,"RasWin") )
+	if( stricmp(ApplName,"RasWin") &&
+            stricmp(ApplName,"RasWin32") )
 	    return;
     } else return;
     
@@ -1551,34 +2005,211 @@ static void InitiateServer( hWinCli, lParam )
 	 * return;
 	 */
     } else *TopicName = '\0';
-    
    
     hWinServ = CreateWindow("RasDDEClass","RasWinDDE",
 			    WS_CHILD, 0, 0, 0, 0,
 			    CanvWin, NULL, hInstance, NULL );
     if( !hWinServ ) return;
 	 
-    for( i=0; i<MaxConvNum; i++ )
-	if( !ConvData[i].server )
+    for( i=0; i<MaxDDEConvNum; i++ )
+	if( !DDEConvData[i].server )
 	    break;
 	    
-    ConvData[i].server = hWinServ;
-    ConvData[i].client = hWinCli;
-    ConvData[i].closed = False;
-    ConvCount++;       
-	  
-	 
+    DDEConvData[i].server = hWinServ;
+    DDEConvData[i].client = hWinCli;
+    DDEConvData[i].closed = False;
+    DDEConvCount++;       
+	  	 
     /* Main DDE Server */       
-    aTopicOut = (ATOM)NULL;
-    
+    aTopicOut = GlobalAddAtom("System");
+#ifdef _WIN32
+    aApplOut = GlobalAddAtom("RasWin32");
+    SendMessage( hWinCli, WM_DDE_ACK, (WPARAM)hWinServ,
+                 MAKELPARAM(aApplOut,aTopicOut) );
+#else
     aApplOut = GlobalAddAtom("RasWin");
     SendMessage( hWinCli, WM_DDE_ACK, (WPARAM)hWinServ,
 		 MAKELONG(aApplOut,aTopicOut) ); 
+#endif
 }
 
 
-static void ClampDial( dial, value )
-    int dial;  Real value;
+#ifdef SOCKETS
+static int IsIPCAdviseRequest( char *ptr, int conv )
+{
+    auto char item[34];
+    register char *dst;
+    register char *src;
+    register int i,ch;
+    register int flag;
+
+    if( !strncmp(ptr,"Advise:",7) )
+    {   src = ptr+7;
+        flag = True;
+    } else if( !strncmp(ptr,"Unadvise:",9) )
+    {   src = ptr+9;
+        flag = False;
+    } else return False;
+
+    while( True )
+    {   ch = *src++;
+        if( isspace(ch) )
+            continue;
+
+        if( isalpha(ch) )
+        {   dst = item;
+            *dst++ = ch;
+            while( IsIdentChar(*src) )
+            {   if( dst < item+32 )
+                {   *dst++ = *src++;
+                } else src++;
+            }
+            *dst = '\0';
+
+            for( i=0; i<ItemCount; i++ )
+                if( !stricmp(item,AdviseMap[i].name) )
+                {   if( flag )
+                    {      IPCConvData[conv].advise |=  AdviseMap[i].bitmask;
+                    } else IPCConvData[conv].advise &= ~AdviseMap[i].bitmask;
+                    break;
+                }
+
+           /* Warning: Unknown Advise Item! */
+        } else if( ch != ',' )
+            break;
+    }
+    return True;
+}
+
+
+static void OpenSocket( HWND hWin )
+{
+    auto int length;
+    auto struct sockaddr_in addr;
+    auto WSADATA wsadata;
+    register WORD vers;
+    register int i;
+
+    UseSockets = False;
+    SocketNo = INVALID_SOCKET;
+
+    vers = MAKEWORD(1,1);
+    if( WSAStartup(vers,&wsadata) )
+        return;
+
+    if( LOBYTE(wsadata.wVersion) != 1 ||
+        HIBYTE(wsadata.wVersion) != 1 )
+    {   WSACleanup();
+        return;
+    }
+
+    SocketNo = socket(AF_INET,SOCK_STREAM,0);
+    if( SocketNo == INVALID_SOCKET )
+    {   WSACleanup();
+        return;
+    }
+
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons((short)ServerPort);
+
+    if( bind(SocketNo,(struct sockaddr __far*)&addr,sizeof(addr)) )
+    {   closesocket(SocketNo);
+        WSACleanup();
+        return;
+    }
+
+    if( !ServerPort )
+    {   length = sizeof(addr);
+        if( !getsockname(SocketNo,(struct sockaddr __far*)&addr,&length) )
+        {   ServerPort = ntohs(addr.sin_port);
+            sprintf(Text,"RasMol Server TCP/IP Port: %d\n",ServerPort);
+            WriteString(Text);
+        }
+    }
+
+    UseSockets = True;
+    for( i=0; i<MaxIPCConvNum; i++ )
+        IPCConvData[i].protocol = 0;
+
+    listen(SocketNo,5);
+    WSAAsyncSelect(SocketNo,hWin,WM_WINSOCK,FD_ACCEPT|FD_READ|FD_CLOSE);
+}
+
+
+static int OpenIPCConnection( SOCKET sock )
+{
+    register int i;
+
+    if( sock == INVALID_SOCKET )
+      return False;
+
+    for( i=0; i<MaxIPCConvNum; i++ )
+        if( !IPCConvData[i].protocol )
+        {   IPCConvData[i].protocol = ProtoRasMol;
+            IPCConvData[i].socket = sock;
+            IPCConvData[i].advise = AMNone;
+            return True;
+        }
+    closesocket(sock);
+    return False;
+}
+
+
+static void CloseIPCConnection( SOCKET sock )
+{
+    register int i;
+
+    if( sock != INVALID_SOCKET )
+    {   for( i=0; i<MaxIPCConvNum; i++ )
+            if( IPCConvData[i].protocol && (IPCConvData[i].socket==sock) )
+                IPCConvData[i].protocol = 0;
+        closesocket(sock);
+    }
+}
+
+
+static void HandleSocketData( SOCKET sock )
+{
+    auto char buffer[4097];
+    register char *src;
+    register char *dst;
+    register int result;
+    register int len;
+    register int ch;
+    register int i;
+
+    if( sock == INVALID_SOCKET )
+        return;
+
+    for( i=0; i<MaxIPCConvNum; i++ )
+        if( IPCConvData[i].protocol && (IPCConvData[i].socket==sock) )
+        {   len = recv( sock, buffer, 4096, 0 );
+            if( len > 0 )
+            {   buffer[len] = '\0';
+                src = dst = buffer;
+                while( (ch = *src++) )
+                    if( (ch>=' ') && (ch<='~') )
+                        *dst++ = ch;
+                *dst = '\0';
+
+                if( !IsIPCAdviseRequest(buffer,i) )
+                {   result = ExecuteIPCCommand(buffer);
+                    if( result == IPC_Exit )
+                    {   CloseIPCConnection(sock);
+                    } else if( result == IPC_Quit )
+                        RasMolExit();
+                }
+            } else CloseIPCConnection(sock);
+            return;
+        }
+
+    closesocket(sock);
+}
+#endif
+
+
+static void ClampDial( int dial, Real value )
 {
     register Real temp;
 
@@ -1592,8 +2223,7 @@ static void ClampDial( dial, value )
 }
 
 
-static void WrapDial( dial, value )
-    int dial;  Real value;
+static void WrapDial( int dial, Real value )
 {
     register Real temp;
 
@@ -1604,153 +2234,70 @@ static void WrapDial( dial, value )
 }
 
 
-
-static void MouseMove( status, dx, dy )
-    int status, dx, dy;
+static int GetStatus( int mask )
 {
-    if( MouseMode == MMRasMol )
-    {   if( status & MK_SHIFT )
-	{   if( status & MK_LBUTTON )
-	    {   if( dy ) /* Zoom Vertical */
-		{   ClampDial( 3, (Real)dy/HRange );
-		    ReDrawFlag |= RFZoom;
-		}
-	    } else if( status & (MK_MBUTTON|MK_RBUTTON) )
-		if( dx ) /* Z Rotation Horizontal */
-		{   WrapDial( 2, (Real)-dx/WRange );
-		    ReDrawFlag |= RFRotateZ;
-		}
-	} else if( status & MK_CONTROL )
-	{   if( status & MK_LBUTTON )
-	    {   if( dy ) /* Slab Vertical */
-		{   ClampDial( 7, (Real)dy/YRange );
-		    ReDrawFlag |= RFSlab;
-		}
-	    }
+    register int status;
+    
+    status = 0;                             
+    if( mask & MK_LBUTTON ) status |= MMLft;
+    if( mask & MK_MBUTTON ) status |= MMMid;
+    if( mask & MK_RBUTTON ) status |= MMRgt;
+    if( mask & MK_CONTROL ) status |= MMCtl;          
+    if( mask & MK_SHIFT )   status |= MMSft;
+    return status;
+}
+  
 
-	} else /* Unmodified! */
-	    if( status & MK_LBUTTON )
-	    {   if( dx ) /* Rotate Y Horizontal */
-		{   WrapDial( 1, (Real)dx/WRange );
-		    ReDrawFlag |= RFRotateY;
-		}
+static void AdjustMenus( WPARAM wArg, LPARAM lArg )
+{
+    register HMENU hMenu;
+    register int status;
+    
+    if( lArg == 4 )
+    {   /* Options Menu */
+        hMenu = (HMENU)wArg;
 
-		if( dy ) /* Rotate X Vertical */
-		{   WrapDial( 0, (Real)-dy/HRange );
-		    ReDrawFlag |= RFRotateX;
-		}
-		UpdateScrollBars();
-	    } else if( status & (MK_MBUTTON|MK_RBUTTON) )
-	    {   if( dx ) /* Translate X Horizontal */
-		{   ClampDial( 4, (Real)dx/XRange );
-		    ReDrawFlag |= RFTransX;
-		}
+        status = UseSlabPlane ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_SLAB,status);
 
-		if( dy ) /* Translate Y Vertical */
-		{   ClampDial( 5, (Real)-dy/YRange );
-		    ReDrawFlag |= RFTransY;
-		}
-	    }
-    } else if( MouseMode == MMQuanta )
-    {   if( status & MK_SHIFT )
-	{   if( status & MK_LBUTTON )
-	    {   if( dy ) /* Slab Vertical */
-		{   ClampDial( 7, (Real)dy/YRange );
-		    ReDrawFlag |= RFSlab;
-		}
-	    } else if( status & (MK_MBUTTON|MK_RBUTTON) )
-	    {   if( dx ) /* Translate X Horizontal */
-		{   ClampDial( 4, (Real)dx/XRange );
-		    ReDrawFlag |= RFTransX;
-		}
+        status = Hydrogens ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_HYDROGEN,status);
 
-		if( dy ) /* Translate Y Vertical */
-		{   ClampDial( 5, (Real)-dy/YRange );
-		    ReDrawFlag |= RFTransY;
-		}
-	    } else /* No Mouse Buttons */
-		if( dy ) /* Zoom Vertical */
-		{   ClampDial( 3, (Real)dy/HRange );
-		    ReDrawFlag |= RFZoom;
-		}
-	} else if( status & (MK_LBUTTON|MK_MBUTTON) )
-	{   if( dx ) /* Rotate Y Horizontal */
-	    {   WrapDial( 1, (Real)dx/WRange );
-		ReDrawFlag |= RFRotateY;
-	    }
+        status = HetaGroups ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_HETERO,status);
 
-	    if( dy ) /* Rotate X Vertical */
-	    {   WrapDial( 0, (Real)-dy/HRange );
-		ReDrawFlag |= RFRotateX;
-	    }
-	    UpdateScrollBars();
-	} else if( status & MK_RBUTTON )
-	    if( dx ) /* Z Rotation Horizontal */
-	    {   WrapDial( 2, (Real)-dx/WRange );
-		ReDrawFlag |= RFRotateZ;
-	    }
-	
-    } else /* MMInsight */
-	switch( status & (MK_LBUTTON|MK_MBUTTON|MK_RBUTTON) )
-	{   case( MK_LBUTTON ):
-		    if( dx ) /* Rotate Y Horizontal */
-		    {   WrapDial( 1, (Real)dx/WRange );
-			ReDrawFlag |= RFRotateY;
-		    }
+        status = FakeSpecular ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_SPECULAR,status);
 
-		    if( dy ) /* Rotate X Vertical */
-		    {   WrapDial( 0, (Real)dy/HRange );
-			ReDrawFlag |= RFRotateX;
-		    }
-		    break;
+        status = UseShadow ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_SHADOW,status);
 
-	    case( MK_MBUTTON ):
-		    if( dx ) /* Translate X Horizontal */
-		    {   ClampDial( 4, (Real)dx/XRange );
-			ReDrawFlag |= RFTransX;
-		    }
+        status = UseStereo ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_STEREO,status);
 
-		    if( dy ) /* Translate Y Vertical */
-		    {   ClampDial( 5, (Real)dy/YRange );
-			ReDrawFlag |= RFTransY;
-		    }
-		    break;
-
-	    case( MK_LBUTTON|MK_MBUTTON ):
-		    ClampDial( 3, (Real)dx/WRange - (Real)dy/HRange );
-		    ReDrawFlag |= RFZoom;
-		    break;
-
-	    case( MK_LBUTTON|MK_RBUTTON ):
-		    WrapDial( 2, (Real)dx/WRange - (Real)dy/HRange );
-		    ReDrawFlag |= RFRotateZ;
-		    break;
-
-	    case( MK_LBUTTON|MK_MBUTTON|MK_RBUTTON ):
-		    ClampDial( 7, (Real)dx/XRange - (Real)dy/YRange );
-		    ReDrawFlag |= RFSlab;
-		    break;
-	}
+        status = LabelOptFlag ? MF_CHECKED : MF_UNCHECKED;
+        CheckMenuItem(hMenu,IDM_LABELS,status);
+    }
 }
 
 
-long FAR PASCAL MainCallB(hWin,uMsg,wArg,lArg)
-    HWND hWin; UINT uMsg; WPARAM wArg; LPARAM lArg;
+#ifdef _WIN32
+LRESULT CALLBACK MainCallB( HWND hWin, UINT uMsg, WPARAM wArg, LPARAM lArg )
+#else
+LONG FAR PASCAL MainCallB( HWND hWin, UINT uMsg, WPARAM wArg, LPARAM lArg )
+#endif
 {
     register int pos,status;
-    register int dx, dy;
+    register int x,y;
 
     register COLORREF BackColRef;    
     register HPALETTE hCMap;
     register HANDLE hand;
-    register HMENU hMenu;
     register HDC hMemDC;
     register HDC hDC;
-
     PAINTSTRUCT ps;
     RECT rc;
     
-
     CanvWin = hWin;
     
     switch(uMsg)
@@ -1774,7 +2321,13 @@ long FAR PASCAL MainCallB(hWin,uMsg,wArg,lArg)
 			      DestroyWindow(CmndWin);
 			      break;
 
-	case(WM_ACTIVATE):    if( !wArg ) break;
+	case(WM_ACTIVATE):
+#ifdef _WIN32
+                              if( !LOWORD(wArg) || HIWORD(lArg) ) break;
+#else
+                              if( !wArg || HIWORD(lArg) ) break;
+#endif
+
 	case(WM_QUERYNEWPALETTE):
 			      if( ColourMap )
 			      {   hDC = GetDC(hWin);
@@ -1788,7 +2341,7 @@ long FAR PASCAL MainCallB(hWin,uMsg,wArg,lArg)
 				      return True;
 				  }
 			      }
-			      return(0L);
+			      return 0L;
 			      
 	case(WM_PALETTECHANGED):
 			      if( ColourMap && ((HWND)wArg != hWin) )
@@ -1799,43 +2352,11 @@ long FAR PASCAL MainCallB(hWin,uMsg,wArg,lArg)
 				  if( hCMap ) SelectPalette(hDC,hCMap,False);
 				  ReleaseDC(hWin,hDC);
 			      }
-			      return(0L);
-			      
-			     
+			      return 0L;
+			      			     
 	case(WM_INITMENUPOPUP):  /* Initialise Checks */
-			      if( lArg == 4 )
-			      {   /* Options Menu */
-				  hMenu = (HMENU)wArg;
-
-				  status = UseSlabPlane ? MF_CHECKED 
-							: MF_UNCHECKED;
-				  CheckMenuItem(hMenu,IDM_SLAB,status);
-
-				  status = Hydrogens ? MF_CHECKED 
-						     : MF_UNCHECKED;
-				  CheckMenuItem(hMenu,IDM_HYDROGEN,status);
-
-				  status = HetaGroups ? MF_CHECKED 
-						      : MF_UNCHECKED;
-				  CheckMenuItem(hMenu,IDM_HETERO,status);
-
-				  status = FakeSpecular ? MF_CHECKED 
-							: MF_UNCHECKED;
-				  CheckMenuItem(hMenu,IDM_SPECULAR,status);
-
-				  status = UseShadow ? MF_CHECKED 
-						     : MF_UNCHECKED;
-				  CheckMenuItem(hMenu,IDM_SHADOW,status);
-
-				  status = UseStereo ? MF_CHECKED
-						     : MF_UNCHECKED;
-				  CheckMenuItem(hMenu,IDM_STEREO,status);
-
-				  status = LabelOptFlag ? MF_CHECKED 
-						        : MF_UNCHECKED;
-				  CheckMenuItem(hMenu,IDM_LABELS,status);
-			      }
-			      return( 0L );                      
+                              AdjustMenus( wArg, lArg );
+                              return 0L;                      
 
 	case(WM_SIZE):        if( wArg != SIZE_MINIMIZED )
 			      {   GetClientRect(hWin,&rc);
@@ -1843,8 +2364,8 @@ long FAR PASCAL MainCallB(hWin,uMsg,wArg,lArg)
 				  XRange = rc.right;
 			      
 				  /* Ensure Long Aligned */
-				  if( dx = XRange%4 )
-				      XRange += 4-dx;
+				  if( x = XRange%4 )
+				      XRange += 4-x;
 			      
 				  Range = MinFun(XRange,YRange);
 				  ReDrawFlag |= RFReSize;
@@ -1856,7 +2377,11 @@ long FAR PASCAL MainCallB(hWin,uMsg,wArg,lArg)
 
 	case(WM_HSCROLL):     /* Horizontal Scroll */
 			      pos = GetScrollPos(hWin,SB_HORZ);
+#ifdef _WIN32
+                              switch( LOWORD(wArg) )
+#else
 			      switch( wArg )
+#endif
 			      {   case(SB_LINEDOWN):  pos += 5;   break;
 				  case(SB_PAGEDOWN):  pos += 10;  break;
 				  case(SB_PAGEUP):    pos -= 10;  break;
@@ -1865,8 +2390,12 @@ long FAR PASCAL MainCallB(hWin,uMsg,wArg,lArg)
 
 				  case(SB_THUMBTRACK):
 				  case(SB_THUMBPOSITION):
+#ifdef _WIN32
+                                             pos = HIWORD(wArg);
+#else
 					     pos = LOWORD(lArg);
 					     break;
+#endif
 			      }
 			      
 			      if( pos>100 ) 
@@ -1881,7 +2410,11 @@ long FAR PASCAL MainCallB(hWin,uMsg,wArg,lArg)
 
 	case(WM_VSCROLL):     /* Vertical Scroll */
 			      pos = GetScrollPos(hWin,SB_VERT);
+#ifdef _WIN32
+                              switch( LOWORD(wArg) )
+#else
 			      switch( wArg )
+#endif
 			      {   case(SB_LINEDOWN):  pos += 5;   break;
 				  case(SB_PAGEDOWN):  pos += 10;  break;
 				  case(SB_PAGEUP):    pos -= 10;  break;
@@ -1890,7 +2423,11 @@ long FAR PASCAL MainCallB(hWin,uMsg,wArg,lArg)
 
 				  case(SB_THUMBTRACK):
 				  case(SB_THUMBPOSITION):
+#ifdef _WIN32
+                                             pos = HIWORD(wArg);
+#else
 					     pos = LOWORD(lArg);
+#endif
 					     break;
 			      }
 			      
@@ -1906,66 +2443,33 @@ long FAR PASCAL MainCallB(hWin,uMsg,wArg,lArg)
 
 	case(WM_LBUTTONDOWN): 
 	case(WM_MBUTTONDOWN):
-	case(WM_RBUTTONDOWN): InitX = PointX = LOWORD(lArg);
-			      InitY = PointY = HIWORD(lArg);
-			      HeldButton = True;
-			      SetCapture(hWin);
-			      break;
+	case(WM_RBUTTONDOWN): x = LOWORD(lArg);
+                              y = YRange-HIWORD(lArg);
+                              status = GetStatus(wArg);
+                              ProcessMouseDown(x,y,status);
+                              break;
 	
 	case(WM_LBUTTONUP):
 	case(WM_MBUTTONUP):
 	case(WM_RBUTTONUP): /* Mouse Buttons */
-			      HeldButton = False;
-			      ReleaseCapture();
-
-			      if( Database )
-			      {   PointX = dx = LOWORD(lArg);
-				  PointY = dy = HIWORD(lArg);
-				  if( IsClose(dx,InitX) && IsClose(dy,InitY) )
-				  {   if( wArg & (MK_SHIFT|MK_CONTROL) )
-                                      {      PickAtom(True,dx,YRange-dy);
-                                      } else PickAtom(False,dx,YRange-dy);
-				      AdviseUpdate(AdvPickNumber);
-				      AdviseUpdate(AdvPickAtom);
-				  }
-			      }
+                              x = LOWORD(lArg);
+                              y = YRange-HIWORD(lArg);
+                              status = GetStatus(wArg);
+                              ProcessMouseUp(x,y,status);
 			      break;
 
 
 	case(WM_MOUSEMOVE):   /* Mouse Movement */
-			      if( !HeldButton )
-			      {   if( (MouseMode==MMQuanta) &&
-				      (wArg & MK_SHIFT) )
-				  {   InitX = PointX = LOWORD(lArg);
-				      InitY = PointY = HIWORD(lArg);
-				      HeldButton = True;
-				      SetCapture(hWin);
-				  }
-				  break;
-			      }
-
-			      if( IsClose((int)LOWORD(lArg),InitX) &&
-				  IsClose((int)HIWORD(lArg),InitY) )
-				  break;
-
-			      if( wArg & (MK_LBUTTON|MK_MBUTTON|
-					  MK_RBUTTON|MK_SHIFT) )
-			      {   dx = (int)LOWORD(lArg)-PointX;
-				  dy = (int)HIWORD(lArg)-PointY;
-				  MouseMove( wArg, dx, dy );
-				  PointX = LOWORD(lArg);
-				  PointY = HIWORD(lArg);
-			      } else  /* No Buttons! */
-			      {   HeldButton = False;
-				  ReleaseCapture();
-			      }
+                              x = LOWORD(lArg);
+                              y = YRange-HIWORD(lArg);
+                              status = GetStatus(wArg);
+                              ProcessMouseMove(x,y,status);
 			      break;
-
 				      
 	case(WM_SETFOCUS):    /* Obtain Window Focus */ 
 	case(WM_KILLFOCUS):   /* Release Window Focus */
 			      SendMessage(CmndWin,uMsg,wArg,lArg);     
-			      return( 0L );
+			      return 0L;
 	
 	case(WM_PAINT):       hDC = BeginPaint(hWin,&ps);
 			      SetBkMode(hDC,TRANSPARENT);
@@ -1998,11 +2502,11 @@ long FAR PASCAL MainCallB(hWin,uMsg,wArg,lArg)
 				   DeleteObject(hand);
 			      }
 			      EndPaint(hWin,&ps);
-			      if( !RasWinReady )
-			      {   RasWinReady = True;
+			      if( !RasWinDDEReady )
+			      {   RasWinDDEReady = True;
 				  AdviseUpdate(-4);
 			      }
-			      return( 0L );
+			      return 0L;
 	
 	case(WM_SYSCHAR):     if( lArg & (1L<<29) )  /* ALT-key pressed? */
 				  return(DefWindowProc(hWin,uMsg,wArg,lArg));
@@ -2031,36 +2535,59 @@ long FAR PASCAL MainCallB(hWin,uMsg,wArg,lArg)
 			      SendMessage(hWin,WM_RENDERFORMAT,CF_DIB,0L);
 			      SendMessage(hWin,WM_RENDERFORMAT,CF_PALETTE,0L);
 			      CloseClipboard();
-			      return( 0L );
+			      return 0L;
 			      
 	case(WM_RENDERFORMAT):
 			      if( hand = RenderClipboard(wArg) )
 				  SetClipboardData(wArg,hand);
-			      return( 0L );
+			      return 0L;
 			      
 
 	case(WM_DDE_INITIATE): /* DDE Server Connection */
 			      InitiateServer((HWND)wArg,lArg);
-			      return( 0L );
+			      return 0L;
+  
+#ifdef SOCKETS
+        case(WM_WINSOCK):     /* IPC Server Connection */
+                              switch( WSAGETSELECTEVENT(lArg) )
+                              {   case FD_ACCEPT:
+                                      OpenIPCConnection(accept(wArg,0,0));
+                                      return 0L;
+
+                                  case FD_READ:
+                                      HandleSocketData((SOCKET)wArg);
+                                      break;
+
+                                  case FD_CLOSE:
+                                      CloseIPCConnection((SOCKET)wArg);
+                                      return 0L;
+
+                                  default:
+                                      return 0L;
+                              }
+                              break;
+#endif
 					      
-	case(WM_COMMAND):     if( !IsPaused && HandleMenu(wArg) )
+	case(WM_COMMAND):     
+#ifdef _WIN32
+                              if( !IsPaused && HandleMenu(LOWORD(wArg)) )
 				  break;
-			      
+#else
+                              if( !IsPaused && HandleMenu(wArg) ) break;
+#endif                              			      
 	default:              return( DefWindowProc(hWin,uMsg,wArg,lArg) );
 
     }
-
 	
     if( ReDrawFlag )
 	RefreshScreen();
     if( !CommandActive )
-	ResetCommandLine(0);
-	
-    return(0L);
+	ResetCommandLine(0);	
+    return 0L;
 }
 
 
-static int InitialiseApplication()
+static int InitialiseApplication( void )
 {
     WNDCLASS wc;
     
@@ -2078,7 +2605,7 @@ static int InitialiseApplication()
     wc.lpszMenuName = NULL;
 
     if( !RegisterClass(&wc) )
-	return( False );
+	return False;
 
     /* Terminal Window Class */
     wc.style = CS_NOCLOSE;
@@ -2089,7 +2616,7 @@ static int InitialiseApplication()
     wc.lpszMenuName = NULL;
 
     if( !RegisterClass(&wc) )
-	return( False );
+	return False;
 
     /* DDE Server Window Class */
     wc.lpfnWndProc = DDECallB;
@@ -2098,47 +2625,127 @@ static int InitialiseApplication()
     wc.hCursor = NULL;
     wc.hIcon = NULL;
 
-    return( RegisterClass(&wc) );
+    return RegisterClass(&wc);
 }
 
 
-static char *RegisterFormat( buffer, desc, ext )
-    char *buffer, *desc, *ext;
+static char *RegisterFormat( char *buffer, char *desc, char *ext )
 {
     while( *buffer++ = *desc++ );
     while( *buffer++ = *ext++ );
-    return( buffer );
+    return buffer;
 }
 
 
-static void InitDefaultValues()
+static void InitFileDialogBoxes( void )
+{
+    register char *dst;
+
+    dst = ifilters;
+    dst = RegisterFormat(dst,"Brookhaven Databank","*.PDB;*.ENT");
+    dst = RegisterFormat(dst,"Alchemy File Format","*.ALC;*.MOL");
+    dst = RegisterFormat(dst,"Sybyl MOL2 Format","*.SYB;*.MOL");
+    dst = RegisterFormat(dst,"MDL Mol File Format","*.MDL;*.MOL");
+    dst = RegisterFormat(dst,"MSC (XMol) XYZ Format","*.XYZ");
+    dst = RegisterFormat(dst,"CHARMm File Format","*.CHM");
+    dst = RegisterFormat(dst,"MOPAC File Format","*.MOP");
+    dst = RegisterFormat(dst,"CIF File Format","*.CIF");
+    *dst = '\0';
+
+    /* Load File Common Dialog Box */
+    ofn1.lStructSize=sizeof(OPENFILENAME);
+    ofn1.Flags = OFN_NOCHANGEDIR | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
+    ofn1.lpstrFilter = ifilters;
+    ofn1.lpstrTitle = "Select Molecular Coordinate File";
+    ofn1.lpstrFile = fnamebuf;
+    ofn1.nMaxFile = 128;
+
+    ofn1.lpstrCustomFilter = NULL;
+    ofn1.lpstrInitialDir = NULL;
+    ofn1.lpstrFileTitle = NULL;
+    ofn1.hwndOwner = NULL;
+
+    dst = ofilters;
+    dst = RegisterFormat(dst,"Microsoft Bitmap","*.BMP");
+    dst = RegisterFormat(dst,"CompuServe GIF","*.GIF");
+    dst = RegisterFormat(dst,"Colour PostScript","*.PS;*.EPS");
+    dst = RegisterFormat(dst,"Mono PostScript","*.PS;*.EPS");
+    dst = RegisterFormat(dst,"Vector PostScript","*.PS;*.EPS");
+    dst = RegisterFormat(dst,"Raw Portable Pixmap","*.PPM");
+    dst = RegisterFormat(dst,"ASCII Portable Pixmap","*.PPM");
+    dst = RegisterFormat(dst,"Apple Macintosh PICT","*.PIC");
+    dst = RegisterFormat(dst,"Silicon Graphics RGB","*.RGB");
+    dst = RegisterFormat(dst,"RLE Sun Rasterfile","*.RAS;*.IM8");
+    dst = RegisterFormat(dst,"Sun Rasterfile","*.RAS");
+    *dst = '\0';
+
+    /* Save File Common Dialog Box */
+    ofn2.lStructSize=sizeof(OPENFILENAME);
+    ofn2.Flags = OFN_NOCHANGEDIR | OFN_HIDEREADONLY | OFN_NOREADONLYRETURN
+               | OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
+    ofn2.lpstrFilter = ofilters;
+    ofn2.lpstrTitle = "Select Graphics Ouptut File";
+    ofn2.lpstrFile = fnamebuf;
+    ofn2.nMaxFile = 128;
+
+    ofn2.lpstrCustomFilter = NULL;
+    ofn2.lpstrInitialDir = NULL;
+    ofn2.lpstrFileTitle = NULL;
+    ofn2.hwndOwner = NULL;
+}
+
+
+static void InitWindowsProfiles( void )
+{
+#ifdef _WIN32
+    if( !GetProfileString("extensions","pdb","",Text,128) )
+        WriteProfileString("extensions","pdb","raswin32.exe ^.pdb");
+    if( !GetProfileString("extensions","ent","",Text,128) )
+        WriteProfileString("extensions","ent","raswin32.exe ^.ent");
+#else
+    if( !GetProfileString("extensions","pdb","",Text,128) )
+        WriteProfileString("extensions","pdb","raswin.exe ^.pdb");
+    if( !GetProfileString("extensions","ent","",Text,128) )
+        WriteProfileString("extensions","ent","raswin.exe ^.ent");
+#endif
+    DDETimeOut = GetPrivateProfileInt("RasWin","DDETimeOut",
+                                      DefaultDDETimeOut,"RASWIN.INI");
+}
+
+
+static void InitDefaultValues( void )
 {
     register int i;
 
     Interactive = True;
 
-    ConvCount = 0;
-    AdviseCount = 0;
-    for( i=0; i<MaxConvNum; i++ )
-        ConvData[i].server = NULL;
-    for( i=0; i<MaxAdviseNum; i++ )
-        AdviseData[i].server = NULL;
-    LabelOptFlag = False;
-    RasWinReady = True;
-    HeldButton = False;
+    DDEConvCount = 0;
+    DDEAdviseCount = 0;
+    for( i=0; i<MaxDDEConvNum; i++ )
+        DDEConvData[i].server = NULL;
+    for( i=0; i<MaxDDEAdviseNum; i++ )
+        DDEAdviseData[i].server = NULL;
+    RasWinDDEReady = True;
 
     fnamebuf[0] = '\0';
     snamebuf[0] = '\0';
 
-    FileFormat = FormatPDB;
     CalcBondsFlag = True;
+    LabelOptFlag = False;
+    FileFormat = FormatPDB;
+    AllowWrite = False;
+
+#ifdef SOCKETS
+    ServerPort = 21069;
+#endif
 }
 
 
 #define FORMATOPTMAX   15
 static struct {
         char *ident;
-        int format, len;
+        int format;
+        int  len;
     } FormatOpt[FORMATOPTMAX] = {
             { "alchemy",    FormatAlchemy,   7 },
             { "biosym",     FormatBiosym,    6 },
@@ -2158,8 +2765,7 @@ static struct {
                                 };
    
 
-static int ProcessOptions( ptr )
-    char __far *ptr;
+static int ProcessOptions( char __far *ptr )
 {
     register char *dst;
     register int i;
@@ -2170,16 +2776,25 @@ static int ProcessOptions( ptr )
 	} else if( (*ptr=='/') || (*ptr=='-') )
 	{   ptr++;
             for( i=0; i<FORMATOPTMAX; i++ )
-	        if( !_fstrnicmp(ptr,FormatOpt[i].ident,FormatOpt[i].len) )
+	        if( !strncasecmp(ptr,FormatOpt[i].ident,FormatOpt[i].len) )
                     break;
 
             if( i < FORMATOPTMAX )
 	    {   FileFormat = FormatOpt[i].format;
                 ptr += FormatOpt[i].len;
-	    } else if( !_fstrnicmp(ptr,"sybyl",5) )
-	    {   FileFormat = FormatMol2;     ptr += 4;
+	    } else if( !strncasecmp(ptr,"sybyl",5) )
+	    {   FileFormat = FormatMol2;
+                ptr += 5;
+            } else if( !strncasecmp(ptr,"pdbnmr",6) )
+            {   FileFormat = FormatNMRPDB;
+                ptr += 6;
+#ifdef CEXIOLIB
+            } else if( !strncasecmp(ptr,"cex",3) )
+            {   FileFormat = FormatCEX;
+                ptr += 3;
+#endif 
 
-	    } else if( !_fstrnicmp(ptr,"script",6) )
+	    } else if( !strncasecmp(ptr,"script",6) )
 	    {   ptr += 6;
 		while( *ptr && (*ptr==' ') )
 		    ptr++;
@@ -2189,95 +2804,75 @@ static int ProcessOptions( ptr )
 		    while( *ptr && (*ptr!=' ') )
 			*dst++ = *ptr++;
 		    *dst = '\0';
-		} else return( False );
-	    } else return( False );
+		} else return False;
 
-	} else if( !*fnamebuf )
-	{   dst = fnamebuf;
-	    while( *ptr && (*ptr!=' ') )
-		*dst++ = *ptr++;
-	    *dst = '\0';
-	} else return( False );
+#ifdef SOCKETS
+            } else if( !strncasecmp(ptr,"port",4) )
+            {   ptr += 4;
+                while( *ptr && (*ptr==' ') )
+                    ptr++;
+
+                if( isdigit(*ptr) )
+                {   ServerPort = (*ptr++)-'0';
+                    while( isdigit(*ptr) )
+                        ServerPort = (10*ServerPort)+(*ptr++)-'0';
+                } else return False;
+#endif
+            } else if( !strncasecmp(ptr,"connect",7) )
+            {   CalcBondsFlag = True;
+                ptr += 7;
+            } else if( !strncasecmp(ptr,"noconnect",9) )
+            {   CalcBondsFlag = False;     
+                ptr += 8;
+            } else if( !strncasecmp(ptr,"insecure",8) )
+            {   AllowWrite = True;
+                ptr += 8;
+            } else if( !strncasecmp(ptr,"secure",6) )
+            {   AllowWrite = False;
+                ptr += 6;
+            } else return False;
+  
+        } else if( !*fnamebuf )
+        {   dst = fnamebuf;
+            if( *ptr == '"' )
+            {   ptr++;
+                while( *ptr && (*ptr!='"') )
+                    *dst++ = *ptr++;
+                if( *ptr=='"' ) 
+                    ptr++;
+            } else /* Unquoted! */
+            {   while( *ptr && (*ptr!=' ') )
+                    *dst++ = *ptr++;
+            }
+            *dst = '\0';
+        } else return False;
     }
-    return( True );
+    return True;
 }
 
 
-int PASCAL WinMain(hCurrent,hPrevious,lpCmdLine,nCmdShow)
-    HANDLE hCurrent,hPrevious;
-    LPSTR lpCmdLine;
-    int nCmdShow;
+int PASCAL WinMain( HINSTANCE hCurrent, HINSTANCE hPrevious,
+                    LPSTR lpCmdLine, int nCmdShow )
 {
-    register char *dst;
     register FILE *fp;
     MSG event;
+    static char VersionStr[255];
+     
+    Interactive = False;
+    SwitchLang (English);
+
+    sprintf (VersionStr,"%s\nVersion %s %s\n%s\n", 
+             MAIN_COPYRIGHT, VERSION, 
+             VER_DATE, VER_COPYRIGHT);
 
 
    hInstance = hCurrent;
    if( !hPrevious && !InitialiseApplication() )
-	return(False);
-
-   
-    dst = ifilters;
-    dst = RegisterFormat(dst,"Brookhaven Databank","*.PDB;*.ENT");
-    dst = RegisterFormat(dst,"Alchemy File Format","*.ALC;*.MOL");
-    dst = RegisterFormat(dst,"Sybyl MOL2 Format","*.SYB;*.MOL");
-    dst = RegisterFormat(dst,"MDL Mol File Format","*.MDL;*.MOL");
-    dst = RegisterFormat(dst,"MSC (XMol) XYZ Format","*.XYZ");
-    dst = RegisterFormat(dst,"CHARMm File Format","*.CHM");
-    dst = RegisterFormat(dst,"MOPAC File Format","*.MOP");
-    *dst = '\0';
-
-    /* Load File Common Dialog Box */
-    ofn1.lStructSize=sizeof(OPENFILENAME);
-    ofn1.Flags = OFN_NOCHANGEDIR | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
-    ofn1.lpstrFilter = ifilters;
-    ofn1.lpstrTitle = "Select Molecular Coordinate File";
-    ofn1.lpstrFile = fnamebuf;
-    ofn1.nMaxFile = 128;
-
-    ofn1.lpstrCustomFilter = NULL;
-    ofn1.lpstrInitialDir = NULL;
-    ofn1.lpstrFileTitle = NULL;
-    ofn1.hwndOwner = NULL;
-			
-    
-    dst = ofilters;
-    dst = RegisterFormat(dst,"Microsoft Bitmap","*.BMP");
-    dst = RegisterFormat(dst,"CompuServe GIF","*.GIF");
-    dst = RegisterFormat(dst,"Colour PostScript","*.PS;*.EPS");
-    dst = RegisterFormat(dst,"Mono PostScript","*.PS;*.EPS");
-    dst = RegisterFormat(dst,"Vector PostScript","*.PS;*.EPS");
-    dst = RegisterFormat(dst,"Raw Portable Pixmap","*.PPM");
-    dst = RegisterFormat(dst,"ASCII Portable Pixmap","*.PPM");
-    dst = RegisterFormat(dst,"Apple Macintosh PICT","*.PIC");
-    dst = RegisterFormat(dst,"Silicon Graphics RGB","*.RGB");
-    dst = RegisterFormat(dst,"RLE Sun Rasterfile","*.RAS;*.IM8");
-    dst = RegisterFormat(dst,"Sun Rasterfile","*.RAS");
-    *dst = '\0';
-    
-    /* Save File Common Dialog Box */
-    ofn2.lStructSize=sizeof(OPENFILENAME);
-    ofn2.Flags = OFN_NOCHANGEDIR | OFN_HIDEREADONLY | OFN_NOREADONLYRETURN
-	       | OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
-    ofn2.lpstrFilter = ofilters;
-    ofn2.lpstrTitle = "Select Graphics Ouptut File";
-    ofn2.lpstrFile = fnamebuf;
-    ofn2.nMaxFile = 128;
-
-    ofn2.lpstrCustomFilter = NULL;
-    ofn2.lpstrInitialDir = NULL;
-    ofn2.lpstrFileTitle = NULL;
-    ofn2.hwndOwner = NULL;
-
-    if( !GetProfileString("extensions","pdb","",fnamebuf,128) )
-	WriteProfileString("extensions","pdb","raswin.exe ^.pdb");
-    if( !GetProfileString("extensions","ent","",fnamebuf,128) )
-	WriteProfileString("extensions","ent","raswin.exe ^.ent");
-    DDETimeOut = GetPrivateProfileInt("RasWin","DDETimeOut",
-				      DefaultTimeOut,"RASWIN.INI"); 
+	return False;
 
     InitDefaultValues();
+    InitFileDialogBoxes();
+    InitWindowsProfiles();
     ProcessOptions(lpCmdLine);
 
     /* Avoid Windows NT problems! */
@@ -2286,12 +2881,16 @@ int PASCAL WinMain(hCurrent,hPrevious,lpCmdLine,nCmdShow)
 
     if( !InitTerminal(hInstance) ||
 	!OpenDisplay(hInstance,nCmdShow) )
-       return(False);
+       return False;
+
+    SwitchLang (English);
 
     WriteString("RasMol Molecular Renderer\n");
     WriteString("Roger Sayle, August 1995\n");
-    WriteString("Version 2.6\n\n");
+    WriteString(VersionStr);
+    WriteString("*** See \"help notice\" for further notices ***\n");
 	    
+    InitialiseCmndLine();
     InitialiseCommand(); 
     InitialiseTransform();
     InitialiseDatabase();
@@ -2300,15 +2899,19 @@ int PASCAL WinMain(hCurrent,hPrevious,lpCmdLine,nCmdShow)
     InitialiseAbstree();
     InitialiseOutFile();
     InitialiseRepres();
-   
+    InitHelpFile();
+
+#ifdef SOCKETS
+    OpenSocket(CanvWin);
+#endif
+  
     if( *fnamebuf && FetchFile(FileFormat,True,fnamebuf) )
         DefaultRepresentation();
-
     ResetCommandLine(1);
-    LoadInitFile();
 
+    LoadInitFile();
     if( *snamebuf )
-    {   if( !(fp=fopen(snamebuf,"r")) )
+    {   if( !(fp=fopen(snamebuf,"rb")) )
 	{   if( CommandActive )
 		WriteChar('\n');
 	    WriteString("Error: File '");
@@ -2329,8 +2932,11 @@ int PASCAL WinMain(hCurrent,hPrevious,lpCmdLine,nCmdShow)
     }
     DeleteObject(TermFont);
     CloseDDELinks();
+#ifdef SOCKETS
+    CloseSockets();
+#endif
     CloseDisplay();
 
-    return( event.wParam );
+    return event.wParam;
 }
 

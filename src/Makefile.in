@@ -1,13 +1,64 @@
+###########################################################################
+#                              RasMol 2.7.0                               # 
+#                                                                         #
+#                                 RasMol                                  #
+#                 Molecular Graphics Visualisation Tool                   #
+#                             23 March 1999                               #
+#                                                                         #
+#                   Based on RasMol 2.6 by Roger Sayle                    #
+# Biomolecular Structures Group, Glaxo Wellcome Research & Development,   #
+#                      Stevenage, Hertfordshire, UK                       #
+#         Version 2.6, August 1995, Version 2.6.4, December 1998          #
+#                   Copyright (C) Roger Sayle 1992-1999                   #
+#                                                                         #
+#               Version 2.7.0 Mods by Herbert J. Bernstein                #
+#           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             #
+#                      yaya@bernstein-plus-sons.com                       #
+#                               March 1999                                #
+#              Copyright (C) Herbert J. Bernstein 1998-1999               #
+#                                                                         #
+# Please read the file NOTICE for important notices which apply to this   #
+# package. If you are not going to make changes to RasMol, you are not    # 
+# only permitted to freely make copies and distribute them, you are       # 
+# encouraged to do so, provided you do the following:                     #
+#   * 1. Either include the complete documentation, especially the file   #
+#     NOTICE, with what you distribute or provide a clear indication      #
+#     where people can get a copy of the documentation; and               #
+#   * 2. Please give credit where credit is due citing the version and    # 
+#     original authors properly; and                                      # 
+#   * 3. Please do not give anyone the impression that the original       # 
+#     authors are providing a warranty of any kind.                       #
+#                                                                         #
+# If you would like to use major pieces of RasMol in some other program,  #
+# make modifications to RasMol, or in some other way make what a lawyer   #
+# would call a "derived work", you are not only permitted to do so, you   #
+# are encouraged to do so. In addition to the things we discussed above,  #
+# please do the following:                                                #
+#   * 4. Please explain in your documentation how what you did differs    #
+#     from this version of RasMol; and                                    #
+#   * 5. Please make your modified source code available.                 #
+#                                                                         #
+# This version of RasMol is not in the public domain, but it is given     #
+# freely to the community in the hopes of advancing science. If you make  #
+# changes, please make them in a responsible manner, and please offer us  #
+# the opportunity to include those changes in future versions of RasMol.  #
+###########################################################################
+#
 # Makefile.in
 # RasMol2 Molecular Graphics
 # Roger Sayle, March 1995
-# Version 2.6
+# Version 2.6.4
+# Roger Sayle, December 1998
+#
+# Version 2.6.9
+# Herbert J. Bernstein, March 1999
+# yaya@bernstein-plus-sons.com
 
 # Simply edit CC and CFLAGS for your local compiler/system
 # For Sun OpenWindows, add "-I/usr/openwin/include" to CFLAGS
 
 CC = gcc
-CFLAGS = -g -O2 -finline-functions
+CFLAGS = -g -O2 -finline-functions -D_USE_RASMOL_H_
 
 
 #CFLAGS_sun4     = -O4
@@ -37,81 +88,198 @@ EXTLIBS = -lm -lXi -lXext -lX11
 # -L. -lXext -lX11 -lmmioc -lm
 
 # On SUN Solaris systems when compiling RasMol with the SOCKETS option
-# LIBS = -lXext -lX11 -lm -lsocket -lnsl 
+# LIBS = -lm -lsocket -lnsl 
 
 # Normal Libraries
-LIBS = -lm -lXext -lX11
+LIBS = -lm
+X11LIBS =  -lXext -lX11 $(LIBS)
 
+INCS = abstree.h cmndline.h command.h font.h graphics.h infile.h \
+       molecule.h outfile.h pixutils.h rasmol.h render.h repres.h \
+       script.h tokens.h transfor.h cif.h cif_ctonum.h langsel.h
 
+SRCS = abstree.c cmndline.c command.c infile.c molecule.c outfile.c \
+       pixutils.c render.c repres.c script.c transfor.c tokens.c \
+       cif_fract.c cif.c cif_ctonum.c cif_stx.c langsel.c
 
-SRCS = rasmol.c molecule.c infile.c transfor.c command.c abstree.c \
-       render.c repres.c x11win.c pixutils.c outfile.c script.c
+OBJS = abstree.o cmndline.o command.o infile.o molecule.o outfile.o \
+       pixutils.o render.o repres.o script.o transfor.o tokens.o \
+       cif_fract.o cif.o cif_ctonum.o cif_stx.o langsel.o
 
-OBJS = rasmol.o molecule.o infile.o transfor.o command.o abstree.o \
-       render.o repres.o x11win.o pixutils.o outfile.o script.o
+TOBJS = abstree.to cmndline.to command.to infile.to molecule.to outfile.to \
+       pixutils.to render.to repres.to script.to transfor.to tokens.to \
+       cif_fract.to cif.to cif_ctonum.to cif_stx.to langsel.to
 
+X11INCS = $(INCS) bitmaps.h
+X11SRCS = rasmol.c x11win.c $(SRCS)
+X11OBJS = rasmol.o x11win.o $(OBJS)
 
-rasmol:		$(OBJS)
-		$(CC) -o rasmol $(LFLAGS) $(OBJS) $(LIBS)
+TXTINCS = $(INCS)
+TXTSRCS = rastxt.c $(SRCS)
+TXTOBJS = rastxt.to $(TOBJS)
+
+rasmol:		$(X11OBJS)
+		$(CC) -o rasmol $(LFLAGS) $(X11OBJS) $(X11LIBS)
 		chmod 755 rasmol
 
-rasmol.o:	rasmol.c rasmol.h molecule.h transfor.h command.h \
-		abstree.h render.h graphics.h pixutils.h outfile.h
+rasmol.o:	rasmol.c rasmol.h molecule.h transfor.h command.h infile.h \
+		abstree.h render.h graphics.h pixutils.h outfile.h repres.h
 		$(CC) -c $(CFLAGS) rasmol.c
 
-molecule.o:	molecule.c molecule.h rasmol.h command.h abstree.h \
+rastxt:		$(TXTOBJS)
+		$(CC) -o rastxt $(LFLAGS) $(TXTOBJS) $(LIBS)
+		chmod 755 rastxt
+
+rastxt.o:	rastxt.c rasmol.h molecule.h transfor.h cmndline.h \
+		command.h abstree.h render.h graphics.h pixutils.h \
+		outfile.h script.h
+		$(CC) -c $(CFLAGS) rastxt.c
+
+rastxt.to:	rastxt.c rasmol.h molecule.h transfor.h cmndline.h \
+		command.h abstree.h render.h graphics.h pixutils.h \
+		outfile.h script.h
+		$(CC) -c $(CFLAGS)  -I- -I./txt -I. rastxt.c -o rastxt.to
+
+molecule.o:	molecule.c molecule.h rasmol.h cmndline.h command.h abstree.h \
 		transfor.h render.h
 		$(CC) -c $(CFLAGS) molecule.c
 
-infile.o:	infile.c infile.h
+molecule.to:	molecule.c molecule.h rasmol.h cmndline.h command.h abstree.h \
+		transfor.h render.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. molecule.c -o molecule.to
+
+infile.o:	infile.c rasmol.h infile.h molecule.h abstree.h command.h \
+		transfor.h cif.h cif_fract.h
 		$(CC) -c $(CFLAGS) infile.c
 
-transfor.o:	transfor.c transfor.h rasmol.h molecule.h command.h \
-		abstree.h render.h graphics.h
+infile.to:	infile.c rasmol.h infile.h molecule.h abstree.h command.h \
+		transfor.h cif.h cif_fract.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. infile.c -o infile.to
+
+langsel.o:	langsel.c langsel.h
+		$(CC) -c $(CFLAGS) langsel.c
+
+langsel.to:	langsel.c langsel.h
+		$(CC) -c $(CFLAGS)  -I- -I./txt -I. langsel.c -o langsel.to
+
+transfor.o:	transfor.c transfor.h rasmol.h molecule.h cmndline.h \
+		command.h abstree.h render.h graphics.h repres.h
 		$(CC) -c $(CFLAGS) transfor.c
 
-command.o:	command.c command.h rasmol.h tokens.h abstree.h \
+transfor.to:	transfor.c transfor.h rasmol.h molecule.h cmndline.h \
+		command.h abstree.h render.h graphics.h repres.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. transfor.c -o transfor.to
+
+command.o:	command.c cmndline.h command.h rasmol.h tokens.h abstree.h \
 		molecule.h transfor.h render.h graphics.h pixutils.h \
-                outfile.h
+		outfile.h infile.h script.h langsel.h
 		$(CC) -c $(CFLAGS) command.c
+
+command.to:	command.c cmndline.h command.h rasmol.h tokens.h abstree.h \
+		molecule.h transfor.h render.h graphics.h pixutils.h \
+		outfile.h infile.h script.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. command.c -o command.to
 
 abstree.o:	abstree.c abstree.h rasmol.h molecule.h
 		$(CC) -c $(CFLAGS) abstree.c
+
+abstree.to:	abstree.c abstree.h rasmol.h molecule.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. abstree.c -o abstree.to
+
+cmndline.o:	cmndline.c cmndline.h rasmol.h molecule.h command.h \
+		render.h graphics.h
+		$(CC) -c $(CFLAGS) cmndline.c
+
+cmndline.to:	cmndline.c cmndline.h rasmol.h molecule.h command.h \
+		render.h graphics.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. cmndline.c -o cmndline.to
 
 render.o:	render.c render.h rasmol.h molecule.h transfor.h \
 		command.h abstree.h graphics.h pixutils.h
 		$(CC) -c $(CFLAGS) render.c
 
+render.to:	render.c render.h rasmol.h molecule.h transfor.h \
+		command.h abstree.h graphics.h pixutils.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. render.c -o render.to
+
 repres.o:	repres.c repres.h rasmol.h
 		$(CC) -c $(CFLAGS) repres.c
+
+repres.to:	repres.c repres.h rasmol.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. repres.c -o repres.to
 
 x11win.o:	x11win.c graphics.h rasmol.h bitmaps.h command.h render.h
 		$(CC) -c $(CFLAGS) x11win.c
 
 pixutils.o:	pixutils.c pixutils.h rasmol.h font.h molecule.h \
-		transfor.h render.h graphics.h
+		transfor.h render.h graphics.h abstree.h
 		$(CC) -c $(CFLAGS) pixutils.c
+
+pixutils.to:	pixutils.c pixutils.h rasmol.h font.h molecule.h \
+		transfor.h render.h graphics.h abstree.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. pixutils.c -o pixutils.to
 
 outfile.o:	outfile.c outfile.h rasmol.h molecule.h command.h \
 		abstree.h transfor.h render.h graphics.h pixutils.h \
-		script.h
+		script.h repres.h
 		$(CC) -c $(CFLAGS) outfile.c
 
+outfile.to:	outfile.c outfile.h rasmol.h molecule.h command.h \
+		abstree.h transfor.h render.h graphics.h pixutils.h \
+		script.h repres.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. outfile.c -o outfile.to
+
 script.o:	script.c script.h rasmol.h molecule.h command.h \
-		abstree.h transfor.h render.h graphics.h pixutils.h
+		abstree.h transfor.h render.h graphics.h pixutils.h \
+		repres.h
 		$(CC) -c $(CFLAGS) script.c
 
+script.to:	script.c script.h rasmol.h molecule.h command.h \
+		abstree.h transfor.h render.h graphics.h pixutils.h \
+		repres.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. script.c -o script.to
 
-esv:		rasmol.c rasmol.h molecule.c molecule.h transfor.c \
-                transfor.h command.c command.h abstree.c abstree.h \
-		render.c render.h x11win.c graphics.h pixutils.c \
-		pixutils.h outfile.c outfile.h script.c script.h tokens.h
+tokens.o:	tokens.c tokens.h
+		$(CC) -c $(CFLAGS) tokens.c
+
+tokens.to:	tokens.c tokens.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. tokens.c -o tokens.to
+
+cif_fract.o:	cif_fract.c rasmol.h
+		$(CC) -c $(CFLAGS) cif_fract.c
+
+cif_fract.to:	cif_fract.c rasmol.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. cif_fract.c -o cif_fract.to
+
+cif.o:		cif.c cif.h rasmol.h molecule.h
+		$(CC) -c $(CFLAGS) cif.c
+
+cif.to:		cif.c cif.h rasmol.h molecule.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. cif.c -o cif.to
+
+cif_ctonum.o:	cif_ctonum.c cif_ctonum.h rasmol.h
+		$(CC) -c $(CFLAGS) cif_ctonum.c
+
+cif_ctonum.to:	cif_ctonum.c cif_ctonum.h rasmol.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. cif_ctonum.c -o cif_ctonum.to
+
+cif_stx.o: 	cif_stx.c cif.h
+		$(CC) -c $(CFLAGS) cif_stx.c
+
+cif_stx.to: 	cif_stx.c cif.h
+		$(CC) -c $(CFLAGS) -I- -I./txt -I. cif_stx.c -o cif_stx.to
+
+
+esv:		$(X11SRCS) $(X11INCS)
 		cc -systype bsd43 -O3 -Olimit 600 -s -o rasmol \
-		-I/bsd43/usr/include -I/usr/include $(SRCS) $(EXTLIBS)
+		-I/bsd43/usr/include -I/usr/include $(X11SRCS) $(EXTLIBS)
 		rm *.u
 
 cflow:
-		cflow -I/usr/local/include $(SRCS)
+		cflow -I/usr/local/include $(X11SRCS)
 
 clean:
-		rm -f rasmol $(OBJS)
+		rm -f rasmol rasmol.o x11win.o
+		rm -f rastxt rastxt.o
+		rm -f $(OBJS)
+		rm -f $(TOBJS)

@@ -1,7 +1,55 @@
+/***************************************************************************
+ *                            RasMol 2.7.1.1                               *
+ *                                                                         *
+ *                                RasMol                                   *
+ *                 Molecular Graphics Visualisation Tool                   *
+ *                            17 January 2001                              *
+ *                                                                         *
+ *                   Based on RasMol 2.6 by Roger Sayle                    *
+ * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
+ *                      Stevenage, Hertfordshire, UK                       *
+ *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
+ *                   Copyright (C) Roger Sayle 1992-1999                   *
+ *                                                                         *
+ *                  and Based on Mods by Arne Mueller                      *
+ *                      Version 2.6x1, May 1998                            *
+ *                   Copyright (C) Arne Mueller 1998                       *
+ *                                                                         *
+ *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
+ *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *                      yaya@bernstein-plus-sons.com                       *
+ *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
+ *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *                                                                         *
+ * Please read the file NOTICE for important notices which apply to this   *
+ * package. If you are not going to make changes to RasMol, you are not    *
+ * only permitted to freely make copies and distribute them, you are       *
+ * encouraged to do so, provided you do the following:                     *
+ *   * 1. Either include the complete documentation, especially the file   *
+ *     NOTICE, with what you distribute or provide a clear indication      *
+ *     where people can get a copy of the documentation; and               *
+ *   * 2. Please give credit where credit is due citing the version and    *
+ *     original authors properly; and                                      *
+ *   * 3. Please do not give anyone the impression that the original       *
+ *     authors are providing a warranty of any kind.                       *
+ *                                                                         *
+ * If you would like to use major pieces of RasMol in some other program,  *
+ * make modifications to RasMol, or in some other way make what a lawyer   *
+ * would call a "derived work", you are not only permitted to do so, you   *
+ * are encouraged to do so. In addition to the things we discussed above,  *
+ * please do the following:                                                *
+ *   * 4. Please explain in your documentation how what you did differs    *
+ *     from this version of RasMol; and                                    *
+ *   * 5. Please make your modified source code available.                 *
+ *                                                                         *
+ * This version of RasMol is not in the public domain, but it is given     *
+ * freely to the community in the hopes of advancing science. If you make  *
+ * changes, please make them in a responsible manner, and please offer us  *
+ * the opportunity to include those changes in future versions of RasMol.  *
+ ***************************************************************************/
+
+
 /* tokens.h
- * RasMol2 Molecular Graphics
- * Roger Sayle, August 1995
- * Version 2.6
  */
 
 /* Lexeme Tokens */
@@ -20,41 +68,48 @@
 #define ConnectTok     266
 #define DashTok        267
 #define DefineTok      268
-#define DisplayTok     269
-#define EchoTok        270
-#define ExitTok        271
-#define HelpTok        272
-#define LabelTok       273
-#define LoadTok        274
-#define MonitorTok     275
-#define PrintTok       276
-#define QuitTok        277
-#define RefreshTok     278
-#define RenumTok       279
-#define ResetTok       280
-#define ResizeTok      281
-#define RestrictTok    282
-#define RotateTok      283
-#define SaveTok        284
-#define ScriptTok      285
-#define SelectTok      286
-#define SetTok         287
-#define ShowTok        288
-#define SlabTok        289
-#define SourceTok      290
-#define SpacefillTok   291
-#define StructureTok   292
-#define SymmetryTok    293
-#define TraceTok       294
-#define TranslateTok   295
-#define WaitTok        296
-#define WireframeTok   297
-#define WriteTok       298
-#define ZapTok         299
-#define ZoomTok        300
+#define DelayTok       269
+#define DisplayTok     270
+#define EchoTok        271
+#define ExitTok        272
+#define HelpTok        273
+#define LabelTok       274
+#define LoadTok        275
+#define LoopTok        276
+#define MonitorTok     277
+#define MoveTok        278
+#define PrintTok       279
+#define QuitTok        280
+#define RefreshTok     281
+#define RenumTok       282
+#define ResetTok       283
+#define ResizeTok      284
+#define RestoreTok     285
+#define RestrictTok    286
+#define RotateTok      287
+#define SaveTok        288
+#define ScriptTok      289
+#define SelectTok      290
+#define SetTok         291
+#define ShowTok        292
+#define SlabTok        293
+#define SourceTok      294
+#define SpacefillTok   295
+#define StarTok        296
+#define StructureTok   297
+#define SymmetryTok    298
+#define TitleTok       299
+#define TraceTok       300
+#define TranslateTok   301
+#define ViewTok        302
+#define WaitTok        303
+#define WireframeTok   304
+#define WriteTok       305
+#define ZapTok         306
+#define ZoomTok        307
 
 /* Predicate Tokens */
-#define IsPredTok(x)   (((x)>=310) && ((x)<=348))
+#define IsPredTok(x)   (((x)>=310) && ((x)<=349))
 #define PredTokOrd(x)  ((x)-310)
 #define PredTokChr(x)  ((x)+310)
 
@@ -90,28 +145,30 @@
 #define BasicTok       338
 #define BuriedTok      339
 #define ChargedTok     340
-#define CyclicTok      341
-#define HydrophobicTok 342
-#define LargeTok       343
-#define MediumTok      344
-#define NeutralTok     345
-#define PolarTok       346
-#define SmallTok       347
-#define SurfaceTok     348
+#define CisBondedTok   341
+#define CyclicTok      342
+#define HydrophobicTok 343
+#define LargeTok       344
+#define MediumTok      345
+#define NeutralTok     346
+#define PolarTok       347
+#define SmallTok       348
+#define SurfaceTok     349
 
 
 /* Property Tokens */
-#define IsPropTok(x)   (((x)>=350) && ((x)<=355))
+#define IsPropTok(x)   (((x)>=350) && ((x)<=356))
 #define TemperatureTok 350
 #define RadiusTok      351
 #define AtomNoTok      352
 #define ElemNoTok      353
 #define ModelTok       354
 #define ResNoTok       355
+#define AltlTok        356
 
 /* File Format Tokens */
 /* Warning! Tokens are related to Format values */
-#define IsMoleculeFormat(x)  (((x)>=360) && ((x)<=375))
+#define IsMoleculeToken(x)  (((x)>=360) && ((x)<=375))
 
 #define PDBTok         360
 #define MacroModelTok  361
@@ -131,400 +188,161 @@
 #define CEXTok         375
 
 /* Raster Tokens */
-#define IsImageFormat(x) (((x)>=366) && ((x)<=389))
-#define GIFTok         376
-#define PPMTok         377
-#define SUNTok         378
-#define SUNRLETok      379
-#define EPSFTok        380
-#define PICTTok        381
-#define IRISTok        382
-#define BMPTok         383
-#define MonoPSTok      384
-#define VectPSTok      385
-#define KinemageTok    386
-#define MolScriptTok   387
-#define POVRayTok      388
-#define VRMLTok        389
+#define IsImageToken(x) (((x)>=380) && ((x)<=398) || ((x) == PhiPsiTok) )
+#define GIFTok         380
+#define PPMTok         381
+#define SUNTok         382
+#define SUNRLETok      383
+#define EPSFTok        384
+#define PICTTok        385
+#define IRISTok        386
+#define BMPTok         387
+#define MonoPSTok      388
+#define JPEGTok        389
+#define PNGTok         390
+#define VectPSTok      391
+#define KinemageTok    392
+#define MolScriptTok   393
+#define POVRayTok      394
+#define POVRay2Tok     394
+#define POVRay3Tok     395
+#define VRMLTok        396
+#define RamachanTok    397  /* ok, this isn't a real image format ... */
+#define RamPrintTok    398
 
 /* Feature Tokens */
-#define AtomTok        390
-#define BondTok        391
-#define DotsTok        392
-#define HBondTok       393
-#define RibbonTok      394
-#define SSBondTok      395
-#define Ribbon1Tok     396
-#define Ribbon2Tok     397
+#define AtomTok        400
+#define BondTok        401
+#define DotsTok        402
+#define HBondTok       403
+#define RibbonTok      404
+#define SSBondTok      405
+#define Ribbon1Tok     406
+#define Ribbon2Tok     407
 
 /* Expression Tokens */
-#define TrueTok        400
-#define FalseTok       401
-#define AllTok         402
-#define NoneTok        403
-#define AndTok         404
-#define OrTok          405
-#define NotTok         406
-#define WithinTok      407
-#define XorTok         408
+#define TrueTok        410
+#define FalseTok       411
+#define AllTok         412
+#define NoneTok        413
+#define AndTok         414
+#define OrTok          415
+#define NotTok         416
+#define WithinTok      417
+#define XorTok         418
 
 /* Colour Tokens */
-#define BlueTok        410
-#define BlueTintTok    411
-#define BlackTok       412
-#define BrownTok       413
-#define CyanTok        414
-#define GoldTok        415
-#define GrayTok        416
-#define GreenTok       417
-#define GreenblueTok   418
-#define GreenTintTok   419
-#define HotPinkTok     420
-#define MagentaTok     421
-#define OrangeTok      422
-#define PinkTok        423
-#define PinkTintTok    424
-#define PurpleTok      425
-#define RedTok         426
-#define RedorangeTok   427
-#define SeaTok         428
-#define SkyTok         429
-#define VioletTok      430
-#define WhiteTok       431
-#define YellowTok      432
-#define YellowTintTok  433
+/* Warning! Tokens are related to colour values */
+#define IsColourToken(x) (((x)>=420) && ((x)<=443))
+#define Token2Colour(x)  ((x)-420)
 
-#define CPKTok         434
-#define ShapelyTok     435
-#define ResidueTok     436
-#define UserTok        437
-#define GroupTok       438
-#define ChainTok       439
-#define TypeTok        440
-#define PotentialTok   441
-#define ChargeTok      442
+#define BlackTok       420
+#define BlueTok        421
+#define BlueTintTok    422
+#define BrownTok       423
+#define CyanTok        424
+#define GoldTok        425
+#define GrayTok        426
+#define GreenTok       427
+#define GreenBlueTok   428
+#define GreenTintTok   429
+#define HotPinkTok     430
+#define MagentaTok     431
+#define OrangeTok      432
+#define PinkTok        433
+#define PinkTintTok    434
+#define PurpleTok      435
+#define RedTok         436
+#define RedOrangeTok   437
+#define SeaGreenTok    438
+#define SkyBlueTok     439
+#define VioletTok      440
+#define WhiteTok       441
+#define YellowTok      442
+#define YellowTintTok  443
+
+#define CPKTok         444
+#define ShapelyTok     445
+#define ResidueTok     446
+#define UserTok        447
+#define GroupTok       448
+#define ChainTok       449
+#define TypeTok        450
+#define PotentialTok   451
+#define ChargeTok      452
 
 /* Variable Tokens */
-#define AmbientTok     450
-#define AxesTok        451
-#define BackFadeTok    452
-#define BackgroundTok  453
-#define BondModeTok    454
-#define BoundBoxTok    455
-#define DepthCueTok    456
-#define FontSizeTok    457
-#define HourGlassTok   458
-#define MenusTok       459
-#define MouseTok       460
-#define PickingTok     461
-#define ShadowTok      462
-#define SlabModeTok    463
-#define SpecularTok    464
-#define SpecPowerTok   465
-#define StrandsTok     466
-#define TransparentTok 467
-#define UnitCellTok    468
+#define AmbientTok     460
+#define AxesTok        461
+#define BackFadeTok    462
+#define BackgroundTok  463
+#define BondModeTok    464
+#define BoundBoxTok    465
+#define CisAngleTok    466
+#define DepthCueTok    467
+#define FontSizeTok    468
+#define FontStrokeTok  469
+#define HourGlassTok   470
+#define MenusTok       471
+#define MouseTok       472
+#define PickingTok     473
+#define ShadowTok      474
+#define SlabModeTok    475
+#define SpecularTok    476
+#define SpecPowerTok   477
+#define StrandsTok     478
+#define TransparentTok 479
+#define UnitCellTok    480
 
 /* SlabMode Tokens */
-#define RejectTok      470
-#define HalfTok        471
-#define HollowTok      472
-#define SolidTok       473
-#define SectionTok     474
+#define RejectTok      481
+#define HalfTok        482
+#define HollowTok      483
+#define SolidTok       484
+#define SectionTok     485
 
 /* MouseMode Tokens */
-#define RasMolTok      475
-#define InsightTok     476
-#define QuantaTok      477
-#define SybylTok       478
+#define RasMolTok      486
+#define InsightTok     487
+#define QuantaTok      488
+#define SybylTok       489
 
 /* Information Tokens */
-#define InfoTok        480
-#define SequenceTok    481
-#define VersionTok     482
+#define InfoTok        490
+#define SequenceTok    491
+#define VersionTok     492
+#define PhiPsiTok      493
 
 /* Display Mode Tokens */
-#define NormalTok      485
-#define StereoTok      486
-#define MonoTok        487
-#define HardwareTok    488
+#define NormalTok      495
+#define StereoTok      496
+#define MonoTok        497
+#define HardwareTok    498
 
 /* Axis Tokens */
-#define XTok           490
-#define YTok           491
-#define ZTok           492
+#define XTok           500
+#define YTok           501
+#define ZTok           502
 
 /* Picking Tokens */
-#define IdentifyTok    495
-#define DistanceTok    496
-#define AngleTok       497
-#define TorsionTok     498
+#define IdentifyTok    505
+#define CoordTok       506
+#define DistanceTok    507
+#define AngleTok       508
+#define TorsionTok     509
+#define OriginTok      510
 
 /* Misc Tokens */
-#define InLineTok      500
-#define VDWTok         501
+#define InLineTok      511
+#define VDWTok         512
+#define HeaderTok      513
+#define CIFDataTok     514
+#define FSTok          515
+#define PSTok          EPSFTok
 
+/* Language Tokens */
+#define EnglishTok     600
+#define SpanishTok     601
 
-typedef struct {
-                char *ident;
-                int token;
-               } KeywordEntry;
-
-
-#define MAXKEYLEN 11
-static int KeyLen[MAXKEYLEN+1] = {
-        0, 3, 8, 30, 64, 101, 152, 185, 214, 230, 234, 241 };
-
-static KeywordEntry Keyword[] = {
-            { "X",  XTok },
-            { "Y",  YTok },
-            { "Z",  ZTok },  /* 3 */
-
-            { "AT", ATTok   },
-            { "CG", CGTok   },
-            { "ON", TrueTok },
-            { "OR", OrTok   },
-            { "PS", EPSFTok },  /* 8 */
-
-            { "ALL", AllTok   },
-            { "AND", AndTok   },
-            { "BMP", BMPTok   },
-            { "CEX", CEXTok   },
-            { "CIF", CIFTok   },
-            { "CPK", CPKTok   },
-            { "DNA", DNATok   },
-            { "GIF", GIFTok   },
-            { "ION", IonTok   },
-            { "MDL", MDLTok   },
-            { "NOT", NotTok   },
-            { "OFF", FalseTok },
-            { "PDB", PDBTok   },
-            { "PPM", PPMTok   },
-            { "RED", RedTok   },
-            { "RGB", IRISTok  },
-            { "RNA", RNATok   },
-            { "SET", SetTok   },
-            { "SUN", SUNTok   },
-            { "VDW", VDWTok   },
-            { "XYZ", XYZTok   },
-            { "ZAP", ZapTok   }, /* 30 */
-
-            { "ATOM", AtomTok },
-            { "AXES", AxesTok },
-            { "AXIS", AxesTok },
-            { "BLUE", BlueTok },
-            { "BOND", BondTok },
-            { "CYAN", CyanTok },
-            { "DASH", DashTok },
-            { "DOTS", DotsTok },
-            { "ECHO", EchoTok },
-            { "EPSF", EPSFTok },
-            { "EXIT", ExitTok },
-            { "FDAT", FDATTok },
-            { "HALF", HalfTok },
-            { "HELP", HelpTok },
-            { "INFO", InfoTok },
-            { "IONS", IonTok  },
-            { "IRIS", IRISTok },
-            { "LOAD", LoadTok },
-            { "MMDB", MMDBTok },
-            { "MOL2", Mol2Tok },
-            { "MONO", MonoTok },
-            { "NONE", NoneTok },
-            { "PICT", PICTTok },
-            { "QUIT", QuitTok },
-            { "SAVE", SaveTok },
-            { "SHOW", ShowTok },
-            { "SLAB", SlabTok },
-            { "TRUE", TrueTok },
-            { "TURN", TurnTok },
-            { "TYPE", TypeTok },
-            { "USER", UserTok },
-            { "VRML", VRMLTok },
-            { "WAIT", WaitTok },
-            { "ZOOM", ZoomTok }, /* 64 */
-
-            { "ALPHA", AlphaTok    },
-            { "AMINO", AminoTok    },
-            { "ANGLE", AngleTok    },
-            { "ATOMS", AtomTok     },
-            { "BASIC", BasicTok    },
-            { "BLACK", BlackTok    },
-            { "BONDS", BondTok     },
-            { "CHAIN", ChainTok    },
-            { "COLOR", ColourTok   },
-            { "FALSE", FalseTok    },
-            { "GREEN", GreenTok    },
-            { "GROUP", GroupTok    },
-            { "HBOND", HBondTok    },
-            { "HELIX", HelixTok    },
-            { "IDENT", IdentifyTok },
-            { "LABEL", LabelTok    },
-            { "LARGE", LargeTok    },
-            { "MENUS", MenusTok    },
-            { "MODEL", ModelTok    },
-            { "MOPAC", MOPACTok    },
-            { "MOUSE", MouseTok    },
-            { "PAUSE", WaitTok     },
-            { "POLAR", PolarTok    },
-            { "PRINT", PrintTok    },
-            { "RENUM", RenumTok    },
-            { "RESET", ResetTok    },
-            { "RESNO", ResNoTok    },
-            { "SHEET", SheetTok    },
-            { "SHELX", SHELXTok    },
-            { "SMALL", SmallTok    },
-            { "SOLID", SolidTok    },
-            { "SYBYL", SybylTok    },
-            { "TRACE", TraceTok    },
-            { "TURNS", TurnTok     },
-            { "WATER", WaterTok    },
-            { "WHITE", WhiteTok    },
-            { "WRITE", WriteTok    },  /* 101 */
-
-            { "ACIDIC", AcidicTok },
-            { "ANGLES", AngleTok  },
-            { "ATOMNO", AtomNoTok },
-            { "BIOSYM", BiosymTok },
-            { "BONDED", BondedTok },
-            { "BURIED", BuriedTok },
-            { "CENTER", CentreTok },
-            { "CENTRE", CentreTok },
-            { "CHARGE", ChargeTok },
-            { "CHARMM", CharmmTok },
-            { "COLORS", ColourTok },
-            { "COLOUR", ColourTok },
-            { "CYCLIC", CyclicTok },
-            { "DASHES", DashTok   },
-            { "DEFINE", DefineTok },
-            { "ELEMNO", ElemNoTok },
-            { "HBONDS", HBondTok  },
-            { "HETERO", HeteroTok },
-            { "HOLLOW", HollowTok },
-            { "INLINE", InLineTok },
-            { "LABELS", LabelTok  },
-            { "LIGAND", LigandTok },
-            { "MEDIUM", MediumTok },
-            { "MONOPS", MonoPSTok },
-            { "NMRPDB", NMRPDBTok },
-            { "NORMAL", NormalTok },
-            { "ORANGE", OrangeTok },
-            { "POVRAY", POVRayTok },
-            { "PURINE", PurineTok },
-            { "PURPLE", PurpleTok },
-            { "QUANTA", QuantaTok },
-            { "RADIUS", RadiusTok },
-            { "RASMOL", RasMolTok },
-            { "RASWIN", RasMolTok },
-            { "REJECT", RejectTok },
-            { "RESIZE", ResizeTok },
-            { "RIBBON", RibbonTok },
-            { "ROTATE", RotateTok },
-            { "SCRIPT", ScriptTok },
-            { "SELECT", SelectTok },
-            { "SHADOW", ShadowTok },
-            { "SHEETS", SheetTok  },
-            { "SOURCE", SourceTok },
-            { "SSBOND", SSBondTok },
-            { "STEREO", StereoTok },
-            { "SUNRLE", SUNRLETok },
-            { "VECTPS", VectPSTok },
-            { "VIOLET", VioletTok },
-            { "WATERS", WaterTok  },
-            { "WITHIN", WithinTok },
-            { "YELLOW", YellowTok },  /* 152 */
-
-            { "ACYCLIC", AcyclicTok },
-            { "ALCHEMY", AlchemyTok },
-            { "AMBIENT", AmbientTok },
-            { "CARTOON", CartoonTok },
-            { "CHARGED", ChargedTok },
-            { "CHARGES", ChargeTok  },
-            { "COLOURS", ColourTok  },
-            { "CONNECT", ConnectTok },
-            { "CYSTINE", CystineTok },
-            { "DISPLAY", DisplayTok },
-            { "HELICES", HelixTok   },
-            { "INSIGHT", InsightTok },
-            { "LIGANDS", LigandTok  },
-            { "MAGENTA", MagentaTok },
-            { "MONITOR", MonitorTok },
-            { "NEUTRAL", NeutralTok },
-            { "NUCLEIC", NucleicTok },
-            { "PICKING", PickingTok },
-            { "PROTEIN", ProteinTok },
-            { "PURINES", PurineTok  },
-            { "REFRESH", RefreshTok },
-            { "RESIDUE", ResidueTok },
-            { "RIBBON1", Ribbon1Tok },
-            { "RIBBON2", Ribbon2Tok },
-            { "RIBBONS", RibbonTok  },
-            { "SECTION", SectionTok },
-            { "SHADOWS", ShadowTok  },
-            { "SHAPELY", ShapelyTok },
-            { "SOLVENT", SolventTok },
-            { "SSBONDS", SSBondTok  },
-            { "STRANDS", StrandsTok },
-            { "SURFACE", SurfaceTok },  
-            { "TORSION", TorsionTok }, /* 185 */
-
-            { "AROMATIC", AromaticTok },
-            { "BACKBONE", BackboneTok },
-            { "BACKFADE", BackFadeTok },
-            { "BONDMODE", BondModeTok },
-            { "BOUNDBOX", BoundBoxTok },
-            { "CARTOONS", CartoonTok  },
-            { "DEPTHCUE", DepthCueTok },
-            { "DISTANCE", DistanceTok },
-            { "FONTSIZE", FontSizeTok },
-            { "GAUSSIAN", GaussianTok },
-            { "HARDWARE", HardwareTok },
-            { "HYDROGEN", HydrogenTok },
-            { "IDENTIFY", IdentifyTok },
-            { "KINEMAGE", KinemageTok },
-            { "MONITORS", MonitorTok  },
-            { "NEGATIVE", AcidicTok   },
-            { "POSITIVE", BasicTok    },
-            { "RENUMBER", RenumTok    },
-            { "RESTRICT", RestrictTok },
-            { "RIBBONS1", Ribbon1Tok  },
-            { "RIBBONS2", Ribbon2Tok  },
-            { "SELECTED", SelectedTok },
-            { "SEQUENCE", SequenceTok },
-            { "SLABMODE", SlabModeTok },
-            { "SOLVENTS", SolventTok  },
-            { "SPECULAR", SpecularTok }, 
-            { "SYMMETRY", SymmetryTok },
-            { "TORSIONS", TorsionTok  },
-            { "UNITCELL", UnitCellTok },  /* 214 */
-
-            { "ALIPHATIC", AliphaticTok },
-            { "CLIPBOARD", ClipboardTok },
-            { "DISTANCES", DistanceTok  },
-            { "GREENBLUE", GreenblueTok },
-            { "HOURGLASS", HourGlassTok },
-            { "MAINCHAIN", MainChainTok },
-            { "MOLSCRIPT", MolScriptTok },
-            { "MOUSEMODE", MouseTok     },
-            { "POTENTIAL", PotentialTok },
-            { "REDORANGE", RedorangeTok },
-            { "SIDECHAIN", SidechainTok },
-            { "SPACEFILL", SpacefillTok },
-            { "SPECPOWER", SpecPowerTok },
-            { "STRUCTURE", StructureTok },
-            { "TRANSLATE", TranslateTok },
-            { "WIREFRAME", WireframeTok },  /* 230 */
-
-            { "BACKGROUND", BackgroundTok },
-            { "MACROMODEL", MacroModelTok },
-            { "MONOCHROME", MonoTok       },
-            { "PYRIMIDINE", PyrimidineTok },  /* 234 */
-
-            { "BOUNDINGBOX", BoundBoxTok    },
-            { "HYDROPHOBIC", HydrophobicTok },
-            { "INFORMATION", InfoTok        },
-            { "PYRIMIDINES", PyrimidineTok, },
-            { "TEMPERATURE", TemperatureTok },
-            { "TRANSPARENT", TransparentTok }  /* 241 */
-                };
+int LookUpKeyword( char *ptr );
 

@@ -1,5 +1,5 @@
-CC = gcc
-CFLAGS = -g -O2
+CC = cc
+CFLAGS = -O2
 
 prepdoc:	prepdoc.c
 		$(CC) $(CFLAGS) -o prepdoc prepdoc.c
@@ -16,6 +16,10 @@ rasmol.hlp:	prepdoc rasmol.doc
 		rm -f rasmol.hlp
 		prepdoc -help rasmol.doc > rasmol.hlp
 
+rasmol.tex:	prepdoc rasmol.doc
+		rm -f rasmol.tex
+		prepdoc -latex rasmol.doc > rasmol.tex
+
 raswin.rtf:	prepdoc rasmol.doc
 		rm -f raswin.rtf
 		prepdoc -rtf rasmol.doc > raswin.rtf
@@ -23,3 +27,10 @@ raswin.rtf:	prepdoc rasmol.doc
 rasmol.man:	prepdoc rasmol.doc
 		rm -f rasmol.man
 		prepdoc -troff rasmol.doc > rasmol.man
+
+rasmol.vms:	prepdoc rasmol.doc
+		rm -f rasmol.vms
+		prepdoc -vms rasmol.doc > rasmol.vms
+
+all:		rasmol.txt rasmol.hlp rasmol.html raswin.rtf rasmol.vms \
+		rasmol.tex rasmol.man

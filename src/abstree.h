@@ -1,7 +1,54 @@
+/***************************************************************************
+ *                              RasMol 2.7.1                               *
+ *                                                                         *
+ *                                 RasMol                                  *
+ *                 Molecular Graphics Visualisation Tool                   *
+ *                              22 June 1999                               *
+ *                                                                         *
+ *                   Based on RasMol 2.6 by Roger Sayle                    *
+ * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
+ *                      Stevenage, Hertfordshire, UK                       *
+ *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
+ *                   Copyright (C) Roger Sayle 1992-1999                   *
+ *                                                                         *
+ *                  and Based on Mods by Arne Mueller                      *
+ *                      Version 2.6x1, May 1998                            *
+ *                   Copyright (C) Arne Mueller 1998                       *
+ *                                                                         *
+ *           Version 2.7.0, 2.7.1 Mods by Herbert J. Bernstein             *
+ *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *                      yaya@bernstein-plus-sons.com                       *
+ *                    2.7.0 March 1999, 2.7.1 June 1999                    *
+ *              Copyright (C) Herbert J. Bernstein 1998-1999               *
+ *                                                                         *
+ * Please read the file NOTICE for important notices which apply to this   *
+ * package. If you are not going to make changes to RasMol, you are not    *
+ * only permitted to freely make copies and distribute them, you are       *
+ * encouraged to do so, provided you do the following:                     *
+ *   * 1. Either include the complete documentation, especially the file   *
+ *     NOTICE, with what you distribute or provide a clear indication      *
+ *     where people can get a copy of the documentation; and               *
+ *   * 2. Please give credit where credit is due citing the version and    *
+ *     original authors properly; and                                      *
+ *   * 3. Please do not give anyone the impression that the original       *
+ *     authors are providing a warranty of any kind.                       *
+ *                                                                         *
+ * If you would like to use major pieces of RasMol in some other program,  *
+ * make modifications to RasMol, or in some other way make what a lawyer   *
+ * would call a "derived work", you are not only permitted to do so, you   *
+ * are encouraged to do so. In addition to the things we discussed above,  *
+ * please do the following:                                                *
+ *   * 4. Please explain in your documentation how what you did differs    *
+ *     from this version of RasMol; and                                    *
+ *   * 5. Please make your modified source code available.                 *
+ *                                                                         *
+ * This version of RasMol is not in the public domain, but it is given     *
+ * freely to the community in the hopes of advancing science. If you make  *
+ * changes, please make them in a responsible manner, and please offer us  *
+ * the opportunity to include those changes in future versions of RasMol.  *
+ ***************************************************************************/
+
 /* abstree.h
- * RasMol2 Molecular Graphics
- * Roger Sayle, August 1995
- * Version 2.6
  */
 
 #define OpCode(x) (((x)->type)&0x0f)
@@ -39,6 +86,7 @@
 #define PropSelect       11
 #define PropElemNo       12
 #define PropModel        13
+#define PropAltl         14
 
 #define PredAbsOrd(x)    ((x)-20)
 #define PredAbsChr(x)    ((x)+20)
@@ -75,14 +123,15 @@
 #define PredBasic        48
 #define PredBuried       49
 #define PredCharged      50
-#define PredCyclic       51
-#define PredHydrophobic  52
-#define PredLarge        53
-#define PredMedium       54
-#define PredNeutral      55
-#define PredPolar        56
-#define PredSmall        57
-#define PredSurface      58
+#define PredCisBond      51
+#define PredCyclic       52
+#define PredHydrophobic  53
+#define PredLarge        54
+#define PredMedium       55
+#define PredNeutral      56
+#define PredPolar        57
+#define PredSmall        58
+#define PredSurface      59
 
 
 
@@ -249,9 +298,9 @@ extern Expr *QueryExpr;
 extern Chain __far *QChain;
 extern Group __far *QGroup;
 extern Atom __far *QAtom;
+#endif
 
-#ifdef FUNCPROTO
-Expr *AllocateNode();
+Expr *AllocateNode( void );
 void DeAllocateExpr( Expr* );
 int EvaluateExpr( Expr* );
 int DefineSetExpr( char*, Expr* );
@@ -264,33 +313,13 @@ int ElemVDWRadius( int );
 int ParsePrimitiveExpr( char** );
 int GetElemNumber( Group __far*, Atom __far* );
 void FormatLabel( Chain __far*, Group __far*, Atom __far*, char*, char* );
-void InitialiseAbstree();
-void ResetSymbolTable();
+void InitialiseAbstree( void );
+void ResetSymbolTable( void );
+char *DescribeObj(AtomRef*, Selection);
 
 double CalcTorsion( Atom __far*, Atom __far*, Atom __far*, Atom __far* );
 double CalcAngle( Atom __far*, Atom __far*, Atom __far* );
 double CalcDistance( Atom __far*, Atom __far* );
-
-#else /* non-ANSI C compiler */
-Expr *AllocateNode();
-void DeAllocateExpr();
-int EvaluateExpr();
-int DefineSetExpr();
-Expr *LookUpSetExpr();
-AtomSet __far *BuildAtomSet();
-void DeleteAtomSet();
-Expr *LookUpElement();
-
-int ElemVDWRadius();
-int ParsePrimitiveExpr();
-int GetElemNumber();
-void FormatLabel();
-void InitialiseAbstree();
-void ResetSymbolTable();
-
-double CalcTorsion();
-double CalcAngle();
-double CalcDistance();
-#endif
-#endif
-
+double CalcPhiAngle( Group __far*, Group __far *);
+double CalcPsiAngle( Group __far*, Group __far *);
+double CalcOmegaAngle(Group __far*, Group __far *);

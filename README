@@ -1,78 +1,398 @@
+                                   README
+                               RasMol 2.7.1.1
 
+                                   RasMol
+                   Molecular Graphics Visualisation Tool
+                              21 January 2001
 
-                            RasMol 2.6
-              Molecular Graphics Visualisation tool.
+                     Based on RasMol 2.6 by Roger Sayle
+    Biomolecular Structures Group, Glaxo Wellcome Research & Development
+                        Stevenage, Hertfordshire, UK
+           Version 2.6, August 1995, Version 2.6.4, December 1998
+                    Copyright (C) Roger Sayle 1992-1999
 
-                           Roger Sayle 
-                  Biomolecular Structures Group
-              Glaxo Wellcome Research & Development
-                  Stevenage, Hertfordshire, UK.
-                          September 1995
+                     and Based on Mods by Arne Mueller
+                          Version 2.6x1, May 1998
+                      Copyright (C) Arne Mueller 1998
 
+         Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein
+             Bernstein + Sons, P.O. Box 177, Bellport, NY, USA,
+                        yaya@bernstein-plus-sons.com
+          2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 January 2001
+                Copyright (C) Herbert J. Bernstein 1998-2001
 
-    RasMol is a molecular graphics program intended for the visualisation 
-of proteins, nucleic acids and small molecules. The program is aimed at 
-display, teaching and generation of publication quality images. The program 
-has been developed at the University of Edinburgh's Biocomputing Research 
-Unit and the Biomolecular Structures Group at Glaxo Research and Development, 
-Greenford, UK. 
+    Translations of most of the RasMol messages into Spanish contributed
+       by Fernando Gabriel Ranea (Laboratorio de Micología, Museo de
+     Farmacobotánica, Facultad de Farmacia y Bioquímica. Universidad de
+                  Buenos Aires (davinci@dinamica.com.ar)).
 
-    RasMol reads in molecular co-ordinate files in a number of formats and
-interactively displays the molecule on the screen in a variety of colour
-schemes and representations. Currently supported input file formats include
-Brookhaven Protein Databank (PDB), Tripos' Alchemy and Sybyl Mol2 formats,
-Molecular Design Limited's (MDL) Mol file format, Minnesota Supercomputer
-Center's (MSC) XMol XYZ format and CHARMm format files. If connectivity
-information and/or secondary structure information is not contained in the
-file this is calculated automatically. The loaded molecule may be shown as
-wireframe, cylinder (drieding) stick bonds, alpha-carbon trace, spacefilling
-(CPK) spheres, macromolecular ribbons (either smooth shaded solid ribbons
-or parallel strands), hydrogen bonding and dot surface. Atoms may also be
-labelled with arbitrary text strings. Different parts of the molecule may be
-displayed and coloured independently of the rest of the molecule or shown in
-different representations simultaneously. The space filling spheres can even
-be shadowed. The displayed molecule may be rotated, translated, zoomed, 
-z-clipped (slabbed) interactively using either the mouse, the scroll bars, 
-the command line or an attached dials box. RasMol can read a prepared list 
-of commands from a `script' file (or via interprocess communication) to 
-allow a given image or viewpoint to be restored quickly. RasMol can also
-create a script file containing the commands required to regenerate the 
-current image. Finally the rendered image may be written out in a variety 
-of formats including both raster and vector PostScript, GIF, PPM, BMP, PICT,
-Sun rasterfile or as a MolScript input script or Kinemage.
+   The original RasMol manual was created by Roger Sayle. In July 1996,
+   Dr. Margaret Wong of the Chemistry Department, Swinburne University of
+   Technology, Australia, made extensive revisions to the RasMol 2.5
+   manual to accurately reflect the operation of RasMol 2.6. Eric Martz
+   of the University of Massachusetts made further revisions. In May
+   1997, William McClure of Carnegie Mellon University reorganized the
+   HTML version of the manual into multiple sections which could be
+   downloaded quickly and added use of frames. Portions of the 2.7.1
+   version of the RasMol manual were derived with permission from William
+   McClure's version using Roger Sayle's rasmol.doc for version 2.6.4 as
+   the primary source.
 
-    RasMol will run on a wide range of architectures and systems including 
-SGI, sun4, sun3, sun386i, SGI, DEC, HP and E&S workstations, IBM RS/6000, 
-Cray, Sequent, DEC Alpha (OSF/1, OpenVMS and Windows NT), IBM PC (under 
-Microsoft Windows, Windows NT, OS/2, Linux, BSD386 and *BSD), Apple 
-Macintosh (System 7.0 or later), PowerMac and VAX VMS (under DEC Windows).
-UNIX and VMS versions require an 8bit, 24bit or 32bit X Windows frame 
-buffer (X11R4 or later). The X Windows version of RasMol provides optional 
-support for a hardware dials box and accelerated shared memory rendering 
-(via the XInput and MIT-SHM extensions) if available.
+                 Documentation Last Updated 21 January 2001
+          Edited by Herbert J. Bernstein and Frances C. Bernstein
 
-    The source code is public domain and freely distributable provided that
-the original author is suitably acknowledged. The complete source code and
-user documentation may be obtained by anonymous FTP from ftp.dcs.ed.ac.uk
-[129.215.160.5] in the directory /pub/rasmol. The source code, documentation
-and Microsoft Windows executables are stored in several files appropriate
-for the receiving operating system. Please read the "README" file in the
-distribution directory. UNIX and VAX systems should retreive either 
-RasMol2.tar.Z, RasMol2.tar.gz. Apple Mac users should retrieve RasMac.sit.hqx.
-Microsoft Windows users should retrieve RasWin.zip and optionally the Visual
-Basic package RasMenu.zip. All these files include source code, on-line help,
-user manual and reference card. RasMac.sit.hqx, RasWin.zip and RasMenu.zip
-also contain executables for the required platform. Please remember to use 
-"binary" mode when transferring these files between systems. Check that the 
-file size is the same before and after transfer.
+              Translation of RasMol 2.7.1 Manual into Spanish
 
-    Any comments, suggestions or questions about the package may be directed
-to the author at "rasmol@ggr.co.uk".
+   Thanks to the efforts of José Miguel Fernández Fernández (Departamento
+   de Bioquímica y Biología Molecular. Universidad de Granada. España
+   (jmfernan@ugr.es)) a translation of the Manual for Rasmol version
+   2.7.1 into Spanish is now available. La traducción española del manual
+   de la versión de la Dra. Wong revisada por Eric Martz fue realizada
+   por Isabel Serván Martínez y José Miguel Fernández Fernández. La
+   actual traducción del Manual de RasMol 2.7.1 ha sido realizada usando
+   como base la anterior de RasMol 2.6 por  José Miguel Fernández
+   Fernández.
+     _________________________________________________________________
 
-Roger
--- 
--- 
-Roger Sayle                                INTERNET:  ras32425@ggr.co.uk
-Glaxo Wellcome Medicines Research Centre,             rasmol@ggr.co.uk
-Gunnels Wood Road, Stevenage,        Tel:   +44 (0)1438 763246 (direct line)
-Hertfordshire, SG1 2NY, U.K.         Fax:   +44 (0)1438 763082
+                   Test Version of Next Release Available
+
+   RasMol 2.7.1.1 is an interim release for testing of the integration of
+   multilingual capabilities into RasMol. These same mods will then be
+   integrated with pending mods, and with the basic structure of RasMol
+   2.7.2 to create RasMol 2.7.2.1.
+
+   A preliminary release of RasMol 2.7.2 (without the multilingual
+   capabilities) is available at:
+
+          http://www.bernstein-plus-sons.com/software/RasMol_2.7.2
+
+      THIS IS A PRELIMINARY RELEASE INVOLVING EXTENSIVE MODIFICATIONS
+                       ***** USE WITH CAUTION ******
+     _________________________________________________________________
+
+                            RasTop 1.3 Available
+
+   RasTop by P. Valadon is a graphical interface to RasMol adapted for
+   Windows platform, i.e. RasTop is a GUI front end for RasWin.
+
+     RasTop -- GUI front end for RasWin (RasTop 1.3)
+     * RasTop 1.3 Features
+     _________________________________________________________________
+
+                    IMPORTANT - Copying and Distribution
+
+   This version is based on RasMol version 2.6_CIF.2, on RasMol version
+   2.6x1 and on RasMol version 2.6.4. Please read the file NOTICE for
+   important notices which apply to this package. If you are not going to
+   make changes to RasMol, you are not only permitted to freely make
+   copies and distribute them, you are encouraged to do so, provided you
+   do the following:
+     * 1. Either include the complete documentation, especially the file
+       NOTICE, with what you distribute or provide a clear indication
+       where people can get a copy of the documentation; and
+     * 2. Please give credit where credit is due citing the version and
+       original authors properly; and
+     * 3. Please do not give anyone the impression that the original
+       authors are providing a warranty of any kind.
+
+   If you would like to use major pieces of RasMol in some other program,
+   make modifications to RasMol, or in some other way make what a lawyer
+   would call a "derived work", you are not only permitted to do so, you
+   are encouraged to do so. In addition to the things we discussed above,
+   please do the following:
+     * 4. Please explain in your documentation how what you did differs
+       from this version of RasMol; and
+     * 5. Please make your modified source code available.
+
+   This version of RasMol is not in the public domain, but it is given
+   freely to the community in the hopes of advancing science. If you make
+   changes, please make them in a responsible manner, and please offer us
+   the opportunity to include those changes in future versions of RasMol.
+     _________________________________________________________________
+
+                                  Contents
+
+     * IMPORTANT - Copying and Distribution
+     * Installation Instructions
+     * Changes
+     * Things To Do
+     * Introduction
+     * Source Code and Binaries
+     * Directories
+          + ChangeLog -- Full ChangeLog directory
+          + src -- source code
+               o mac -- Macintosh build directory
+               o mswin -- Windows build directory
+          + doc -- documentation
+          + data -- sample data files
+     _________________________________________________________________
+
+                                Introduction
+
+   This posting is to announce the release of RasMol version 2.7.1.1,
+   which makes the following changes to RasMol 2.7.1:
+     * Introduction of a multilingual structure for RasMol.
+     * Population of messages and menu lists for English and Spanish.
+     * Upgrade of some of the Windows printer logic
+     * Correction of coordinate handling for Mol2 and XYZ coordinates
+     * Fix to the parsing of D2O.
+
+   This is an interim release to facillitate testing of the new
+   multilingual capabilities. Our thanks to Fernando Gabriel Ranea for
+   doing the hard work of creating an initial Spanish translation of
+   RasMol 2.7.1. We have created this new version to allow on-the-fly
+   switching among langauges. Use the command "Spanish" to request
+   Spanish messages and menus, and "English" to return to the original
+   English format. Corrections and translations for additional languages
+   greatly appreciated.
+
+   RasMol version 2.7.1, made the following changes to RasMol 2.7.0:
+     * The ability to automatically mark non bonded atoms in wireframe
+       and stick displays. Our thanks to R. Curtis Haltiwanger for
+       suggesting this change.
+     * The ability to use a proportionally spaced font and to draw labels
+       with heavier strokes. Our thanks to Eric Martz for suggesting this
+       change.
+     * The ability to auto-recognize PDB vs. CIF and mmCIF datasets.
+     * Extensive updating to the manual. Our thanks to William McClure,
+       Margaret Wong, Eric Martz and Frances Bernstein.
+     * Updating the canvas title with the PDB ID code and EXPDTA
+       information, so models will be clearly distinguished from
+       experimental data. Our thanks to Helen Berman for suggesting this
+       change.
+     * The ability to report coordinates.
+     * Additions to the list of pre-defined colours.
+     * Improved accuracy of coordinates in pseudo-PDB output.
+     * Fixes to the centering logic.
+
+   RasMol version 2.7.0.1 was a technically minor, but operationally
+   critical upgrade to version 2.7.0, correcting a serious error in the
+   selection logic introduced in the process of merging versions to
+   create version 2.7.0.
+
+   RasMol version 2.7.0 combined Roger Sayle's version 2.6.4 with Herbert
+   Bernstein's CIF modified version 2.6_CIF(Rev 2) and with Arne
+   Mueller's version 2.6x1. This combined version allows selection by
+   alternate conformers as well as by models, production of Ramachandran
+   printer plots (as in F. Bernstein's fisipl), and access to A.
+   Mueller's POVray output as POVray3 in addition to the existing POVray
+   version 2 output. (POVray3 should not be used in the PC or Mac
+   version, yet).
+
+   RasMol version 2.6x1 was an upgrade to RasMol by Arne Mueller to add
+   code to allow listing of information about the chains, groups or atoms
+   in a selection, listing of phi-psi, allow selection by cis angle
+   cutoff, and to provide a POV-Ray version 3 output.
+
+   RasMol version 2.6.4 was a major code cleanup and reorganization by
+   Roger Sayle, dropping obsolete non-ANSI C options and providing speed
+   improvments.
+
+   RasMol version 2.6_CIF(Rev 2) added pre-compiled binaries for OpenVMS
+   7.1 (DEC Alpha) and OpenVMS 6.2 (DEC VAX) and replaced the binary for
+   68K Apple MacIntoshes in RasMol version 2.6_CIF(Rev 1).
+
+   Rasmol version 2.6_CIF(Rev 1) was a minor update to RasMol version
+   2.6_CIF, which added support for alternate conformer coloring of small
+   molecule CIFs, using _atom_site_disorder_group, recognizes requests
+   for bonds which have neither atom names nor atom numbers, ensures
+   zapping of existing bonds when connect command is used.
+
+   RasMol version 2.6_CIF added several new features to RasMol:
+
+     * Support for reading IUCr CIF and mmCIF format;
+     * Coloring for alternate conformers and multiple NMR models;
+     * Display of all NMR models in a data set.
+
+   This version is available for the Apple Macintosh and PowerMac in
+   addition to UNIX, VMS and Microsoft Windows versions. However, because
+   of limitations in the memory management under MacOS, very large
+   multiple NMR model datasets are not supported on the Mac or PowerMac
+   at this time.
+
+   For a complete list of changes from RasMol 2.6 refer to the
+   distribution's "ChangeLog".
+
+   For installation instructions see "INSTALL".
+
+   For a list of open issues in this version, see "TODO". Roger Sayle's
+   prior list of pending projects is in "PROJECTS".
+
+   RasMol is a molecular graphics program intended for the visualisation
+   of proteins, nucleic acids and small molecules. The program is aimed
+   at display, teaching and generation of publication quality images. The
+   program has been developed at the University of Edinburgh's
+   Biocomputing Research Unit and the Biomolecular Structures Group at
+   Glaxo Research and Development, Greenford, UK.
+
+   RasMol reads in molecular co-ordinate files in a number of formats and
+   interactively displays the molecule on the screen in a variety of
+   colour schemes and representations. Currently supported input file
+   formats include Brookhaven Protein Databank (PDB), Tripos' Alchemy and
+   Sybyl Mol2 formats, Molecular Design Limited's (MDL) Mol file format,
+   Minnesota Supercomputer Center's (MSC) XMol XYZ format, CHARMm format,
+   MOPAC format, CIF format and mmCIF format files. If connectivity
+   information and/or secondary structure information is not contained in
+   the file this is calculated automatically. The loaded molecule may be
+   shown as wireframe, cylinder (drieding) stick bonds, alpha-carbon
+   trace, spacefilling (CPK) spheres, macromolecular ribbons (either
+   smooth shaded solid ribbons or parallel strands), hydrogen bonding and
+   dot surface. Atoms may also be labelled with arbitrary text strings.
+   Alternate conformers and multiple NMR models may be specially coloured
+   and identified in atom labels. Different parts of the molecule may be
+   displayed and coloured independently of the rest of the molecule or
+   shown in different representations simultaneously. The space filling
+   spheres can even be shadowed. The displayed molecule may be rotated,
+   translated, zoomed, z-clipped (slabbed) interactively using either the
+   mouse, the scroll bars, the command line or an attached dials box.
+   RasMol can read a prepared list of commands from a `script' file (or
+   via interprocess communication) to allow a given image or viewpoint to
+   be restored quickly. RasMol can also create a script file containing
+   the commands required to regenerate the current image. Finally the
+   rendered image may be written out in a variety of formats including
+   both raster and vector PostScript, GIF, PPM, BMP, PICT, Sun rasterfile
+   or as a MolScript input script or Kinemage.
+
+   RasMol will run on a wide range of architectures and systems including
+   SGI, sun4, sun3, sun386i, SGI, DEC, HP and E&S workstations, IBM
+   RS/6000, Cray, Sequent, DEC Alpha (OSF/1, OpenVMS and Windows NT), IBM
+   PC (under Microsoft Windows, Windows NT, OS/2, Linux, BSD386 and
+   *BSD), Apple Macintosh (System 7.0 or later), PowerMac and VAX VMS
+   (under DEC Windows). UNIX and VMS versions require an 8bit, 24bit or
+   32bit X Windows frame buffer (X11R4 or later). The X Windows version
+   of RasMol provides optional support for a hardware dials box and
+   accelerated shared memory rendering (via the XInput and MIT-SHM
+   extensions) if available.
+
+   As of this writing (29 January 2001), this version has been built for
+   i586 Mandrake 7.2 Linux, Mac, IBM PC under Windows 95/98, and SGI
+   IRIX 6.4. Reports of builds and/or problems on other platforms
+   appreciated.
+     _________________________________________________________________
+
+                          Source Code and Binaries
+
+   The complete source code and user documentation of RasMol 2.7.1.1 may
+   be obtained by anonymous FTP at:
+
+   ftp://ftp.bernstein-plus-sons.com/software/RasMol_2.7.1.1.tar.gz
+
+   or on the web at:
+
+   http://www.bernstein-plus-sons.com/software/RasMol_2.7.1.1.tar.gz
+
+   The source code and documentation are stored in several files
+   appropriate for the receiving operating system. Please read the
+   "README" file in the distribution directory. See the table below for
+   appropriate binaries. Mac and Windows binaries are no longer included
+   on the tar. Unix and VMS users should retrieve the same file for
+   source code and documentation, and one or more of the following
+   pre-compiled binaries: WARNING: ALL binaries are gzipped!!!
+
+   System    Binary                                  Help Files
+   Linux (Mandrake 7.2, i586):
+             RasMol.LINUX/Mandrake_7.2/i586/rasmol_8BIT.gz 
+                                                     rasmol.hlp.gz
+             RasMol.LINUX/Mandrake_7.2/i586/rasmol_16BIT.gz
+                                                     rasmol.hlp.gz
+             RasMol.LINUX/Mandrake_7.2/i586/rasmol_32BIT.gz
+                                                     rasmol.hlp.gz
+
+   SGI (IRIX 6.4):
+             RasMol.SGI/IRIX_6.4/rasmol_8BIT.gz      rasmol.hlp.gz
+             RasMol.SGI/IRIX_6.4/rasmol_16BIT.gz     rasmol.hlp.gz
+             RasMol.SGI/IRIX_6.4/rasmol_32BIT.gz     rasmol.hlp.gz
+ 
+   Mac:      RasMac_FAT_8BIT.bin.gz                  rasmol.hlp.gz
+             RasMac_PPC_8BIT.bin.gz
+             RasMac_68K_8BIT.bin.gz
+             RasMac_FAT_32BIT.bin.gz
+             RasMac_PPC_32BIT.bin.gz
+             RasMac_68K_32BIT.bin.gz
+
+   Windows:  RasWin.exe.gz                           rasmol.hlp.gz,
+                                                     raswin.hlp.gz
+
+   For those who have difficulty downloading "gzipped" files,
+   uncompressed files are available via the HTML web page only:
+
+   System    Binary                                  Help Files
+   Linux (Mandrake 7.2, i586): 
+             RasMol.LINUX/Mandrake_7.2/i586/rasmol_8BIT
+                                                     rasmol.hlp
+             RasMol.LINUX/Mandrake_7.2/i586/rasmol_16BIT 
+                                                     rasmol.hlp
+             RasMol.LINUX/Mandrake_7.2/i586/rasmol_32BIT 
+                                                     rasmol.hlp
+   SGI (IRIX 6.4): 
+             RasMol.SGI/IRIX_6.4/rasmol_8BIT         rasmol.hlp
+             RasMol.SGI/IRIX_6.4/rasmol_16BIT        rasmol.hlp
+             RasMol.SGI/IRIX_6.4/rasmol_32BIT        rasmol.hlp
+
+   Mac:      RasMac_FAT_8BIT.bin                     rasmol.hlp
+             RasMac_PPC_8BIT.bin
+             RasMac_68K_8BIT.bin
+             RasMac_FAT_32BIT.bin
+             RasMac_PPC_32BIT.bin
+             RasMac_68K_32BIT.bin
+
+   Windows:  RasWin.exe                              rasmol.hlp,
+                                                     raswin.hlp
+
+   You will need both an appropriate binary and a copy of rasmol.hlp for
+   each system, and, under Windows, a copy of raswin.hlp for the WinHelp
+   sub-system.
+
+   Please remember to use "binary" mode when transferring these files
+   between systems. Check that the file size is the same before and after
+   transfer.
+
+   Any comments, suggestions or questions about this modified version of
+   RasMol should be directed to rasmol@bernstein-plus-sons.com.
+     _________________________________________________________________
+
+    RasTop 1.3 Features
+
+   RasTop is a graphical interface to RasMol adapted for Windows
+   platform, i.e. RasTop is a GUI front end for RasWin.
+
+   RasTop offers a user-friendly graphical interface around "RasMol
+   molecular engine". No more typing on the command line; each command in
+   the menu generates its own script that is transferred to RasMol.
+   RasTop has numerous extensions to handle atom selections: addition and
+   subtraction of atoms, groups, or chains, selection on screen with a
+   lasso, ability to go back to the previous selection, copying to and
+   pasting selections from the clipboard, new set operations such as
+   inverse, extraction, summation, subtraction, and exclusion, and
+   finally full saving of all user-defined atom sets under an extended
+   script format called RSM script.
+
+   During its development, a few new capabilities were added: back
+   clipping, 32-bit output under Windows, full centring command either on
+   a selected atom or to the origin, variation of depthcue in slab mode,
+   and a colouring command, shadepower, which generates new metal-like
+   surfaces.
+
+   RasTop allows several molecules to be opened at the same time (on
+   different windows) and provides limited editing of the molecular file.
+
+   RasTop 1.3, like RasMol 2.7.1, contains a lot of new code. Under its
+   current version, RasTop 1.3 has been extensively tested with molecular
+   files in pdb format and showed good stability. Nevertheless you should
+   be careful in testing other formats.
+
+   Released by P. Valadon, 27 August 2000
+     _________________________________________________________________
+
+     | OpenRasMol | Copying and Distribution | Contents | Installation
+                               Instructions |
+    | Changes | Things To Do | Introduction | Source Code and Binaries |
+   | RasMol Manual | Spanish Translation of RasMol Manual| Release README
+                                     |
+     _________________________________________________________________
+
+   Updated 29 January 2001.
+   Herbert J. Bernstein
+   Bernstein + Sons, 5 Brewster Lane, Bellport, NY 11713-2803, USA
+   yaya@bernstein-plus-sons.com
+   +1-631-286-1339

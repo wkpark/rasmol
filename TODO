@@ -1,54 +1,102 @@
-# File TODO
-# RasMol2, Roger Sayle
-# Glaxo Research and Development
-# Last Modified 24/10/94
+                                    To Do
+                               RasMol 2.7.1.1
 
-# Current Projects:
+                                  [RasMol]
+                    Molecular Graphics Visualisation Tool
+                               21 January 2001
 
-[1] POVRay output file format.
-------------------------------
-    Implement a "write povray" command, potentially based upon
-    Eric Suchanek's "pdb2pov" program much like "Personal 
-    Computer-based Visualization of Molecular Models by
-    Available Ray-tracing Software", Arnold S. Dion, J. Mol. Graph.,
-    Vol.12, March 1994, p.41-44.
+                     Based on RasMol 2.6 by Roger Sayle
+    Biomolecular Structures Group, Glaxo Wellcome Research & Development
+                        Stevenage, Hertfordshire, UK
+           Version 2.6, August 1995, Version 2.6.4, December 1998
+                     Copyright (C) Roger Sayle 1992-1999
 
-[2] Stereo Left/Right [Hardware?] Images.
------------------------------------------
-    By using a data structure to describe the current frame buffer
-    containing information such as width, height, bytes per line 
-    and a pointer to the buffer, it should be possible to implement
-    different eye views to either side-by-side in a single image
-    of two separate images. The latter can then be used to support
-    the "SGIFullScreenStereo" X extension.
+                      and Based on Mods by Arne Mueller
+                           Version 2.6x1, May 1998
+                       Copyright (C) Arne Mueller 1998
 
-[3] Add Gaussian format files.
----------------------------------------
-    This requires a "torsional driver" to handle atom co-ordinates
-    in "internal" z-matrix format. Clever parsing of these files
-    avoids the need for babel's internal/cartesian distinction.
+         Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein
+             Bernstein + Sons, P.O. Box 177, Bellport, NY, USA,
+                        yaya@bernstein-plus-sons.com
+           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 January 2001
+                Copyright (C) Herbert J. Bernstein 1998-2001
 
-[4] Write out solid ribbons and strands in vector PostScript.
--------------------------------------------------------------
-    Create a structure to store the complete knot description at
-    every alpha carbon. Depth sort these knots as part of the
-    painter's algorithm. Write them out in the PostScript using
-    suitable macros. Need to handle oblique polygons specially,
-    and may need to subdivide to more accuracy than when rendering
-    on the screen.
+    Translations of most of the RasMol messages into Spanish contributed
+       by Fernando Gabriel Ranea (Laboratorio de Micología, Museo de
+     Farmacobotánica, Facultad de Farmacia y Bioquímica. Universidad de
+                  Buenos Aires (davinci@dinamica.com.ar)).
 
-[5] Improve Cylinder Quality.
------------------------------
-    The current algorithm for rendering cylinders for stick
-    bonds and backbones is slower and less efficient than it
-    could be. This also results in strange aliasing effect 
-    for oblique cylinders. Correcting these problems should
-    permit cylinders of much large diameter, such as cylinder
-    representations of helices. Similarly add the ability to
-    have flat (and rounded) cylinder ends.
+  ------------------------------------------------------------------------
 
-[6] PDB Directory Structure.
-----------------------------
-    Add support for PDB's latest directory structuring using
-    file names of the form $RASMOLPDBPATH/cr/pdb2cro.ent.
-  
+       THIS IS A PRELIMINARY RELEASE INVOLVING EXTENSIVE MODIFICATIONS
+                        ***** USE WITH CAUTION ******
+
+  ------------------------------------------------------------------------
+
+                                  IMPORTANT
+
+This version is based on RasMol version 2.6_CIF.2, on RasMol version 2.6x1
+and on RasMol version 2.6.4. Please read the file NOTICE for important
+notices which apply to this package. If you are not going to make changes to
+RasMol, you are not only permitted to freely make copies and distribute
+them, you are encouraged to do so, provided you do the following:
+
+   * 1. Either include the complete documentation, especially the file
+     NOTICE, with what you distribute or provide a clear indication where
+     people can get a copy of the documentation; and
+   * 2. Please give credit where credit is due citing the version and
+     original authors properly; and
+   * 3. Please do not give anyone the impression that the original authors
+     are providing a warranty of any kind.
+
+If you would like to use major pieces of RasMol in some other program, make
+modifications to RasMol, or in some other way make what a lawyer would call
+a "derived work", you are not only permitted to do so, you are encouraged to
+do so. In addition to the things we discussed above, please do the
+following:
+
+   * 4. Please explain in your documentation how what you did differs from
+     this version of RasMol; and
+   * 5. Please make your modified source code available.
+
+This version of RasMol is not in the public domain, but it is given freely
+to the community in the hopes of advancing science. If you make changes,
+please make them in a responsible manner, and please offer us the
+opportunity to include those changes in future versions of RasMol.
+  ------------------------------------------------------------------------
+
+Combining RasMol Variants
+
+The first steps in combining RasMol variants have been performed. Much of
+the work of upgrading the documentation has been done. It remains to make
+the changes to prepdoc to generate the RasFrames version. Several source mod
+packages are being reviewed for inclusion. Features from other variants of
+RasMol will be considered for inclusion in RasMol 2.7.n if the features are
+particularly popular and if available resources (or helpful colleagues) make
+inclusion of those features feasible. When we are done, probably in the
+early fall, the resulting best version should be a reasonably stable and
+reliable single version combining most of the features of the major current
+variants of RasMol.
+
+As of this release, we have much of the UCB mods in RasMol 2.7.2, and new
+multilingual mods in RasMol 2.7.1.1. These will be combined with other mods
+to create RasMol 2.7.2.1.
+
+Some other important things still to be done
+
+   * Finish incorporating A. Mueller's fixes for color management.
+   * CIF and mmCIF write logic.
+   * The read logic for large NMR structures on a Mac needs to be made to
+     work.
+   * The field widths for alternate conformer ID's and chains need to be
+     extended to allow for the more flexible naming in mmCIF.
+   * Resolve problem with interaction of stereo and shadows.
+   * Allow writing of GIFs from high colour-resolution mode.
+   * Improve memory management on Macs to allow larger structures.
+
+  ------------------------------------------------------------------------
+Updated 22 January 2001.
+Herbert J. Bernstein
+Bernstein + Sons, 5 Brewster Lane, Bellport, NY 11713-2803, USA
+yaya@bernstein-plus-sons.com
++1-631-286-1339

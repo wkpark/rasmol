@@ -1,8 +1,56 @@
+/***************************************************************************
+ *                              RasMol 2.7.1                               *
+ *                                                                         *
+ *                                 RasMol                                  *
+ *                 Molecular Graphics Visualisation Tool                   *
+ *                              22 June 1999                               *
+ *                                                                         *
+ *                   Based on RasMol 2.6 by Roger Sayle                    *
+ * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
+ *                      Stevenage, Hertfordshire, UK                       *
+ *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
+ *                   Copyright (C) Roger Sayle 1992-1999                   *
+ *                                                                         *
+ *                  and Based on Mods by Arne Mueller                      *
+ *                      Version 2.6x1, May 1998                            *
+ *                   Copyright (C) Arne Mueller 1998                       *
+ *                                                                         *
+ *           Version 2.7.0, 2.7.1 Mods by Herbert J. Bernstein             *
+ *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *                      yaya@bernstein-plus-sons.com                       *
+ *                    2.7.0 March 1999, 2.7.1 June 1999                    *
+ *              Copyright (C) Herbert J. Bernstein 1998-1999               *
+ *                                                                         *
+ * Please read the file NOTICE for important notices which apply to this   *
+ * package. If you are not going to make changes to RasMol, you are not    *
+ * only permitted to freely make copies and distribute them, you are       *
+ * encouraged to do so, provided you do the following:                     *
+ *   * 1. Either include the complete documentation, especially the file   *
+ *     NOTICE, with what you distribute or provide a clear indication      *
+ *     where people can get a copy of the documentation; and               *
+ *   * 2. Please give credit where credit is due citing the version and    *
+ *     original authors properly; and                                      *
+ *   * 3. Please do not give anyone the impression that the original       *
+ *     authors are providing a warranty of any kind.                       *
+ *                                                                         *
+ * If you would like to use major pieces of RasMol in some other program,  *
+ * make modifications to RasMol, or in some other way make what a lawyer   *
+ * would call a "derived work", you are not only permitted to do so, you   *
+ * are encouraged to do so. In addition to the things we discussed above,  *
+ * please do the following:                                                *
+ *   * 4. Please explain in your documentation how what you did differs    *
+ *     from this version of RasMol; and                                    *
+ *   * 5. Please make your modified source code available.                 *
+ *                                                                         *
+ * This version of RasMol is not in the public domain, but it is given     *
+ * freely to the community in the hopes of advancing science. If you make  *
+ * changes, please make them in a responsible manner, and please offer us  *
+ * the opportunity to include those changes in future versions of RasMol.  *
+ ***************************************************************************/
+
 /* pixutils.c
- * RasMol2 Molecular Graphics
- * Roger Sayle, August 1995
- * Version 2.6
  */
+
 #include "rasmol.h"
 
 #ifdef IBMPC
@@ -31,6 +79,7 @@
 #include "molecule.h"
 #include "abstree.h"
 #include "transfor.h"
+#include "repres.h"
 #include "render.h"
 #include "font.h"
 
@@ -51,32 +100,15 @@
 #define Accept(x,y)   (!((x)|(y)))
 #define RootSix       2.44948974278
 
-#define SETPIXEL(dptr,fptr,d,c)    if( (d) > *(dptr) )              \
-                                   {   *(dptr) = (d);               \
-                                       *(fptr) = (c);               \
-                                   }
-
 /* These define light source position */
-#define LightDot(x,y,z)  ((x)+(y)+(z)+(z))
+#define LightDot(x,y,z)  ((x)+InvertY(y)+(z)+(z))
 #define LightLength      RootSix
 
 
-#define MAXVERT 10
 typedef struct {
                 Long dx,dz,di;
                 Long x,z,i;
                } Edge;
-
-typedef struct {
-                int x, y, z;
-                int inten;
-               } Vert;
-
-typedef struct {
-                Vert v[MAXVERT];
-                int count;
-               } Poly;
-
 
 typedef struct {
                 short dx,dy,dz;
@@ -101,35 +133,80 @@ static ArcEntry ArcAc[ARCSIZE];
 static ArcEntry ArcDn[ARCSIZE];
 #endif
 
-
 static char FontDimen[23];
+static int FontWid[95];
 static int ClipStatus;
 
 
-static int OutCode(x,y,z)
-    register int x,y,z;
+
+#define SETPIXEL(dptr,fptr,d,c)    if( (d) > *(dptr) )              \
+                                   {   *(dptr) = (d);               \
+                                       *(fptr) = (c);               \
+                                   }
+#define SETPIXELP(dptr,fptr,d,c,ca,p) if( (d) > *(dptr))            \
+                                   {   *(dptr) = (d);               \
+                                       if(!p) {*(fptr) = (c); }      \
+                                       else  {*(fptr) = (ca);}      \
+                                   }
+
+#define OutCode(res,x,y,z)            \
+    {   if( (y)<0 )                   \
+        {   (res) = BitAbove;         \
+        } else if( (y) >= View.ymax ) \
+        {   (res) = BitBelow;         \
+        } else (res) = 0;             \
+                                      \
+        if( (x) < 0 )                 \
+        {   (res) |= BitLeft;         \
+        } else if( (x) >= View.xmax ) \
+            (res) |= BitRight;        \
+                                      \
+        if( !ZValid((z)) )            \
+            (res) |= BitFront;        \
+    }
+
+
+
+/*=======================*/
+/*  Function Prototypes  */
+/*=======================*/
+
+#ifdef FUNCPROTO
+static void DrawArcDn( short __huge*, Pixel __huge*, int, int );
+static void DrawArcAc( short __huge*, Pixel __huge*, int, int );
+static void ClipArcDn( short __huge*, Pixel __huge*, int, int, int, int );
+static void ClipArcAc( short __huge*, Pixel __huge*, int, int, int, int );
+#else
+static void DrawArcDn();
+static void DrawArcAc();
+static void ClipArcDn();
+static void ClipArcAc();
+#endif
+
+#ifdef UNUSED
+static int OutCode( int x, int y, int z )
 {
     register int result;
 
-    if( y<0 )
+    if( y < 0 )
     {   result = BitAbove;
-    } else if( y>=View.ymax )
+    } else if( y >= View.ymax )
     {   result = BitBelow;
     } else result = 0;
 
-    if( x<0 )
+    if( x < 0 )
     {   result |= BitLeft;
-    } else if( x>=View.xmax )
+    } else if( x >= View.xmax )
         result |= BitRight;
 
     if( !ZValid(z) )
         result |= BitFront;
     return result;
 }
+#endif
 
 
-void PlotPoint(x,y,z,col)
-    int x,y,z,col;
+void PlotPoint( int x, int y, int z, int col )
 {
     register Pixel __huge *fptr;
     register short __huge *dptr;
@@ -147,8 +224,7 @@ void PlotPoint(x,y,z,col)
 }
 
 
-void ClipPoint(x,y,z,col)
-    int x,y,z,col;
+void ClipPoint( int x, int y, int z, int col )
 {
     register Pixel __huge *fptr;
     register short __huge *dptr;
@@ -167,8 +243,7 @@ void ClipPoint(x,y,z,col)
 }
 
 
-void PlotDeepPoint(x,y,z,col)
-    int x,y,z,col;
+void PlotDeepPoint( int x, int y, int z, int col )
 {
     register Long offset;
     register Pixel __huge *fptr;
@@ -181,13 +256,15 @@ void PlotDeepPoint(x,y,z,col)
     if( z > *dptr )
     {  fptr = View.fbuf+offset;
        inten = (ColourDepth*(z+ImageRadius-ZOffset))/ImageSize;
-       *fptr = Lut[col+inten];
+       if( inten > 0 )
+       {   *fptr = Lut[col+(inten&ColourMask)];
+       } else *fptr = Lut[col];
        *dptr = z;
     }
 }
 
-void ClipDeepPoint(x,y,z,col)
-    int x,y,z,col;
+
+void ClipDeepPoint( int x, int y, int z, int col )
 {
     register Long offset;
     register Pixel __huge *fptr;
@@ -209,19 +286,28 @@ void ClipDeepPoint(x,y,z,col)
 }
 
 
-/* Macros for Bresenhams Line Drawing Algorithm */
-#define CommonStep(s)  z1 += zrate; SETPIXEL(dptr,fptr,z1,c);     \
+
+/*================================================*/
+/*  Macros for Bresenhams Line Drawing Algorithm  */
+/*================================================*/
+
+#define CommonStep(s)  z1 += zrate; SETPIXELP(dptr,fptr,z1,c,ca,p);     \
                        if( (zerr+=dz)>0 ) { zerr-=(s); z1+=iz; }
 
 #define XStep  { if((err+=dy)>0) { fptr+=ystep; dptr+=ystep; err-=dx; } \
-                 fptr+=ix; dptr+=ix; x1+=ix; CommonStep(dx); }
+                 fptr+=ix; dptr+=ix; x1+=ix;                            \
+                 p =  altc && (x1-mid<(dx/4)) && (mid-x1<(dx/4));       \
+                 CommonStep(dx); }
 
 #define YStep  { if((err+=dx)>0) { fptr+=ix; dptr+=ix; err-=dy; } \
-                 fptr+=ystep; dptr+=ystep; y1+=iy; CommonStep(dy); }
+                 fptr+=ystep; dptr+=ystep; y1+=iy;                \
+                 p =  altc && (y1-mid<(dy/4)) && (mid-y1<(dy/4)); \
+                 CommonStep(dy); }
                      
 
-void DrawTwinLine(x1,y1,z1,x2,y2,z2,col1,col2)
-    int x1,y1,z1,x2,y2,z2,col1,col2;
+void DrawTwinLine( int x1, int y1, int z1,
+                   int x2, int y2, int z2,
+                   int col1, int col2, char altl )
 {
     register Long offset;
     register Pixel __huge *fptr;
@@ -231,9 +317,17 @@ void DrawTwinLine(x1,y1,z1,x2,y2,z2,col1,col2)
     register int ix,iy,iz;
     register int dx,dy,dz;
     register int mid;
-    register Pixel c;
+    register Pixel c, ca;
+    register int p, altc;
 
     c = Lut[col1];
+    altc = 0;
+    ca = c;
+    if ( altl != '\0' && altl != ' ') {
+      altc = AltlColours[((int)altl)&(AltlDepth-1)];
+      ca = Lut[altc];
+    }
+    
 
     offset = (Long)y1*View.yskip + x1;
     fptr = View.fbuf+offset;
@@ -268,6 +362,8 @@ void DrawTwinLine(x1,y1,z1,x2,y2,z2,col1,col2)
     {   if( dz >= dx )
         {   zrate = dz/dx;
             dz -= dx*zrate;
+            if( iz < 0 )
+                zrate = -zrate;
         } else zrate = 0;
         err = zerr = -(dx>>1);
 
@@ -282,6 +378,8 @@ void DrawTwinLine(x1,y1,z1,x2,y2,z2,col1,col2)
     {   if( dz >= dy )
         {   zrate = dz/dy;
             dz -= dy*zrate;
+            if( iz < 0 )
+                zrate = -zrate;
         } else zrate = 0;
         err = zerr = -(dy>>1);
 
@@ -295,24 +393,26 @@ void DrawTwinLine(x1,y1,z1,x2,y2,z2,col1,col2)
 }
 
 
-static void ClipLine(x1,y1,z1,x2,y2,z2,col)
-    int x1,y1,z1,x2,y2,z2,col;
+void ClipLine( int x1, int y1, int z1,
+               int x2, int y2, int z2,
+               int col,  char altl )
 {
     register int code1,code2;
     register int delta,rest;
     register int temp;
 
-    while( True )
-    {   code1 = OutCode(x1,y1,z1);
-        code2 = OutCode(x2,y2,z2);
-        if( Reject(code1,code2) ) return;
-        if( Accept(code1,code2) ) break;
-
-        if( !code1 )
+    OutCode(code1,x1,y1,z1);
+    OutCode(code2,x2,y2,z2);
+    if( Reject(code1,code2) )
+        return;
+  
+    while( !Accept(code1,code2) )
+    {  if( !code1 )
         {   temp=x1; x1=x2; x2=temp;
             temp=y1; y1=y2; y2=temp;
             temp=z1; z1=z2; z2=temp;
             code1 = code2;
+            code2 = 0;
         }
 
         if( code1 & BitAbove )
@@ -344,52 +444,65 @@ static void ClipLine(x1,y1,z1,x2,y2,z2,col)
             y1 += (int)(((Long)rest*(y2-y1))/delta);
             z1 = SlabValue-1;
         }
+
+        OutCode(code1,x1,y1,z1);
+        if( Reject(code1,code2) )
+            return;
+
     }
-    DrawTwinLine(x1,y1,z1,x2,y2,z2,col,col);
+    DrawTwinLine(x1,y1,z1,x2,y2,z2,col,col,altl);
 }
 
 
-void ClipTwinLine(x1,y1,z1,x2,y2,z2,col1,col2)
-    int x1,y1,z1,x2,y2,z2,col1,col2;
+void ClipTwinLine( int x1, int y1, int z1,
+                   int x2, int y2, int z2,
+                   int col1, int col2, char altl )
 {
     register int xmid,ymid,zmid;
     register int code1,code2;
 
 
     if( col1!=col2 )
-    {   code1 = OutCode(x1,y1,z1);
-        code2 = OutCode(x2,y2,z2);
+    {   OutCode(code1,x1,y1,z1);
+        OutCode(code2,x2,y2,z2);
         if( !Reject(code1,code2) )
         {   if( !Accept(code1,code2) )
             {  xmid = (x1+x2)/2;
                ymid = (y1+y2)/2;
                zmid = (z1+z2)/2;
-               ClipLine(x1,y1,z1,xmid,ymid,zmid,col1);
-               ClipLine(xmid,ymid,zmid,x2,y2,z2,col2);
+               ClipLine(x1,y1,z1,xmid,ymid,zmid,col1,altl);
+               ClipLine(xmid,ymid,zmid,x2,y2,z2,col2,altl);
             } else
-               DrawTwinLine(x1,y1,z1,x2,y2,z2,col1,col2);
+               DrawTwinLine(x1,y1,z1,x2,y2,z2,col1,col2,altl);
         }
-    } else
-        ClipLine(x1,y1,z1,x2,y2,z2,col1);
+    } else ClipLine(x1,y1,z1,x2,y2,z2,col1,altl);
 }
 
 
 
-/* Macros for 3D Bresenhams Vector Algorithm */
-#define CommonVectStep(s)  z1 += zrate;   c1 += crate;                    \
-                           SETPIXEL(dptr,fptr,z1,Lut[col+c1]);            \
+/*=============================================*/
+/*  Macros for 3D Bresenhams Vector Algorithm  */
+/*=============================================*/
+
+#define CommonVectStep(s)  z1 += zrate;   c1 += crate; c2 -= crate;       \
+                   SETPIXELP(dptr,fptr,z1,Lut[col+c1],Lut[cola],p);       \
                            if( (zerr+=dz)>0 ) { zerr -= (s); z1 += iz; }  \
                            if( (cerr+=dc)>0 ) { cerr -= (s); c1 += iz; }
 
 #define XVectStep  { if((err+=dy)>0) { fptr+=ystep; dptr+=ystep; err-=dx; } \
-                     fptr+=ix; dptr+=ix; x1+=ix; CommonVectStep(dx); }
+                     fptr+=ix; dptr+=ix; x1+=ix;                            \
+                     p =  altc && (x1-mid<(dx/4)) && (mid-x1<(dx/4));      \
+                     CommonVectStep(dx); }
 
 #define YVectStep  { if((err+=dx)>0) { fptr+=ix; dptr+=ix; err-=dy; } \
-                     fptr+=ystep; dptr+=ystep; y1+=iy; CommonVectStep(dy); }
+                     fptr+=ystep; dptr+=ystep; y1+=iy;                \
+                     p =  altc && (y1-mid<(dy/4)) && (mid-y1<(dy/4));\
+                     CommonVectStep(dy); }
 
 
-void DrawTwinVector(x1,y1,z1,x2,y2,z2,col1,col2)
-    int x1,y1,z1,x2,y2,z2,col1,col2;
+void DrawTwinVector( int x1, int y1, int z1,
+                     int x2, int y2, int z2,
+                     int col1, int col2, char altl )
 {
     register Long offset;
     register Pixel __huge *fptr;
@@ -399,11 +512,16 @@ void DrawTwinVector(x1,y1,z1,x2,y2,z2,col1,col2)
     register int zrate, zerr;
     register int ystep,err;
     register int ix,iy,iz;
-    register int col, mid;
+    register int col, cola,  mid;
     register int c1, c2;
+    register int p, altc;
 
     c1 = (ColourDepth*(z1+ImageRadius-ZOffset))/ImageSize;
     c2 = (ColourDepth*(z2+ImageRadius-ZOffset))/ImageSize;
+    altc = 0;
+    if ( altl != '\0' && altl != ' ')
+      altc = AltlColours[((int)altl)&(AltlDepth-1)];
+    cola = altc;
 
     offset = (Long)y1*View.yskip + x1;
     fptr = View.fbuf+offset;
@@ -435,11 +553,15 @@ void DrawTwinVector(x1,y1,z1,x2,y2,z2,col1,col2)
     {   if( dz >= dx )
         {   zrate = dz/dx;
             dz -= dx*zrate;
+            if( iz < 0 )
+                zrate = -zrate;
         } else zrate = 0;
 
         if( dc >= dx )
         {   crate = dc/dx;
             dc -= dx*crate;
+            if( iz < 0 )
+                crate = -crate;
         } else crate = 0;
 
         err = zerr = cerr = -(dx>>1);
@@ -460,11 +582,15 @@ void DrawTwinVector(x1,y1,z1,x2,y2,z2,col1,col2)
     {   if( dz >= dy )
         {   zrate = dz/dy;
             dz -= dy*zrate;
+            if( iz < 0 )
+                zrate = -zrate;
         } else zrate = 0;
 
         if( dc >= dy )
         {   crate = dc/dy;
             dc -= dy*crate;
+            if( iz < 0 )
+                crate = -crate;
         } else crate = 0;
 
         err = zerr = cerr = -(dy>>1);
@@ -478,31 +604,33 @@ void DrawTwinVector(x1,y1,z1,x2,y2,z2,col1,col2)
         if( col1 != col2 )
         {   mid = (y1+y2)>>1;
             while( y1!=mid ) YVectStep;
-            col=col2;
+            col = col2;
         }
         while( y1!=y2 ) YVectStep;
     }
 }
 
-static void ClipVector(x1,y1,z1,x2,y2,z2,col)
-    int x1,y1,z1,x2,y2,z2,col;
+
+static void ClipVector( int x1, int y1, int z1,
+                        int x2, int y2, int z2,
+                        int col, char altl )
 {
     register int code1,code2;
     register int delta,rest;
     register int temp;
 
-    code1 = OutCode(x1,y1,z1);
-    code2 = OutCode(x2,y2,z2);
+    OutCode(code1,x1,y1,z1);
+    OutCode(code2,x2,y2,z2);
+    if( Reject(code1,code2) )
+        return;
 
-    while( True )
-    {   if( Accept(code1,code2) ) break;
-        if( Reject(code1,code2) ) return;
-
-        if( !code1 )
-        {   code1 = code2; code2 = 0;
-            temp=x1; x1=x2; x2=temp;
+    while( !Accept(code1,code2) )
+    {   if( !code1 )
+        {   temp=x1; x1=x2; x2=temp;
             temp=y1; y1=y2; y2=temp;
             temp=z1; z1=z2; z2=temp;
+            code1 = code2;
+            code2 = 0;
         }
 
         if( code1 & BitAbove )
@@ -534,38 +662,80 @@ static void ClipVector(x1,y1,z1,x2,y2,z2,col)
             y1 += (int)(((Long)rest*(y2-y1))/delta);
             z1 = SlabValue-1;
         }
-        code1 = OutCode(x1,y1,z1);
+        OutCode(code1,x1,y1,z1);
+        if( Reject(code1,code2) )
+            return;
     }
-    DrawTwinVector(x1,y1,z1,x2,y2,z2,col,col);
+    DrawTwinVector(x1,y1,z1,x2,y2,z2,col,col,altl);
 }
 
 
-void ClipTwinVector(x1,y1,z1,x2,y2,z2,col1,col2)
-    int x1,y1,z1,x2,y2,z2,col1,col2;
+void ClipTwinVector( int x1, int y1, int z1,
+                     int x2, int y2, int z2,
+                     int col1, int col2, char altl )
 {
     register int xmid,ymid,zmid;
     register int code1,code2;
 
     if( col1!=col2 )
-    {   code1 = OutCode(x1,y1,z1);
-        code2 = OutCode(x2,y2,z2);
+    {   OutCode(code1,x1,y1,z1);
+        OutCode(code2,x2,y2,z2);
         if( !Reject(code1,code2) )
         {   if( !Accept(code1,code2) )
             {  xmid = (x1+x2)/2;
                ymid = (y1+y2)/2;
                zmid = (z1+z2)/2;
-               ClipVector(x1,y1,z1,xmid,ymid,zmid,col1);
-               ClipVector(xmid,ymid,zmid,x2,y2,z2,col2);
+               ClipVector(x1,y1,z1,xmid,ymid,zmid,col1,altl);
+               ClipVector(xmid,ymid,zmid,x2,y2,z2,col2,altl);
             } else
-               DrawTwinVector(x1,y1,z1,x2,y2,z2,col1,col2);
+               DrawTwinVector(x1,y1,z1,x2,y2,z2,col1,col2,altl);
         }
     } else
-        ClipVector(x1,y1,z1,x2,y2,z2,col1);
+        ClipVector(x1,y1,z1,x2,y2,z2,col1,altl);
 }
 
 
-void ClipDashVector(x1,y1,z1,x2,y2,z2,col1,col2)
-    int x1,y1,z1,x2,y2,z2,col1,col2;
+/*==================================*/
+/*  Monochrome Depth-Cued Vectors!  */
+/*==================================*/
+
+void DrawTwinVector2( int x1, int y1, int z1,
+                      int x2, int y2, int z2,
+                      int col1, int col2 )
+{
+    register int inten;
+    register int midz;
+
+    midz = ((z1+z2)/2)+ImageRadius-ZOffset;
+    if( midz >= ImageSize )
+    {   inten = ColourMask;
+    } else if( midz > 0 )
+    {   inten = (ColourDepth*midz)/ImageSize;
+    } else inten = 0;
+    DrawTwinLine(x1,y1,z1,x2,y2,z2,col1+inten,col2+inten,' ');
+}
+
+
+void ClipTwinVector2( int x1, int y1, int z1,
+                      int x2, int y2, int z2,
+                      int col1, int col2 )
+{
+    register int inten;
+    register int midz;
+
+    midz = ((z1+z2)/2)+ImageRadius-ZOffset;
+    if( midz >= ImageSize )
+    {   inten = ColourMask;
+    } else if( midz > 0 )
+    {   inten = (ColourDepth*midz)/ImageSize;
+    } else inten = 0;
+    ClipTwinLine(x1,y1,z1,x2,y2,z2,col1+inten,col2+inten,' ');
+}
+
+
+void ClipDashVector( int x1, int y1, int z1,
+                     int x2, int y2, int z2,
+                     int col1, int col2, char altl )
 {
     register Long offset;
     register Pixel __huge *fptr;
@@ -575,17 +745,28 @@ void ClipDashVector(x1,y1,z1,x2,y2,z2,col1,col2)
     register int crate, cerr;
     register int zrate, zerr;
     register int ystep,err;
-    register int col, mid;
+    register int col, cola, mid;
     register int c1, c2;
     register int count;
+    register int p, altc;
 
+    if( (x1==x2) && (y1==y2) )
+         return;
 
-    if( (x1==x2) && (y1==y2) ) return;
-    if( Reject(OutCode(x1,y1,z1),OutCode(x2,y2,z2)) )
+    /* Reject(OutCode(x1,y1,z1),OutCode(x2,y2,z2)) */
+    if( (x1<0) && (x2<0) ) return;
+    if( (y1<0) && (y2<0) ) return;
+    if( (x1>=View.xmax) && (x2>=View.xmax) ) return;
+    if( (y1>=View.ymax) && (y2>=View.ymax) ) return;
+    if( UseSlabPlane && (z1>=SlabValue) && (z2>=SlabValue) )
         return;
 
     c1 = (ColourDepth*(z1+ImageRadius-ZOffset))/ImageSize;
     c2 = (ColourDepth*(z2+ImageRadius-ZOffset))/ImageSize;
+    altc = 0;
+    if ( altl != '\0' && altl != ' ')
+      altc = AltlColours[((int)altl)&(AltlDepth-1)];
+    cola = altc;
 
     dx = x2 - x1;  dy = y2 - y1;
     dz = z2 - z1;  dc = c2 - c1;
@@ -602,7 +783,6 @@ void ClipDashVector(x1,y1,z1,x2,y2,z2,col1,col2)
     if( dz<0 ) { dz = -dz; iz = -1; }
     if( dc<0 ) { dc = -dc; ic = -1; }
 
-
     if( dx>dy )
     {   if( x2<x1 )
         {   mid = col1;
@@ -612,6 +792,8 @@ void ClipDashVector(x1,y1,z1,x2,y2,z2,col1,col2)
         if( dz >= dx )
         {   zrate = dz/dx;
             dz -= dx*zrate;
+            if( iz < 0 )
+                zrate = -zrate;
         } else zrate = 0;
 
         if( dc >= dx )
@@ -626,7 +808,9 @@ void ClipDashVector(x1,y1,z1,x2,y2,z2,col1,col2)
         {   if( XValid(x1) && YValid(y1) && ZValid(z1) )
             {   if( count<2 )
                 {   col = (x1<mid)? col1 : col2;
-                    SETPIXEL(dptr,fptr,z1,Lut[col+c1]);
+	   	    cola = (x1<mid)? col2 : col1;
+                    p =  altc&&(abs(x1-mid)<abs(dx)/4);
+                    SETPIXELP(dptr,fptr,z1,Lut[col+c1], Lut[cola],p);
                     count++;
                 } else if( count==3 )
                 {   count = 0;
@@ -663,6 +847,8 @@ void ClipDashVector(x1,y1,z1,x2,y2,z2,col1,col2)
         if( dz >= dy )
         {   zrate = dz/dy;
             dz -= dy*zrate;
+            if( iz < 0 )
+                zrate = -zrate;
         } else zrate = 0;
 
         if( dc >= dy )
@@ -678,7 +864,8 @@ void ClipDashVector(x1,y1,z1,x2,y2,z2,col1,col2)
         {   if( XValid(x1) && YValid(y1) && ZValid(z1) )
             {   if( count<2 )
                 {   col = (y1<mid)? col1 : col2;
-                    SETPIXEL(dptr,fptr,z1,Lut[col+c1]);
+                    p =  altc&&(abs(y1-mid)<abs(dy)/4);
+                    SETPIXELP(dptr,fptr,z1,Lut[col+c1],Lut[cola],p);
                     count++;
                 } else if( count==3 )
                 {   count = 0;
@@ -703,17 +890,14 @@ void ClipDashVector(x1,y1,z1,x2,y2,z2,col1,col2)
             }
 
             fptr+=ystep; dptr+=ystep; y1+=iy;
-            z1 += zrate;   c1 += crate;
+            z1 += zrate;   c1 += crate; c2 -=crate;
         }
     }
 }
 
 
 /* SplineCount is either 1, 2, 3, 4, 5 or 9! */
-
-void StrandRibbon( src, dst, col1, col2 )
-    Knot __far *src, __far *dst;  
-    int col1, col2;
+void StrandRibbon( Knot __far *src, Knot __far *dst, int col1, int col2 )
 {
     register int hsx, hsy, hsz;
     register int hdx, hdy, hdz;
@@ -724,25 +908,27 @@ void StrandRibbon( src, dst, col1, col2 )
     if( SplineCount != 4 )
     {   if( SplineCount == 1 ) 
         {   ClipVector( src->px, src->py, src->pz,
-                        dst->px, dst->py, dst->pz, col2 );
+                        dst->px, dst->py, dst->pz, col2, ' ' );
             return;
         } else if( SplineCount != 2 )
             ClipVector( src->px, src->py, src->pz,
-                        dst->px, dst->py, dst->pz, col1 );
+                        dst->px, dst->py, dst->pz, col1, ' ' );
 
         ClipVector( src->px+src->wx, src->py+src->wy, src->pz+src->wz,
-                    dst->px+dst->wx, dst->py+dst->wy, dst->pz+dst->wz, col2 );
+                    dst->px+dst->wx, dst->py+dst->wy, dst->pz+dst->wz, 
+                    col2, ' ' );
         ClipVector( src->px-src->wx, src->py-src->wy, src->pz-src->wz,
-                    dst->px-dst->wx, dst->py-dst->wy, dst->pz-dst->wz, col2 );
+                    dst->px-dst->wx, dst->py-dst->wy, dst->pz-dst->wz, 
+                    col2, ' ' );
         if( SplineCount<=3 ) return;
 
         hsx = src->wx/2;  hsy = src->wy/2;  hsz = src->wz/2;
         hdx = dst->wx/2;  hdy = dst->wy/2;  hdz = dst->wz/2;
 
         ClipVector( src->px+hsx, src->py+hsy, src->pz+hsz,
-                    dst->px+hdx, dst->py+hdy, dst->pz+hdz, col1 );
+                    dst->px+hdx, dst->py+hdy, dst->pz+hdz, col1, ' ' );
         ClipVector( src->px-hsx, src->py-hsy, src->pz-hsz,
-                    dst->px-hdx, dst->py-hdy, dst->pz-hdz, col1 );
+                    dst->px-hdx, dst->py-hdy, dst->pz-hdz, col1, ' ' );
         if( SplineCount==5 ) 
             return;
         col = col1;
@@ -756,19 +942,21 @@ void StrandRibbon( src, dst, col1, col2 )
     qdx = hdx/2;  qdy = hdy/2;  qdz = hdz/2;
 
     ClipVector( src->px+hsx+qsx, src->py+hsy+qsy, src->pz+hsz+qsz,
-                dst->px+hdx+qdx, dst->py+hdy+qdy, dst->pz+hdz+qdz, col );
+                dst->px+hdx+qdx, dst->py+hdy+qdy, dst->pz+hdz+qdz, 
+                col, ' ' );
     ClipVector( src->px+hsx-qsx, src->py+hsy-qsy, src->pz+hsz-qsz,
-                dst->px+hdx-qdx, dst->py+hdy-qdy, dst->pz+hdz-qdz, col1 );
+                dst->px+hdx-qdx, dst->py+hdy-qdy, dst->pz+hdz-qdz, 
+                col1, ' ' );
     ClipVector( src->px-hsx+qsx, src->py-hsy+qsy, src->pz-hsz+qsz,
-                dst->px-hdx+qdx, dst->py-hdy+qdy, dst->pz-hdz+qdz, col1 );
+                dst->px-hdx+qdx, dst->py-hdy+qdy, dst->pz-hdz+qdz, 
+                col1, ' ' );
     ClipVector( src->px-hsx-qsx, src->py-hsy-qsy, src->pz-hsz-qsz,
-                dst->px-hdx-qdx, dst->py-hdy-qdy, dst->pz-hdz-qdz, col );
+                dst->px-hdx-qdx, dst->py-hdy-qdy, dst->pz-hdz-qdz, 
+                col, ' ' );
 }
 
 
-void DashRibbon( src, dst, col1, col2 )
-    Knot __far *src, __far *dst;  
-    int col1, col2;
+void DashRibbon( Knot __far *src, Knot __far *dst, int col1, int col2 )
 {
     register int hsx, hsy, hsz;
     register int hdx, hdy, hdz;
@@ -779,27 +967,29 @@ void DashRibbon( src, dst, col1, col2 )
     if( SplineCount != 4 )
     {   if( SplineCount == 1 ) 
         {   ClipDashVector( src->px, src->py, src->pz,
-                            dst->px, dst->py, dst->pz, col2, col2 );
+                            dst->px, dst->py, dst->pz, col2, col2, ' ' );
             return;
         } else if( SplineCount != 2 )
             ClipDashVector( src->px, src->py, src->pz,
-                            dst->px, dst->py, dst->pz, col1, col1 );
+                            dst->px, dst->py, dst->pz, col1, col1, ' ' );
 
         ClipDashVector(src->px+src->wx,src->py+src->wy,src->pz+src->wz,
                        dst->px+dst->wx,dst->py+dst->wy,dst->pz+dst->wz,
-                       col2,col2);
+                       col2,col2, ' ');
         ClipDashVector(src->px-src->wx,src->py-src->wy,src->pz-src->wz,
                        dst->px-dst->wx,dst->py-dst->wy,dst->pz-dst->wz,
-                       col2,col2);
+                       col2,col2, ' ');
         if( SplineCount<=3 ) return;
 
         hsx = src->wx/2;  hsy = src->wy/2;  hsz = src->wz/2;
         hdx = dst->wx/2;  hdy = dst->wy/2;  hdz = dst->wz/2;
 
         ClipDashVector( src->px+hsx, src->py+hsy, src->pz+hsz,
-                        dst->px+hdx, dst->py+hdy, dst->pz+hdz, col1, col1 );
+                        dst->px+hdx, dst->py+hdy, dst->pz+hdz, 
+                        col1, col1, ' ' );
         ClipDashVector( src->px-hsx, src->py-hsy, src->pz-hsz,
-                        dst->px-hdx, dst->py-hdy, dst->pz-hdz, col1, col1 );
+                        dst->px-hdx, dst->py-hdy, dst->pz-hdz, 
+                        col1, col1, ' ' );
         if( SplineCount==5 ) 
             return;
         col = col1;
@@ -813,19 +1003,22 @@ void DashRibbon( src, dst, col1, col2 )
     qdx = hdx/2;  qdy = hdy/2;  qdz = hdz/2;
 
     ClipDashVector(src->px+hsx+qsx,src->py+hsy+qsy,src->pz+hsz+qsz,
-                   dst->px+hdx+qdx,dst->py+hdy+qdy,dst->pz+hdz+qdz,col,col);
+                   dst->px+hdx+qdx,dst->py+hdy+qdy,dst->pz+hdz+qdz,
+                   col,col, ' ');
     ClipDashVector(src->px+hsx-qsx,src->py+hsy-qsy,src->pz+hsz-qsz,
-                   dst->px+hdx-qdx,dst->py+hdy-qdy,dst->pz+hdz-qdz,col1,col1);
+                   dst->px+hdx-qdx,dst->py+hdy-qdy,dst->pz+hdz-qdz,
+                   col1,col1, ' ');
     ClipDashVector(src->px-hsx+qsx,src->py-hsy+qsy,src->pz-hsz+qsz,
-                   dst->px-hdx+qdx,dst->py-hdy+qdy,dst->pz-hdz+qdz,col1,col1);
+                   dst->px-hdx+qdx,dst->py-hdy+qdy,dst->pz-hdz+qdz,
+                   col1,col1, ' ');
     ClipDashVector(src->px-hsx-qsx,src->py-hsy-qsy,src->pz-hsz-qsz,
-                   dst->px-hdx-qdx,dst->py-hdy-qdy,dst->pz-hdz-qdz,col,col);
+                   dst->px-hdx-qdx,dst->py-hdy-qdy,dst->pz-hdz-qdz,
+                   col,col, ' ');
 }
 
 
-#ifndef PIXUTILS  /* Unused Function */
-static void OutLinePolygon( p )
-    Poly *p;
+#ifdef UNUSED /* Unused Function */
+static void OutLinePolygon( Poly *p )
 {
     register int i;
 
@@ -840,9 +1033,8 @@ static void OutLinePolygon( p )
 #endif
 
 
-#ifndef PIXUTILS
-static void DrawPolygon( p )
-    Poly *p;
+#ifdef UNUSED
+static void DrawPolygon(  Poly *p )
 {
     static Edge lft, rgt;
     register Edge *pmin, *pmax;
@@ -909,7 +1101,6 @@ static void DrawPolygon( p )
             rem--; ri = i;
         }
 
-
         ymin = MinFun(ly,ry);
         
         while( y<ymin )
@@ -952,8 +1143,109 @@ static void DrawPolygon( p )
 #endif
 
 
-static void ClipPolygon( p )
-    Poly *p;
+#ifdef UNUSED
+static void DrawFlatPolygon( Poly *p )
+{
+    static Edge lft, rgt;
+    register Edge *pmin, *pmax;
+    register Pixel __huge *fbase;
+    register short __huge *dbase;
+    register short __huge *dptr;
+    register Long offset;
+
+    register Long z,dz;
+    register int ri,li,ry,ly;
+    register int xmin,xmax;
+    register int dy,ymin;
+    register int top,rem;
+    register int x,y,i;
+
+    /* Find top vertex */
+    top = 0;  
+    ymin = p->v[0].y;
+    for( i=1; i<p->count; i++ )
+       if( p->v[i].y < ymin )
+       {   ymin = p->v[i].y;
+           top = i;
+       }
+
+    rem = p->count;
+    ly = ry = y = ymin;
+    li = ri = top;
+
+    offset = (Long)y*View.yskip;
+    fbase = View.fbuf+offset;
+    dbase = View.dbuf+offset;
+
+    while( rem )
+    {   while( ly<=y && rem )
+        {   i = li-1; if( i<0 ) i=p->count-1;
+            if( p->v[i].y > y )
+            {   dy = p->v[i].y - ly;
+                lft.dx = (((Long)(p->v[i].x - p->v[li].x))<<16)/dy;
+                lft.dz = (((Long)(p->v[i].z - p->v[li].z))<<16)/dy;
+
+                lft.x = ((Long)p->v[li].x)<<16;
+                lft.z = ((Long)p->v[li].z)<<16;
+            }
+            ly = p->v[i].y;
+            rem--;  li = i;
+        }
+
+        while( ry<=y && rem )
+        {   i = ri+1; if( i>=p->count ) i = 0;
+            if( p->v[i].y > y )
+            {   dy = p->v[i].y - ry;
+                rgt.dx = (((Long)(p->v[i].x - p->v[ri].x))<<16)/dy;
+                rgt.dz = (((Long)(p->v[i].z - p->v[ri].z))<<16)/dy;
+
+                rgt.x = ((Long)p->v[ri].x)<<16;
+                rgt.z = ((Long)p->v[ri].z)<<16;
+            }
+            ry = p->v[i].y;
+            rem--; ri = i;
+        }
+
+
+        ymin = MinFun(ly,ry);
+        
+        while( y<ymin )
+        {   if( lft.x < rgt.x )
+            {   pmin = &lft;
+                pmax = &rgt;
+            } else
+            {   pmin = &rgt;
+                pmax = &lft;
+            }
+
+            xmax = (int)(pmax->x>>16)+1;
+            xmin = (int)(pmin->x>>16);
+
+            dz = (Long)((pmax->z-pmin->z)/(xmax-xmin));
+            z = pmin->z;
+
+            dptr = dbase+xmin;
+            for( x=xmin; x<xmax; x++ )
+            {   if( (int)(z>>16) > *dptr )
+                {   fbase[x] = Lut[p->v[0].inten];
+                    *dptr = (int)(z>>16);
+                }
+                z += dz;
+                dptr++;
+            }
+
+            lft.x += lft.dx;  rgt.x += rgt.dx;
+            lft.z += lft.dz;  rgt.z += rgt.dz;
+            dbase += View.yskip;
+            fbase += View.yskip;
+            y++;
+        }
+    }
+}
+#endif
+
+
+void ClipPolygon( Poly *p )
 {
     static Edge lft, rgt;
     register Edge *pmin, *pmax;
@@ -969,7 +1261,6 @@ static void ClipPolygon( p )
     register int dy,ymin;
     register int top,rem;
     register int x,y,i;
-
 
     /* Reject Clip Polygon */
     if( UseSlabPlane )
@@ -1001,9 +1292,9 @@ static void ClipPolygon( p )
                 lft.dx = (((Long)(p->v[i].x - p->v[li].x))<<16)/dy;
                 lft.dz = (((Long)(p->v[i].z - p->v[li].z))<<16)/dy;
 
-                lft.i = ((Long)p->v[li].inten)<<16;
-                lft.x = ((Long)p->v[li].x)<<16;
-                lft.z = ((Long)p->v[li].z)<<16;
+                lft.i = (((Long)p->v[li].inten)<<16) - (Long)ly*lft.di;
+                lft.x = (((Long)p->v[li].x)<<16) - (Long)ly*lft.dx;
+                lft.z = (((Long)p->v[li].z)<<16) - (Long)ly*lft.dz;
             } else rem--;
             ly = p->v[i].y;
             li = i;
@@ -1017,9 +1308,9 @@ static void ClipPolygon( p )
                 rgt.dx = (((Long)(p->v[i].x - p->v[ri].x))<<16)/dy;
                 rgt.dz = (((Long)(p->v[i].z - p->v[ri].z))<<16)/dy;
 
-                rgt.i = ((Long)p->v[ri].inten)<<16;
-                rgt.x = ((Long)p->v[ri].x)<<16;
-                rgt.z = ((Long)p->v[ri].z)<<16;
+                rgt.i = (((Long)p->v[ri].inten)<<16) - (Long)ry*rgt.di;
+                rgt.x = (((Long)p->v[ri].x)<<16) - (Long)ry*rgt.dx;
+                rgt.z = (((Long)p->v[ri].z)<<16) - (Long)ry*rgt.dz;
             } else rem--;
             ry = p->v[i].y;
             ri = i;
@@ -1123,10 +1414,164 @@ static void ClipPolygon( p )
     }
 }
 
+  
+#ifdef UNUSED
+static void ClipFlatPolygon( Poly *p )
+{
+    static Edge lft, rgt;
+    register Edge *pmin, *pmax;
+    register Pixel __huge *fbase;
+    register short __huge *dbase;
+    register short __huge *dptr;
+    register Long offset;
 
-void SolidRibbon( src, dst, col )
-    Knot __far *src, __far *dst;  
-    int col;
+    register Long z,dz;
+    register int ri,li,ry,ly;
+    register int xmin,xmax;
+    register int dy,ymin;
+    register int top,rem;
+    register int x,y,i;
+
+    /* Reject Clip Polygon */
+    if( UseSlabPlane )
+        for( i=0; i<p->count; i++ )
+            if( p->v[i].z >= SlabValue )
+                return;
+
+    /* Find top vertex */
+    top = 0;  
+    ymin = p->v[0].y;
+    for( i=1; i<p->count; i++ )
+       if( p->v[i].y < ymin )
+       {   ymin = p->v[i].y;
+           top = i;
+       }
+
+    rem = p->count;
+    ly = ry = y = ymin;
+    li = ri = top;
+
+    if( y<0 )
+    {   rem--;
+
+        while( ly<=0 && rem )
+        {   i = li-1; if( i<0 ) i=p->count-1;
+            if( p->v[i].y > 0 )
+            {   dy = p->v[i].y - ly;
+                lft.dx = (((Long)(p->v[i].x - p->v[li].x))<<16)/dy;
+                lft.dz = (((Long)(p->v[i].z - p->v[li].z))<<16)/dy;
+
+                lft.x = ((Long)p->v[li].x)<<16;
+                lft.z = ((Long)p->v[li].z)<<16;
+            } else rem--;
+            ly = p->v[i].y;
+            li = i;
+        }
+
+        while( ry<=0 && rem )
+        {   i = ri+1; if( i>=p->count ) i = 0;
+            if( p->v[i].y > 0 )
+            {   dy = p->v[i].y - ry;
+                rgt.dx = (((Long)(p->v[i].x - p->v[ri].x))<<16)/dy;
+                rgt.dz = (((Long)(p->v[i].z - p->v[ri].z))<<16)/dy;
+
+                rgt.x = ((Long)p->v[ri].x)<<16;
+                rgt.z = ((Long)p->v[ri].z)<<16;
+            } else rem--;
+            ry = p->v[i].y;
+            ri = i;
+        }
+
+        fbase = View.fbuf;
+        dbase = View.dbuf;
+        y = 0;
+    } else /* y >= 0 */
+    {   offset = (Long)y*View.yskip;
+        fbase = View.fbuf+offset;
+        dbase = View.dbuf+offset;
+    }
+
+    while( rem )
+    {   while( ly<=y && rem )
+        {   i = li-1; if( i<0 ) i=p->count-1;
+            if( p->v[i].y > y )
+            {   dy = p->v[i].y - ly;
+                lft.dx = (((Long)(p->v[i].x - p->v[li].x))<<16)/dy;
+                lft.dz = (((Long)(p->v[i].z - p->v[li].z))<<16)/dy;
+
+                lft.x = ((Long)p->v[li].x)<<16;
+                lft.z = ((Long)p->v[li].z)<<16;
+            }
+            ly = p->v[i].y;
+            rem--;  li = i;
+        }
+
+        while( ry<=y && rem )
+        {   i = ri+1; if( i>=p->count ) i = 0;
+            if( p->v[i].y > y )
+            {   dy = p->v[i].y - ry;
+                rgt.dx = (((Long)(p->v[i].x - p->v[ri].x))<<16)/dy;
+                rgt.dz = (((Long)(p->v[i].z - p->v[ri].z))<<16)/dy;
+
+                rgt.x = ((Long)p->v[ri].x)<<16;
+                rgt.z = ((Long)p->v[ri].z)<<16;
+            }
+            ry = p->v[i].y;
+            rem--; ri = i;
+        }
+
+        ymin = MinFun(ly,ry);
+        if( ymin>View.ymax )
+        {   ymin = View.ymax;
+            rem = 0;
+        }
+        
+        while( y<ymin )
+        {   if( lft.x < rgt.x )
+            {   pmin = &lft;
+                pmax = &rgt;
+            } else
+            {   pmin = &rgt;
+                pmax = &lft;
+            }
+
+            xmax = (int)(pmax->x>>16)+1;
+            xmin = (int)(pmin->x>>16);
+
+            if( (xmin<View.xmax) && (xmax>=0) )
+            {   dz = (Long)((pmax->z-pmin->z)/(xmax-xmin));
+                if( xmin<0 )
+                {   z = pmin->z - xmin*dz;
+                    xmin = 0;
+                } else /* xmin >= 0 */
+                    z = pmin->z;
+
+                if( xmax>=View.xmax )
+                    xmax = View.xmax;
+
+                dptr = dbase+xmin;
+                for( x=xmin; x<xmax; x++ )
+                {   if( (int)(z>>16) > *dptr )
+                    {   fbase[x] = Lut[p->v[0].inten];
+                        *dptr = (int)(z>>16);
+                    }
+                    z += dz;
+                    dptr++;
+                }
+            }
+
+            lft.x += lft.dx;  rgt.x += rgt.dx;
+            lft.z += lft.dz;  rgt.z += rgt.dz;
+            dbase += View.yskip;
+            fbase += View.yskip;
+            y++;
+        }
+    }
+}
+#endif
+
+
+void SolidRibbon( Knot __far *src, Knot __far *dst, int col )
 {
     static Poly p;
 
@@ -1156,10 +1601,10 @@ void SolidRibbon( src, dst, col )
 }
 
 
-void SolidRibbon2( src, dst, col1, col2 )
-    Knot __far *src, __far *dst;  
-    int col1, col2;
+void SolidRibbon2( Knot __far *src, Knot __far *dst, int col1, int col2 )
 {
+    register int dx,dy;
+    register int col;
     static Poly p;
 
     p.count = 3;
@@ -1170,13 +1615,21 @@ void SolidRibbon2( src, dst, col1, col2 )
     p.v[1].y = dst->py-dst->wy;  
     p.v[1].z = dst->pz-dst->wz;
 
+    dx = p.v[1].x - p.v[0].x;
+    dy = p.v[1].y - p.v[0].y;
 
     p.v[2].x = dst->px+dst->wx;
     p.v[2].y = dst->py+dst->wy;  
     p.v[2].z = dst->pz+dst->wz;
-    p.v[0].inten = src->vinten+col1;
-    p.v[1].inten = dst->vinten+col1;
-    p.v[2].inten = dst->vinten+col1;
+
+#ifdef INVERT
+    col = ( dst->wx*dy > dst->wy*dx )? col2 : col1;
+#else
+    col = ( dst->wx*dy < dst->wy*dx )? col2 : col1;
+#endif
+    p.v[0].inten = src->vinten+col;
+    p.v[1].inten = dst->vinten+col;
+    p.v[2].inten = dst->vinten+col;
 
     /* OutLinePolygon( &p ); */
     ClipPolygon( &p );
@@ -1184,17 +1637,22 @@ void SolidRibbon2( src, dst, col1, col2 )
     p.v[2].x = src->px-src->wx;  
     p.v[2].y = src->py-src->wy;  
     p.v[2].z = src->pz-src->wz;
-    p.v[0].inten = src->vinten+col2;
-    p.v[1].inten = dst->vinten+col2;
-    p.v[2].inten = src->vinten+col2;
+
+#ifdef INVERT
+    col = ( src->wx*dy > src->wy*dx )? col2 : col1;
+#else
+    col = ( src->wx*dy < src->wy*dx )? col2 : col1;
+#endif
+
+    p.v[0].inten = src->vinten+col;
+    p.v[1].inten = dst->vinten+col;
+    p.v[2].inten = src->vinten+col;
     /* OutLinePolygon( &p ); */
     ClipPolygon( &p );
 }
 
 
-void RectRibbon( src, dst, col )
-    Knot __far *src, __far *dst;  
-    int col;
+void RectRibbon( Knot __far *src, Knot __far *dst, int col )
 {
     static Poly p;
 
@@ -1284,8 +1742,7 @@ void RectRibbon( src, dst, col )
 }
 
 
-static int TestSphere( x, y, z, rad )
-    register int x, y, z, rad;
+static int TestSphere( int x, int y, int z, int rad )
 {
     register int temp;
 
@@ -1323,21 +1780,23 @@ static int TestSphere( x, y, z, rad )
 }
 
 
-#define CalcInten(dz)    inten = LightDot(dx,InvertY(dy),(dz))
+
+/*===========================*/
+/*  Sphere Rendering Macros  */
+/*===========================*/
 
 #define UpdateAcross(dz)    \
         depth = (dz)+z;                    \
         if( depth > *dptr )                \
         {   *dptr = depth;                 \
             fptr = fold+dx;                \
-            CalcInten((dz));               \
+            inten = LightDot(dx,dy,dz);    \
             if( inten>0 )                  \
             {      inten = (int)((inten*ColConst[rad])>>ColBits); \
                    *fptr = Lut[col+inten]; \
             } else *fptr = Lut[col];       \
         }                                  \
         dptr++;  dx++;
-
 
 #define UpdateLine  \
         dx = -wide;                   \
@@ -1349,8 +1808,7 @@ static int TestSphere( x, y, z, rad )
         dy++;
 
 
-void DrawSphere(x,y,z,rad,col)
-    int x,y,z,rad,col;
+void DrawSphere( int x, int y, int z, int rad, int col )
 {
     register Pixel __huge *fptr, __huge *fold;
     register short __huge *dptr, __huge *dold;
@@ -1359,6 +1817,9 @@ void DrawSphere(x,y,z,rad,col)
     register Long offset;
     register int depth,wide,inten;
     register int dx,dy;
+
+    /* Avoid Lookup Table Overflow! */
+    if( rad > MAXRAD ) rad = MAXRAD;
 
     offset = (Long)(y-rad)*View.yskip + x;
     fold=View.fbuf+offset;  
@@ -1377,8 +1838,7 @@ void DrawSphere(x,y,z,rad,col)
 }
 
 
-void ClipSphere(x,y,z,rad,col)
-    int x,y,z,rad,col;
+void ClipSphere( int x, int y, int z, int rad, int col )
 {
     register Pixel __huge *fptr, __huge *fold;
     register short __huge *dptr, __huge *dold;
@@ -1388,6 +1848,8 @@ void ClipSphere(x,y,z,rad,col)
     register int crad,cwide,temp;
     register Long offset;
 
+    /* Avoid Lookup Table Overflow! */
+    if( rad > MAXRAD ) rad = MAXRAD;
 
     /* Visibility Tests */
     if( !TestSphere(x,y,z,rad) )
@@ -1413,7 +1875,6 @@ void ClipSphere(x,y,z,rad,col)
     {   lasty = (View.ymax-1)-y;
     } else lasty = rad;
 
-
     side = (View.xmax-1)-x;
     /* No Slab Plane Clipping */
     if( !(ClipStatus&BitFront) )
@@ -1434,11 +1895,9 @@ void ClipSphere(x,y,z,rad,col)
         return;
     }
 
-
     dz = SlabValue-z;
     crad = LookUp[rad][AbsFun(dz)];
-
-   
+ 
     if( (z>SlabValue) || (SlabMode==SlabSection) )
     {   if( crad<lasty ) lasty = crad;
         if( -crad>dy ) 
@@ -1473,7 +1932,7 @@ void ClipSphere(x,y,z,rad,col)
                                 depth = z - dz;
                                 if( depth>*dptr )
                                 {   *dptr = depth;
-                                    inten = LightDot(-dx,-InvertY(dy),dz);
+                                    inten = LightDot(-dx,-dy,dz);
 
                                     if( inten>0 )
                                     {   inten=(int)( (inten*ColConst[rad])
@@ -1513,20 +1972,33 @@ void ClipSphere(x,y,z,rad,col)
     }
 }
 
+void DrawStar( int x, int y, int z, int rad, int col )
+{
+    register int i,j;
 
-#ifdef FUNCPROTO
-/* Function Prototypes */
-static void DrawArcDn( short __huge*, Pixel __huge*, int, int );
-static void DrawArcAc( short __huge*, Pixel __huge*, int, int );
-static void ClipArcDn( short __huge*, Pixel __huge*, int, int, int, int );
-static void ClipArcAc( short __huge*, Pixel __huge*, int, int, int, int );
-#endif
+    DrawTwinVector(x-rad*MatX[0],y-rad*MatY[0],z-rad*MatZ[0],
+      x+rad*MatX[0],y+rad*MatY[0],z+rad*MatZ[0],col,col,' ');
+    DrawTwinVector(x-rad*MatX[1],y-rad*MatY[1],z-rad*MatZ[1],
+      x+rad*MatX[1],y+rad*MatY[1],z+rad*MatZ[1],col,col,' ');
+    DrawTwinVector(x-rad*MatX[2],y-rad*MatY[2],z-rad*MatZ[2],
+      x+rad*MatX[2],y+rad*MatY[2],z+rad*MatZ[2],col,col,' ');
+}
 
+void ClipStar( int x, int y, int z, int rad, int col )
+{
+    register int i,j;
 
-static void DrawArcAc(dbase,fbase,z,c)
-    register short __huge *dbase;
-    register Pixel __huge *fbase;
-    register int z,c;
+    ClipTwinVector(x-rad*MatX[0],y-rad*MatY[0],z-rad*MatZ[0],
+      x+rad*MatX[0],y+rad*MatY[0],z+rad*MatZ[0],col,col,' ');
+    ClipTwinVector(x-rad*MatX[1],y-rad*MatY[1],z-rad*MatZ[1],
+      x+rad*MatX[1],y+rad*MatY[1],z+rad*MatZ[1],col,col,' ');
+    ClipTwinVector(x-rad*MatX[2],y-rad*MatY[2],z-rad*MatZ[2],
+      x+rad*MatX[2],y+rad*MatY[2],z+rad*MatZ[2],col,col,' ');
+}
+
+static void DrawArcAc( short __huge *dbase,
+                       Pixel __huge *fbase,
+                       int z, int c )
 {
     register ArcEntry __far *ptr;
     register short __huge *dptr;
@@ -1538,10 +2010,9 @@ static void DrawArcAc(dbase,fbase,z,c)
     }
 }
 
-static void DrawArcDn(dbase,fbase,z,c)
-    register short __huge *dbase;
-    register Pixel __huge *fbase;
-    register int z,c;
+static void DrawArcDn( short __huge *dbase,
+                       Pixel __huge *fbase,
+                       int z, int c )
 {
     register ArcEntry __far *ptr;
     register short __huge *dptr;
@@ -1554,12 +2025,13 @@ static void DrawArcDn(dbase,fbase,z,c)
 }
 
 
-static void DrawCylinderCaps( x1,y1,z1,x2,y2,z2,c1,c2,rad )
-    int x1,y1,z1, x2,y2,z2, c1,c2,rad;
+static void DrawCylinderCaps( int x1, int y1, int z1,
+                              int x2, int y2, int z2,
+                              int c1, int c2, int rad, char altl )
 {
     register short __huge *dold, __huge *dptr;
     register Pixel __huge *fold;
-#ifndef PIXUTILS
+#ifdef UNUSED
     register int ax,ay,ix,iy;
     register int zrate,lz;
 #endif
@@ -1568,11 +2040,16 @@ static void DrawCylinderCaps( x1,y1,z1,x2,y2,z2,c1,c2,rad )
     register int wide,depth;
     register int dx,dy,dz;
     register int lx,ly;
+    register int p, alts, altc;
+
+    altc=0;
+    if (altl != '\0' && altl != ' ')
+      altc = AltlColours[((int)altl)&(AltlDepth-1)];
 
     lx = x2-x1;
     ly = y2-y1;
 
-#ifndef PIXUTILS
+#ifdef UNUSED
     lz = z2-z1;
     if( ly>0 ) { ay = ly; iy = 1; }
     else { ay = -ly; iy = -1; }
@@ -1592,11 +2069,12 @@ static void DrawCylinderCaps( x1,y1,z1,x2,y2,z2,c1,c2,rad )
     temp = (Long)-(rad*View.yskip);
     for( dy= -rad; dy<=rad; dy++ )
     {   wide = LookUp[rad][AbsFun(dy)];
+        alts = 0;
 
         for( dx= -wide; dx<=wide; dx++ )
         {   absx = AbsFun(dx);
             dz = LookUp[wide][absx];
-            CalcInten(dz);
+            inten = LightDot(dx,dy,dz);
             if( inten>0 )
             {   inten = (int)((inten*ColConst[rad])>>ColBits);
             } else inten = 0;
@@ -1604,15 +2082,21 @@ static void DrawCylinderCaps( x1,y1,z1,x2,y2,z2,c1,c2,rad )
 
             if( XValid(x1+dx) && YValid(y1+dy) )
             {   dptr = dold+offset; depth = z1+dz;
-                SETPIXEL(dptr,fold+offset,depth,Lut[c1+inten]);
+                p = altc&&
+                  (4*dx*dx*rad*rad + 4*dy*dy*wide*wide < rad*rad*wide*wide );
+                SETPIXELP(dptr,fold+offset,depth,Lut[c1+inten], \
+                   Lut[altc+inten],p);
             }
 
             if( XValid(x2+dx) && YValid(y2+dy) )
             {   dptr = dold+(offset+end); depth = z2+dz;
-                SETPIXEL(dptr,fold+(offset+end),depth,Lut[c2+inten]);
+                p = altc&&
+                  (4*dx*dx*rad*rad + 4*dy*dy*wide*wide < rad*rad*wide*wide );
+                SETPIXELP(dptr,fold+(offset+end),depth,Lut[c2+inten], \
+                  Lut[altc+inten],p);
             }
 
-#ifndef PIXUTILS
+#ifdef UNUSED
             k1 = AbsFun(dx+ix); 
             k2 = AbsFun(dx-ix);
 
@@ -1624,7 +2108,7 @@ static void DrawCylinderCaps( x1,y1,z1,x2,y2,z2,c1,c2,rad )
                 ArcAcPtr++;
             }
 
-#ifndef PIXUTILS
+#ifdef UNUSED
             k1 = AbsFun(dy+iy);
             k2 = AbsFun(dy-iy);
 
@@ -1642,8 +2126,9 @@ static void DrawCylinderCaps( x1,y1,z1,x2,y2,z2,c1,c2,rad )
 }
 
 
-void DrawCylinder( x1,y1,z1,x2,y2,z2,c1,c2,rad )
-    int x1,y1,z1, x2,y2,z2, c1,c2,rad;
+void DrawCylinder( int x1, int y1, int z1,
+                   int x2, int y2, int z2,
+                   int c1, int c2, int rad,  char altl )
 {
     register short __huge *dbase;
     register Pixel __huge *fbase;
@@ -1651,9 +2136,9 @@ void DrawCylinder( x1,y1,z1,x2,y2,z2,c1,c2,rad )
     register int zrate,zerr,ystep,err;
     register int ix,iy,ax,ay;
     register int lx,ly,lz;
-    register int mid,tmp;
+    register int mid,tmp,mud;
     register Long temp;
-
+    register int alts, altc;
 
     /* Trivial Case */
     if( (x1==x2) && (y1==y2) )
@@ -1670,7 +2155,7 @@ void DrawCylinder( x1,y1,z1,x2,y2,z2,c1,c2,rad )
         tmp=c1; c1=c2; c2=tmp;
     }
 
-    DrawCylinderCaps(x1,y1,z1,x2,y2,z2,c1,c2,rad);
+    DrawCylinderCaps(x1,y1,z1,x2,y2,z2,c1,c2,rad,altl);
 
     lx = x2-x1;
     ly = y2-y1;
@@ -1685,61 +2170,100 @@ void DrawCylinder( x1,y1,z1,x2,y2,z2,c1,c2,rad )
     temp = (Long)y1*View.yskip+x1;
     fbase = View.fbuf+temp;
     dbase = View.dbuf+temp;
+    altc = 0;
+    if ( altl != '\0' && altl != ' ')
+      altc = AltlColours[((int)altl)&(AltlDepth-1)];
+    alts = 0;
 
     if( ax>ay )
     {   lz -= ax*zrate;
         zerr = err = -(ax>>1);
+        mid = (x1+x2)/2;
+        mud = x2-x1;
+        if (mud < 0 ) mud *= -1;
+        mud = mud>>3;
 
-        if( c1 != c2 )
-        {   mid = (x1+x2)>>1;
-            while( x1!=mid )
-            {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ax; z1--; }
-                fbase+=ix; dbase+=ix; x1+=ix;
-                if( (err+=ay)>0 )
-                {   fbase+=ystep; dbase+=ystep; err-=ax;
-                       DrawArcDn(dbase,fbase,z1,c1);
-                } else DrawArcAc(dbase,fbase,z1,c1);
+        while( x1!=mid )
+        {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ax; z1--; }
+            fbase+=ix; dbase+=ix; x1+=ix;
+            alts = altc && (x1-mid<mud) && (mid-x1<mud);
+            if (!alts) {
+            if( (err+=ay)>0)
+            {   fbase+=ystep; dbase+=ystep; err-=ax;
+                   DrawArcDn(dbase,fbase,z1,c1);
+            } else DrawArcAc(dbase,fbase,z1,c1);
+            } else {
+            if( (err+=ay)>0)
+            {   fbase+=ystep; dbase+=ystep; err-=ax;
+                   DrawArcDn(dbase,fbase,z1,altc);
+            } else DrawArcAc(dbase,fbase,z1,altc);
             }
         }
+        
 
         while( x1!=x2 )
         {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ax; z1--; }
             fbase+=ix; dbase+=ix; x1+=ix;
-            if( (err+=ay)>0 )
+            alts = altc && (x1-mid<mud) && (mid-x1<mud);
+            if (!alts) {
+            if( (err+=ay)>0)
             {   fbase+=ystep; dbase+=ystep; err-=ax;
                    DrawArcDn(dbase,fbase,z1,c2);
             } else DrawArcAc(dbase,fbase,z1,c2);
+            } else {
+            if( (err+=ay)>0)
+            {   fbase+=ystep; dbase+=ystep; err-=ax;
+                   DrawArcDn(dbase,fbase,z1,altc);
+            } else DrawArcAc(dbase,fbase,z1,altc);
+            }
         }
     } else /*ay>=ax*/
     {   lz -= ay*zrate;
         zerr = err = -(ay>>1);
-
-        if( c1 != c2 )
-        {   mid = (y1+y2)>>1;
-            while( y1!=mid )
-            {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ay; z1--; }
-                fbase+=ystep; dbase+=ystep; y1+=iy;
-                if( (err+=ax)>0 )
-                {   fbase+=ix; dbase+=ix; err-=ay; 
-                       DrawArcAc(dbase,fbase,z1,c1);
-                } else DrawArcDn(dbase,fbase,z1,c1);
+        mid = (y1+y2)/2;
+        mud = y2-y1;
+        if (mud < 0 ) mud *= -1;
+        mud = mud>>3;
+        while( y1!=mid )
+        {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ay; z1--; }
+            fbase+=ystep; dbase+=ystep; y1+=iy;
+            alts = altc && (y1-mid<mud) && (mid-y1<mud);
+            if (!alts) {
+            if( (err+=ax)>0 )
+            {   fbase+=ix; dbase+=ix; err-=ay; 
+                   DrawArcAc(dbase,fbase,z1,c1);
+            } else DrawArcDn(dbase,fbase,z1,c1);
+            } else {
+            if( (err+=ax)>0 )
+            {   fbase+=ix; dbase+=ix; err-=ay; 
+                   DrawArcAc(dbase,fbase,z1,altc);
+            } else DrawArcDn(dbase,fbase,z1,altc);
             }
-        }
-
+	}
+ 
         while( y1!=y2 )
         {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ay; z1--; }
             fbase+=ystep; dbase+=ystep; y1+=iy;
+             alts = altc && (y1-mid<mud) && (mid-y1<mud);
+            if (!alts) {
             if( (err+=ax)>0 )
             {   fbase+=ix; dbase+=ix; err-=ay; 
                    DrawArcAc(dbase,fbase,z1,c2);
             } else DrawArcDn(dbase,fbase,z1,c2);
+            } else {
+            if( (err+=ax)>0 )
+            {   fbase+=ix; dbase+=ix; err-=ay; 
+                   DrawArcAc(dbase,fbase,z1,altc);
+            } else DrawArcDn(dbase,fbase,z1,altc);
+            }
         }
     }
 }
 
 
-static int TestCylinder( x1,y1,z1,x2,y2,z2,rad )
-    int x1,y1,z1,x2,y2,z2,rad;
+static int TestCylinder( int x1, int y1, int z1,
+                         int x2, int y2, int z2,
+                         int rad )
 {
     register int tmp1, tmp2;
 
@@ -1773,15 +2297,13 @@ static int TestCylinder( x1,y1,z1,x2,y2,z2,rad )
     if( (tmp1<0) || (tmp2<0) )
         ClipStatus = True;
 
-    return( True );
+    return True;
 }
 
 
-
-static void ClipArcAc(dbase,fbase,x,y,z,c)
-    register short __huge *dbase;
-    register Pixel __huge *fbase;
-    register int x,y,z,c;
+static void ClipArcAc( short __huge *dbase, 
+                       Pixel __huge *fbase,
+                       int x, int y, int z, int c )
 {
     register ArcEntry __far *ptr;
     register short __huge *dptr;
@@ -1804,10 +2326,9 @@ static void ClipArcAc(dbase,fbase,x,y,z,c)
     }
 }
 
-static void ClipArcDn(dbase,fbase,x,y,z,c)
-    register short __huge *dbase;
-    register Pixel __huge *fbase;
-    register int x,y,z,c;
+static void ClipArcDn( short __huge *dbase,
+                       Pixel __huge *fbase,
+                       int x, int y, int z, int c )
 {
     register ArcEntry __far *ptr;
     register short __huge *dptr;
@@ -1831,8 +2352,9 @@ static void ClipArcDn(dbase,fbase,x,y,z,c)
 }
 
 
-void ClipCylinder( x1,y1,z1,x2,y2,z2,c1,c2,rad )
-    int x1,y1,z1, x2,y2,z2, c1,c2,rad;
+void ClipCylinder( int x1, int y1, int z1,
+                   int x2, int y2, int z2,
+                   int c1, int c2, int rad, char altl)
 {
     register short __huge *dbase;
     register Pixel __huge *fbase;
@@ -1840,15 +2362,16 @@ void ClipCylinder( x1,y1,z1,x2,y2,z2,c1,c2,rad )
     register int zrate,zerr,ystep,err;
     register int ix,iy,ax,ay;
     register int lx,ly,lz;
-    register int mid,tmp;
+    register int mid,tmp,mud;
     register Long temp;
+    register int alts, altc;
 
     /* Visibility Tests */
     if( !TestCylinder(x1,y1,z1,x2,y2,z2,rad) )
         return;
 
     if( !ClipStatus )
-    {   DrawCylinder(x1,y1,z1,x2,y2,z2,c1,c2,rad);
+    {   DrawCylinder(x1,y1,z1,x2,y2,z2,c1,c2,rad, altl);
         return;
     }
 
@@ -1867,7 +2390,7 @@ void ClipCylinder( x1,y1,z1,x2,y2,z2,c1,c2,rad )
         tmp=c1; c1=c2; c2=tmp;
     }
 
-    DrawCylinderCaps(x1,y1,z1,x2,y2,z2,c1,c2,rad);
+    DrawCylinderCaps(x1,y1,z1,x2,y2,z2,c1,c2,rad, altl);
 
     lx = x2-x1;
     ly = y2-y1;
@@ -1882,6 +2405,10 @@ void ClipCylinder( x1,y1,z1,x2,y2,z2,c1,c2,rad )
     temp = (Long)y1*View.yskip+x1;
     fbase = View.fbuf+temp;
     dbase = View.dbuf+temp;
+    altc = 0;
+    if ( altl != '\0' && altl != ' ')
+      altc = AltlColours[((int)altl)&(AltlDepth-1)];
+    alts = 0;
 
     if( ax>ay )
     {   if( x2<x1 )
@@ -1892,15 +2419,27 @@ void ClipCylinder( x1,y1,z1,x2,y2,z2,c1,c2,rad )
         lz -= ax*zrate;
         zerr = err = -(ax>>1);
         mid = (x1+x2)/2;
+        mud = x2-x1;
+        if (mud < 0 ) mud *= -1;
+        mud = mud>>3;
 
         while( x1!=x2 )
         {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ax; z1--; }
             fbase+=ix; dbase+=ix; x1+=ix;
+            alts = altc && (x1-mid<mud) && (mid-x1<mud);
+            if (!alts) {
             if( (err+=ay)>0 )
             {   fbase += ystep;  err -= ax;
                 dbase += ystep;  y1 += iy;
                    ClipArcDn(dbase,fbase,x1,y1,z1,(x1<mid?c1:c2));
             } else ClipArcAc(dbase,fbase,x1,y1,z1,(x1<mid?c1:c2));
+            } else {
+            if( (err+=ay)>0 )
+            {   fbase += ystep;  err -= ax;
+                dbase += ystep;  y1 += iy;
+                   ClipArcDn(dbase,fbase,x1,y1,z1,altc);
+            } else ClipArcAc(dbase,fbase,x1,y1,z1,altc);
+            }
         }
     } else /*ay>=ax*/
     {   if( y2<y1 )
@@ -1911,37 +2450,82 @@ void ClipCylinder( x1,y1,z1,x2,y2,z2,c1,c2,rad )
         lz -= ay*zrate;
         zerr = err = -(ay>>1);
         mid = (y1+y2)/2;
+        mud = y2-y1;
+        if (mud < 0 ) mud *= -1;
+        mud = mud>>3;
 
         while( y1!=y2 )
         {   z1 += zrate;  if( (zerr-=lz)>0 ) { zerr-=ay; z1--; }
             fbase+=ystep; dbase+=ystep; y1+=iy;
+            alts = altc && (y1-mid<mud) && (mid-y1<mud);
+            if (!alts) {
             if( (err+=ax)>0 )
             {   fbase += ix;  err -= ay;
                 dbase += ix;  x1 += ix; 
                    ClipArcAc(dbase,fbase,x1,y1,z1,(y1<mid?c1:c2));
             } else ClipArcDn(dbase,fbase,x1,y1,z1,(y1<mid?c1:c2));
+            } else {
+            if( (err+=ax)>0 )
+            {   fbase += ix;  err -= ay;
+                dbase += ix;  x1 += ix; 
+                   ClipArcAc(dbase,fbase,x1,y1,z1,altc);
+            } else ClipArcDn(dbase,fbase,x1,y1,z1,altc);
+            }
         }
     }
 }
 
 
-void SetFontSize( size )
-    int size;
+
+/*================================*/
+/*  Character Rendering Routines  */
+/*================================*/
+
+void SetFontSize( int size )
 {
     register int count;
+    register char *ptr;
     register int i;
 
+    if( LabelList || (MonitList && DrawMonitDistance) )
+      ReDrawFlag |= RFRefresh;
+
+    FontSize = abs(size);
+    FontPS = False;
+    if ( size < 0 ) FontPS = True;
     count = 0;
     for( i=0; i<23; i++ )
     {   FontDimen[i] = count>>4;
-        count += size;
+        count += FontSize;
     }
-    FontSize = size;
+
+    for ( i=0; i<95; i++ )
+    { if ( FontPS )
+      { ptr = VectFont[i];
+        FontWid[i] = 0;
+        while( *ptr )
+        { if( ptr[0] < 'a' )
+  	  { if( FontDimen[ptr[0]-'A'] > FontWid[i] ) 
+              FontWid[i] = FontDimen[ptr[0]-'A'];
+	  } else {
+            if( FontDimen[ptr[0]-'a'] > FontWid[i] ) 
+              FontWid[i] = FontDimen[ptr[0]-'a'];
+          }
+          ptr += 2;
+        }
+        FontWid[i] += FontSize/4 + 1;
+      } else {
+        FontWid[i] = FontSize;
+      }
+    } 
 }
 
+void SetFontStroke( int width )
+{
+    FontStroke = width;
+}
 
-static void ClipCharacter( x, y, z, glyph, col )
-    int x, y, z, glyph, col;
+static void ClipCharacter( int x, int y,int z, int glyph, int col )
 {
     register char *ptr;
     register int sx,sy;
@@ -1961,22 +2545,26 @@ static void ClipCharacter( x, y, z, glyph, col )
 
         ex = x + FontDimen[ptr[0]-'a'];
         ey = y + InvertY(FontDimen[ptr[1]-'a']);
-        if( (ex!=sx) || (ey!=sy) )
-        {   ClipLine(sx,sy,z,ex,ey,z,col);
-        } else ClipPoint(ex,ey,z,col);
+        if (FontStroke < 1 ) {
+          if( (ex!=sx) || (ey!=sy) )
+          {   ClipLine(sx,sy,z,ex,ey,z,col,' ');
+          } else ClipPoint(ex,ey,z,col);
+        } else {
+          if( (ex!=sx) || (ey!=sy) )
+          {   ClipCylinder(sx,sy,z,ex,ey,z,col,col,FontStroke,' ');
+          } /* else ClipSphere(ex,ey,z,FontStroke,col); */
+        }
         ptr += 2;
     }
 }
 
 
-void DisplayString( x, y, z, label, col )
-    int x, y, z;  char *label;  int col;
+void DisplayRasString( int x, int y, int z, char *label,  int col )
 {
     register int clip,high,max;
     register char *ptr;
     register int sx,sy;
     register int ex,ey;
-
 
     high = (FontSize*3)>>1;
 #ifdef INVERT
@@ -1989,12 +2577,13 @@ void DisplayString( x, y, z, label, col )
 
     if( x < 0 )
     {   while( *label && (x<=-FontSize) )
-        {   x += FontSize;  label++;
+        {   x +=  FontWid[(*label-32)]+FontStroke;
+            label++;
         }
 
         if( *label )
         {   ClipCharacter(x,y,z,(*label-32),col);
-            x += FontSize;
+            x += FontWid[(*label-32)]+FontStroke;
             label++;
         } else return;
     }
@@ -2016,12 +2605,19 @@ void DisplayString( x, y, z, label, col )
 
                ex = x + FontDimen[ptr[0]-'a'];
                ey = y + InvertY(FontDimen[ptr[1]-'a']);
-               if( (ex!=sx) || (ey!=sy) )
-               {   DrawTwinLine(sx,sy,z,ex,ey,z,col,col);
-               } else PlotPoint(ex,ey,z,col);
+               if (FontStroke < 1 ) {
+                 if( (ex!=sx) || (ey!=sy) )
+                 {   DrawTwinLine(sx,sy,z,ex,ey,z,col,col,' ');
+                 } else PlotPoint(ex,ey,z,col);
+               } else {
+                 if( (ex!=sx) || (ey!=sy) )
+                 {   DrawCylinder(sx,sy,z,ex,ey,z,col,col,FontStroke,' ');
+                 } /* else DrawSphere(ex,ey,z,FontStroke,col); */
+               }
                ptr += 2;
            }
-           x += FontSize;
+
+           x += FontWid[(*label-32)]+FontStroke;
            label++;
         }
 
@@ -2030,14 +2626,14 @@ void DisplayString( x, y, z, label, col )
     } else /* Always Clip! */
         while( *label && (x<View.xmax) )
         {   ClipCharacter(x,y,z,(*label-32),col);
-            x += FontSize;
+            x += FontWid[(*label-32)]+FontStroke;
             label++;
         }
 }
 
 
 
-void InitialisePixUtils()
+void InitialisePixUtils( void )
 {
 #if defined(IBMPC) || defined(APPLEMAC)
     ArcAc = (ArcEntry __far*)_fmalloc(ARCSIZE*sizeof(ArcEntry));
@@ -2045,5 +2641,6 @@ void InitialisePixUtils()
 #endif
     SplineCount = 5;
     SetFontSize(8);
+    SetFontStroke(0);
 }
 

@@ -1,8 +1,59 @@
+/***************************************************************************
+ *                            RasMol 2.7.1.1                               *
+ *                                                                         *
+ *                                RasMol                                   *
+ *                 Molecular Graphics Visualisation Tool                   *
+ *                            17 January 2001                              *
+ *                                                                         *
+ *                   Based on RasMol 2.6 by Roger Sayle                    *
+ * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
+ *                      Stevenage, Hertfordshire, UK                       *
+ *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
+ *                   Copyright (C) Roger Sayle 1992-1999                   *
+ *                                                                         *
+ *                  and Based on Mods by Arne Mueller                      *
+ *                      Version 2.6x1, May 1998                            *
+ *                   Copyright (C) Arne Mueller 1998                       *
+ *                                                                         *
+ *       Version 2.7.0, 2.7.1, 2.7.1.1 Mods by Herbert J. Bernstein        *
+ *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *                      yaya@bernstein-plus-sons.com                       *
+ *           2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 Jan 2001           *
+ *              Copyright (C) Herbert J. Bernstein 1998-2001               *
+ *                                                                         *
+ * Please read the file NOTICE for important notices which apply to this   *
+ * package. If you are not going to make changes to RasMol, you are not    *
+ * only permitted to freely make copies and distribute them, you are       *
+ * encouraged to do so, provided you do the following:                     *
+ *   * 1. Either include the complete documentation, especially the file   *
+ *     NOTICE, with what you distribute or provide a clear indication      *
+ *     where people can get a copy of the documentation; and               *
+ *   * 2. Please give credit where credit is due citing the version and    *
+ *     original authors properly; and                                      *
+ *   * 3. Please do not give anyone the impression that the original       *
+ *     authors are providing a warranty of any kind.                       *
+ *                                                                         *
+ * If you would like to use major pieces of RasMol in some other program,  *
+ * make modifications to RasMol, or in some other way make what a lawyer   *
+ * would call a "derived work", you are not only permitted to do so, you   *
+ * are encouraged to do so. In addition to the things we discussed above,  *
+ * please do the following:                                                *
+ *   * 4. Please explain in your documentation how what you did differs    *
+ *     from this version of RasMol; and                                    *
+ *   * 5. Please make your modified source code available.                 *
+ *                                                                         *
+ * This version of RasMol is not in the public domain, but it is given     *
+ * freely to the community in the hopes of advancing science. If you make  *
+ * changes, please make them in a responsible manner, and please offer us  *
+ * the opportunity to include those changes in future versions of RasMol.  *
+ ***************************************************************************/
+
 /* rasmac.c
- * RasMol Molecular Graphics
- * Roger Sayle, August 1995
- * Version 2.6
  */
+
+#define RASMOL
+#include "rasmol.h"
+
 #include <string.h>
 #include <stdio.h>
 
@@ -13,12 +64,19 @@
 #include <PrintTraps.h>
 #endif
 
+#ifdef USEOLDROUTINENAMES
+#include <GestaltEqu.h>
+#include <OSEvents.h>
+#include <Desk.h>
+#else
+#include <Devices.h>
+#include <Gestalt.h>
+#endif
+
 #include <StandardFile.h>
 #include <AppleEvents.h>
-#include <GestaltEqu.h>
 #include <ToolUtils.h>
 #include <Resources.h>
-#include <OSEvents.h>
 #include <DiskInit.h>
 #include <OSUtils.h>
 #include <SegLoad.h>
@@ -28,7 +86,6 @@
 #include <Files.h>
 #include <Types.h>
 #include <Scrap.h>
-#include <Desk.h>
 #include <EPPC.h>
 
 #include <Quickdraw.h>
@@ -40,75 +97,58 @@
 #include <Menus.h>
 #include <Fonts.h>
 
-#define RASMOL
-#include "rasmol.h"
 #include "molecule.h"
 #include "abstree.h"
 #include "graphics.h"
 #include "pixutils.h"
 #include "transfor.h"
+#include "cmndline.h"
 #include "command.h"
 #include "render.h"
 #include "repres.h"
 #include "outfile.h"
+#include "langsel.h"
 
+#include "rasmac.h"
 
-/* Determine Mouse Sensitivity! */
-#define IsClose(u,v)  (((u)>=(v)-1) && ((u)<=(v)+1))
+#ifndef __CONDITIONALMACROS__
+/* Undocumented System Functions */
+pascal OSErr SetDialogDefaultItem( DialogPtr theDialog,
+        short newItem ) = {0x303C,0x0304,0xAA68};
+#endif
 
-#define CmndSize   (CmndRows*CmndCols)
 #define ScrlMax    80
 #define CmndRows   160
 #define CmndCols   80
+#define CmndSize   (CmndRows*CmndCols)
+
+#define ClipCaret  (CaretX<CmndWin->portRect.right-15)
+static long LastCaretTime;
+static int CaretX,CaretY;
+static int CaretFlag;
 
 /* Terminal Emulation Variables */
+static Rect CmndRect;
 static char TermScreen[CmndSize];
-
-static int CharSkip;
-static int CmndStart;
-static int ScrlStart;
-static int TermCursor;
 static int CharWide,CharHigh;
 static int TermXPos,TermYPos;
 static int TermRows,TermCols;
-static Rect CmndRect;
+static int TermCursor;
+static int CmndStart;
+static int ScrlStart;
+static int CharSkip;
 
 static ControlHandle CmndScroll;
 static short RasMolResFile;
-
+static char Filename[1024];
 static int DialogFormat;
-static char Filename[256];
-static Point MousePrev;
-static int PointX,PointY;
-static int InitX,InitY;
 static int LabelOptFlag;
-static int HeldButton;
 
 
 #ifdef __CONDITIONALMACROS__
 #define ArrowCursor   SetCursor(&qd.arrow)
 #else
 #define ArrowCursor   SetCursor(&arrow)
-#endif
-
-
-/* Forwardly Compatable Definitions */
-#ifndef gestaltNativeCPUtype
-#define gestaltNativeCPUtype 'cput'
-#define gestaltCPU68000    0x000
-#define gestaltCPU68010    0x001
-#define gestaltCPU68020    0x002
-#define gestaltCPU68030    0x003
-#define gestaltCPU68040    0x004
-#define gestaltCPU601      0x101
-#define gestaltCPU603      0x103
-#define gestaltCPU604      0x104
-#endif
-
-#ifndef __CONDITIONALMACROS__
-/* Undocumented System Functions */
-pascal OSErr SetDialogDefaultItem( DialogPtr theDialog,
-        short newItem ) = {0x303C,0x0304,0xAA68};
 #endif
 
 
@@ -124,11 +164,16 @@ DlgHookYDUPP SaveDlgHookPtr;
 #endif
 
 
-/* Function Prototypes */
-static void PaintScreen();
+
+/*=======================*/
+/*  Function Prototypes  */
+/*=======================*/
+
+static void PaintScreen( void );
 
 
-void RasMolExit()
+
+void RasMolExit( void )
 {
     /* Restore System Event Mask */
     SetEventMask( everyEvent & ~keyUp );
@@ -136,15 +181,14 @@ void RasMolExit()
     /* Free System Memory Resources */
     if( FBuffer ) _ffree( FBuffer );
     if( DBuffer ) _ffree( DBuffer );
-    if( DrawDots ) DeleteSurface();
+    if( DotPtr ) DeleteSurface();
     PurgeDatabase();
     CloseDisplay();
     ExitToShell();
 }
 
 
-void RasMolFatalExit( msg )
-    char *msg;
+void RasMolFatalExit( char *msg )
 {
     register char *ptr;
     register int len;
@@ -165,8 +209,13 @@ void RasMolFatalExit( msg )
     
     len = ptr - (char*)&buffer[1];
     buffer[0] = (unsigned char)len;
+#ifdef USEOLDROUTINENAMES
     GetDItem(dlg,4,&item,&hand,&rect);
     SetIText(hand,buffer);
+#else    
+    GetDialogItem(dlg,4,&item,&hand,&rect);
+    SetDialogItemText(hand,buffer);
+#endif
     ShowWindow(dlg);
 
     do {
@@ -176,7 +225,12 @@ void RasMolFatalExit( msg )
         ModalDialog((ProcPtr)0,&item);
 #endif
     } while( item != 1 );
+    
+#ifdef USEOLDROUTINENAMES    
     DisposDialog(dlg);
+#else
+    DisposeDialog(dlg);
+#endif
 
     /* Restore System Event Mask */
     SetEventMask( everyEvent & ~keyUp );
@@ -184,16 +238,18 @@ void RasMolFatalExit( msg )
     /* Free System Memory Resources */
     if( FBuffer ) _ffree( FBuffer );
     if( DBuffer ) _ffree( DBuffer );
-    if( DrawDots ) DeleteSurface();
+    if( DotPtr ) DeleteSurface();
     PurgeDatabase();
     CloseDisplay();
     ExitToShell();
 }
 
 
-/* Externally Visible Functions! */
-static void CopyResource( type, file, id )
-    ResType type;  short file;  short id;
+/*==================================*/
+/*  Externally File Type Function!  */
+/*==================================*/
+
+static void CopyResource( ResType type, short file, short id )
 {
     register Handle hand;
     Str255 name;
@@ -212,8 +268,8 @@ static void CopyResource( type, file, id )
     }
 }
 
-void SetFileInfo( ptr, appl, type, icon )
-    char *ptr;  OSType appl, type;  short icon;
+
+void SetFileInfo( char *ptr, OSType appl, OSType type, short icon )
 {
     register char *dst;
     register short file;
@@ -255,28 +311,24 @@ void SetFileInfo( ptr, appl, type, icon )
 }
 
 
-static void SetTermScroll( pos )
-    int pos;
+static void SetTermScroll( int pos )
 {
     GrafPtr savePort;
     
     GetPort(&savePort);
     SetPort(CmndWin);
+#ifdef USEOLDROUTINENAMES
     SetCtlValue(CmndScroll,pos);
+#else
+    SetControlValue(CmndScroll,pos);
+#endif
     ScrlStart = ScrlMax - pos;
     InvalRect(&CmndWin->portRect);
     SetPort(savePort);
 }
 
 
-#define ClipCaret  (CaretX<CmndWin->portRect.right-15)
-
-static long LastCaretTime;
-static int CaretX,CaretY;
-static int CaretFlag;
-
-
-static void ShowCaret()
+static void ShowCaret( void )
 {
     GrafPtr savePort;
     
@@ -292,7 +344,8 @@ static void ShowCaret()
     CaretFlag = True;
 }
 
-static void HideCaret()
+
+static void HideCaret( void )
 {
     GrafPtr savePort;
     
@@ -307,8 +360,8 @@ static void HideCaret()
     CaretFlag = False;
 }
 
-static void SetCaretPos( x, y )
-    int x, y;
+
+static void SetCaretPos( int x, int y )
 {
     if( CaretFlag )
     {   HideCaret();
@@ -321,7 +374,8 @@ static void SetCaretPos( x, y )
     }
 }
 
-static void HandleCaret()
+
+static void HandleCaret( void )
 {
     register long ticks;
     
@@ -335,8 +389,7 @@ static void HandleCaret()
 }
 
 
-void WriteChar( ch )
-    int ch;
+void WriteChar( int ch )
 {
     register int i;
     
@@ -428,8 +481,7 @@ void WriteChar( ch )
 }
 
 
-void WriteString( ptr )
-    char *ptr;
+void WriteString( char *ptr )
 {
     while( *ptr )
         WriteChar( *ptr++ );
@@ -441,7 +493,7 @@ void WriteString( ptr )
 #endif
 
 
-static void InitTerminal()
+static void InitTerminal( void )
 {
     register WindowPeek wpeek;
     register WStateData *wsdp;
@@ -465,7 +517,19 @@ static void InitTerminal()
     
     /* Font Style */
     TextMode(srcCopy);
+#ifdef USEOLDROUTINENAMES
     TextFont(monaco);
+#else
+#ifdef kFontIDMonaco
+    TextFont(kFontIDMonaco);
+#else
+#ifdef monoco
+    TextFont(monaco);
+#else
+    TextFont(kFontIDMonaco);
+#endif
+#endif
+#endif
     TextSize(9);
     TextFace(0);
     
@@ -518,7 +582,7 @@ static void InitTerminal()
 }
 
 
-static void DrawCmndGrowIcon()
+static void DrawCmndGrowIcon( void )
 {
     register RgnHandle saveRgn;
     GrafPtr savePort;
@@ -540,7 +604,7 @@ static void DrawCmndGrowIcon()
 }
 
 
-static void PaintScreen()
+static void PaintScreen( void )
 {
     register char *ptr;
     register WindowPtr win;
@@ -573,8 +637,7 @@ static void PaintScreen()
     {   ERow -= CmndRows;
     } else if( ERow < 0 )
         ERow += CmndRows;
-        
-    
+            
     row = SRow;
     ptr = TermScreen + SRow*CmndCols + SCol;
     while( True )
@@ -629,17 +692,16 @@ static void PaintScreen()
 }
 
 
-void AdviseUpdate( item )
-    int item;
+void AdviseUpdate( int item )
 {
     if( item == AdvName )
         EnableMenus( !DisableMenu );
 }
 
 
-void RefreshScreen()
+void RefreshScreen( void )
 {
-    ReDrawFlag &= ~(RFTransZ|RFPoint);
+    ReDrawFlag &= ~RFTransZ;
     
     if( ReDrawFlag )
     {   if( ReDrawFlag & RFReSize )
@@ -667,13 +729,12 @@ void RefreshScreen()
 }
 
 
-static void ConvertFilename( fss )
-    FSSpec *fss;
+static void ConvertFilename( FSSpec *fss )
 {
+    char buffer[1024];
     register char *src;
     register char *dst;
     register int i;
-    char buffer[256];
     
     Str255 dirname;
     DirInfo dinfo;
@@ -685,7 +746,11 @@ static void ConvertFilename( fss )
         dinfo.ioVRefNum = fss->vRefNum;
         dinfo.ioFDirIndex = -1;
         dinfo.ioDrDirID = dinfo.ioDrParID;
+#ifdef USEOLDROUTINENAMES
         PBGetCatInfo((CInfoPBPtr)&dinfo,0);
+#else        
+        PBGetCatInfoSync((CInfoPBPtr)&dinfo);
+#endif
         
         *src++ = ':';
         for( i=dirname[0]; i; i-- )
@@ -702,7 +767,7 @@ static void ConvertFilename( fss )
 }
 
 
-static void HandleAboutDialog()
+static void HandleAboutDialog( void )
 {
     register char *fpu;
     register char *src;
@@ -749,8 +814,13 @@ static void HandleAboutDialog()
             
     len = dst - (char*)&buffer[1];
     buffer[0] = (unsigned char)len;
+#ifdef USEOLDROUTINENAMES    
     GetDItem(dlg,6,&item,&hand,&rect);
     SetIText(hand,buffer);
+#else
+    GetDialogItem(dlg,6,&item,&hand,&rect);
+    SetDialogItemText(hand,buffer);
+#endif
     
     /* Machine Information! */
     dst = (char*)&buffer[1];
@@ -766,18 +836,23 @@ static void HandleAboutDialog()
             default:   src = "Unknown processor";
         }
     } else switch( reply )
-        {   case(gestaltCPU68000):  src = "MC68000"; break;
-            case(gestaltCPU68010):  src = "MC68010"; break;
-            case(gestaltCPU68020):  src = "MC68020"; break;
-            case(gestaltCPU68030):  src = "MC68030"; break;
-            case(gestaltCPU68040):  src = "MC68040"; break;
-            case(gestaltCPU601):    src = "PPC601";  break;
-            case(gestaltCPU603):    src = "PPC603";  break;
-            case(gestaltCPU604):    src = "PPC604";  break;
-            default:   src = "Unknown processor";
+        {   case(gestaltCPU68000):  src = "MC68000";  break;
+            case(gestaltCPU68010):  src = "MC68010";  break;
+            case(gestaltCPU68020):  src = "MC68020";  break;
+            case(gestaltCPU68030):  src = "MC68030";  break;
+            case(gestaltCPU68040):  src = "MC68040";  break;
+            case(gestaltCPU601):    src = "PPC601";   break;
+            case(gestaltCPU603):    src = "PPC603";   break;
+            case(gestaltCPU604):    src = "PPC604";   break;
+            case(gestaltPPC603e):   src = "PPC603e";  break;
+            case(gestaltPPC603ev):  src = "PPC603ev"; break;
+            case(gestaltG3):        src = "G3";       break;
+            case(gestaltPPC604e):   src = "PPC604e";  break;
+            default:   sprintf((char*)temp,"Unkown processor (0x%04x)",reply);
+                       src = (char*)temp;
         }
 
-    if( *src != 'P' )
+    if( *src == 'M' )
     {   Gestalt(gestaltFPUType,&reply);
         switch( reply )
         {   default:               fpu=" unknown";  break;
@@ -790,7 +865,8 @@ static void HandleAboutDialog()
                             src = "MC68LC040";       
                         break;
         }
-    } else fpu = " internal";
+    } else if( *src != 'U' )
+        fpu = " internal";
     
     while( *src ) *dst++ = *src++;
     for( src=" with"; *src; src++ )
@@ -801,8 +877,13 @@ static void HandleAboutDialog()
         
     len = dst - (char*)&buffer[1];
     buffer[0] = (unsigned char)len;
+#ifdef USEOLDROUTINENAMES
     GetDItem(dlg,7,&item,&hand,&rect);
     SetIText(hand,buffer);
+#else
+    GetDialogItem(dlg,7,&item,&hand,&rect);
+    SetDialogItemText(hand,buffer);
+#endif
 
     /* Display Dialog Box! */    
     ShowWindow(dlg);
@@ -813,11 +894,15 @@ static void HandleAboutDialog()
         ModalDialog((ProcPtr)0,&item);
 #endif
     } while( item != 1 );
+#ifdef USEOLDROUTINENAMES
     DisposDialog(dlg);
+#else
+    DisposeDialog(dlg);
+#endif
 }
 
 
-static void PasteCommandText()
+static void PasteCommandText( void )
 {
     register Handle hand;
     register long i,len;
@@ -847,8 +932,7 @@ static void PasteCommandText()
 }
 
 
-pascal short OpenDlgHook( item, dialog, data )
-    short item;  DialogPtr dialog;  void *data;
+pascal short OpenDlgHook( short item,  DialogPtr dialog, void *data )
 {
     Handle hand;
     short type;
@@ -858,48 +942,67 @@ pascal short OpenDlgHook( item, dialog, data )
         return( item );
  
     if( item == sfHookFirstCall )
-    {   GetDItem(dialog,10,&type,&hand,&rect);
+    {   item = sfHookNullEvent;
+#ifdef USEOLDROUTINENAMES
+        GetDItem(dialog,10,&type,&hand,&rect);
         SetCtlValue((ControlHandle)hand,DialogFormat);
-        item = sfHookNullEvent;
+#else
+        GetDialogItem(dialog,10,&type,&hand,&rect);
+        SetControlValue((ControlHandle)hand,DialogFormat);
+#endif
     } else if( item == 10 )
-    {   GetDItem(dialog,10,&type,&hand,&rect);
+    {   item = sfHookNullEvent;
+#ifdef USEOLDROUTINENAMES
+        GetDItem(dialog,10,&type,&hand,&rect);
         DialogFormat = GetCtlValue((ControlHandle)hand);
-        item = sfHookNullEvent;
+#else
+        GetDialogItem(dialog,10,&type,&hand,&rect);
+        DialogFormat = GetControlValue((ControlHandle)hand);
+#endif
     }
-    return( item );
+    return item;
 }
 
-pascal short SaveDlgHook( item, dialog, data )
-    short item;  DialogPtr dialog;  void *data;
+
+pascal short SaveDlgHook( short item, DialogPtr dialog, void *data )
 {
     Handle hand;
     short type;
     Rect rect;
 
     if( ((DialogPeek)dialog)->window.refCon != sfMainDialogRefCon )
-        return( item );
+        return item;
     
     if( item == sfHookFirstCall )
-    {   GetDItem(dialog,13,&type,&hand,&rect);
+    {   item = sfHookNullEvent;
+#ifdef USEOLDROUTINENAMES
+        GetDItem(dialog,13,&type,&hand,&rect);
         SetCtlValue((ControlHandle)hand,DialogFormat);
-        item = sfHookNullEvent;
+#else
+        GetDialogItem(dialog,13,&type,&hand,&rect);
+        SetControlValue((ControlHandle)hand,DialogFormat);
+#endif
     } else if( item == 13 )
-    {   GetDItem(dialog,13,&type,&hand,&rect);
+    {   item = sfHookNullEvent;
+#ifdef USEOLDROUTINENAMES
+        GetDItem(dialog,14,&type,&hand,&rect);
         DialogFormat = GetCtlValue((ControlHandle)hand);
-        item = sfHookNullEvent;
+#else
+        GetDialogItem(dialog,13,&type,&hand,&rect);
+        DialogFormat = GetControlValue((ControlHandle)hand);
+#endif
     }
-    return( item );
+    return item;
 }
 
 
-static void HandleFileOpen()
+static void HandleFileOpen( void )
 {
     register int format;
     StandardFileReply reply;
     SFTypeList types;
     Point pnt;
     
-
     /* File Types */
     types[0]='TEXT';
     types[1]='RSML';
@@ -925,6 +1028,7 @@ static void HandleFileOpen()
             case(5):  format = FormatXYZ;      break;
             case(6):  format = FormatCharmm;   break;
             case(7):  format = FormatMOPAC;    break;
+            case(8):  format = FormatCIF;      break;
         }
         
         FetchFile(format,True,Filename);
@@ -932,7 +1036,8 @@ static void HandleFileOpen()
     }
 }
 
-static void HandleFileSave()
+
+static void HandleFileSave( void )
 {
     StandardFileReply reply;
     Point pnt;
@@ -954,12 +1059,13 @@ static void HandleFileSave()
             case(1): SavePDBMolecule(Filename);      break;
             case(2): SaveAlchemyMolecule(Filename);  break;
             case(3): SaveMDLMolecule(Filename);      break;
+            case(4): SaveCIFMolecule(Filename);      break;
         }
     }
 }
 
-static void HandleExportMenu( item )
-    int item;
+
+static void HandleExportMenu( int item )
 {
     StandardFileReply reply;
     register unsigned char *ptr;
@@ -1008,21 +1114,23 @@ static void HandleExportMenu( item )
 }
 
 
-static void HandleAppleMenu( item )
-    int item;
+static void HandleAppleMenu( int item )
 {
     GrafPtr port;
     Str255 name;
     
     GetPort(&port);
+#ifdef USEOLDROUTINENAMES    
     GetItem( GetMHandle(140), item, name );
+#else
+    GetMenuItemText( GetMenuHandle(140), item, name );
+#endif
     OpenDeskAcc(name);
     SetPort(port);
 }
 
 
-static void HandleMenu( hand )
-    long hand;
+static void HandleMenu( long hand )
 {
     register int i,mask;
     register int menu;
@@ -1129,7 +1237,7 @@ static void HandleMenu( hand )
                                       break;
                                       
                             case(4):  /* Spheres */
-                                      SetVanWaalRadius();
+                                      SetVanWaalRadius( SphereFlag);
                                       DisableWireframe();
                                       SetRibbonStatus(False,0,0);
                                       DisableBackbone();
@@ -1137,7 +1245,7 @@ static void HandleMenu( hand )
                                       break;
                                       
                             case(5):  /* Ball & Stick */
-                                      SetRadiusValue(120);
+                                      SetRadiusValue(120, SphereFlag );
                                       EnableWireframe(CylinderFlag,40);
                                       SetRibbonStatus(False,0,0);
                                       DisableBackbone();
@@ -1196,7 +1304,13 @@ static void HandleMenu( hand )
                             case(8):  /* User */
                                       UserMaskAttrib(MaskColourFlag);
                                       ReDrawFlag |= RFColour;  break;
-                        }
+                            case(9):  /* Model */
+                                      ScaleColourAttrib( ModelAttr );
+                                      ReDrawFlag |= RFColour;  break;
+                            case(10): /* Alt */
+                                      ScaleColourAttrib( AltAttr );
+                                      ReDrawFlag |= RFColour;  break;
+                       }
                         break;
                                                     
             case(145):  /* Option Menu */
@@ -1283,7 +1397,7 @@ static void HandleMenu( hand )
 }
 
 
-static void AdjustMenus()
+static void AdjustMenus( void )
 {
     register MenuHandle menu;
     register WindowPtr win;
@@ -1292,7 +1406,11 @@ static void AdjustMenus()
     EnableMenus(!DisableMenu);
     
     /* Options Menu */
+#ifdef USEOLDROUTINENAMES
     menu = GetMHandle(145);
+#else
+    menu = GetMenuHandle(145);
+#endif
     CheckItem(menu,1,UseSlabPlane);
     CheckItem(menu,2,Hydrogens);
     CheckItem(menu,3,HetaGroups);
@@ -1303,12 +1421,17 @@ static void AdjustMenus()
 
     /* Windows Menu */
     win = FrontWindow();
+#ifdef USEOLDROUTINENAMES
     menu = GetMHandle(147);
+#else
+    menu = GetMenuHandle(147);
+#endif
     CheckItem(menu,1,(win==CanvWin));
     CheckItem(menu,2,(win==CmndWin));
 }
 
-static void ReSizeCanvWin()
+
+static void ReSizeCanvWin( void )
 {
     register int x,y;
 
@@ -1337,8 +1460,7 @@ static void ReSizeCanvWin()
 }
 
 
-static void GrowCanvWin( pos )
-    Point pos;
+static void GrowCanvWin( Point pos )
 {
     register long size;
     register int x,y,dx;
@@ -1374,7 +1496,8 @@ static void GrowCanvWin( pos )
     SetPort(savePort);
 }
 
-static void ReSizeCmndWin()
+
+static void ReSizeCmndWin( void )
 {
     register int rows,cols;
     register int sr,er;
@@ -1424,8 +1547,7 @@ static void ReSizeCmndWin()
 }
 
 
-static void GrowCmndWin( pos )
-    Point pos;
+static void GrowCmndWin( Point pos )
 {
     register long size;
     GrafPtr savePort;
@@ -1441,8 +1563,34 @@ static void GrowCmndWin( pos )
 }
 
 
-static void ClampDial( dial, value )
-    int dial;  Real value;
+/*=========================*/
+/* Mouse Handling Routines */
+/*=========================*/
+
+#define ShiftModifier   0x2200
+#define CntrlModifier   0x9000
+#define LButtModifier   0x0080
+#define MButtModifier   0x0100  /* [Option]  */
+#define RButtModifier   0x4800  /* [Command] */
+
+static int GetStatus( int mask )
+{
+    register int status;
+
+    /* Invert Button Bit */
+    mask ^= LButtModifier;
+    
+    status = 0;                             
+    if( mask & LButtModifier ) status |= MMLft;
+    if( mask & MButtModifier ) status |= MMMid;
+    if( mask & RButtModifier ) status |= MMRgt;
+    if( mask & CntrlModifier ) status |= MMCtl;          
+    if( mask & ShiftModifier ) status |= MMSft;
+    return status;
+}
+
+
+static void ClampDial( int dial, Real value )
 {
     register Real temp;
     
@@ -1456,8 +1604,7 @@ static void ClampDial( dial, value )
 }
 
 
-static void WrapDial( dial, value )
-    int dial;  Real value;
+static void WrapDial( int dial, Real value )
 {
     register Real temp;
     
@@ -1468,145 +1615,30 @@ static void WrapDial( dial, value )
 }
 
 
-#define ShiftModifier   0x2200
-#define CntrlModifier   0x9000
-#define LButtModifier   0x0080
-#define MButtModifier   0x0100  /* [Option]  */
-#define RButtModifier   0x4800  /* [Command] */
-
-static void MouseMove( status, dx, dy )
-    int status, dx, dy;
-{
-    if( MouseMode == MMRasMol )
-    {   if( status & ShiftModifier )
-        {   if( status & (MButtModifier|RButtModifier) )
-            {   if( dx )  /* Z Rotation Horizontal */
-                {   WrapDial( 2, (Real)dx/WRange );
-                    ReDrawFlag |= RFRotateZ;
-                }
-            } else
-                if( dy )  /* Zoom Vertical */
-                {   ClampDial( 3, (Real)dy/HRange );
-                    ReDrawFlag |= RFZoom;
-                }
-        
-        } else if( status & CntrlModifier )
-        {   if( dy )   /* Slab Vertical */
-            {   ClampDial( 7, (Real)dy/YRange );
-                ReDrawFlag |= RFSlab;
-            }
-        
-        } else /* Unmodified */
-            if( status & (MButtModifier|RButtModifier) )
-            {   if( dx ) /* Translate X Horizontal */
-                {   ClampDial( 4, (Real)dx/XRange );
-                    ReDrawFlag |= RFTransX;
-                }
-                if( dy ) /* Translate Y Vertical   */
-                {   ClampDial( 5, (Real)dy/YRange );
-                    ReDrawFlag |= RFTransY;
-                }
-            } else
-            {   if( dx ) /* Rotate Y Horizontal */
-                {   WrapDial( 1, (Real)dx/WRange );
-                    ReDrawFlag |= RFRotateY;
-                }
-                if( dy ) /* Rotate X Vertical */
-                {   WrapDial( 0, (Real)dy/HRange );
-                    ReDrawFlag |= RFRotateX;
-                }
-                UpdateScrollBars();
-            }
-
-    } else if( MouseMode == MMQuanta )
-    {   if( status & ShiftModifier )
-        {   if( status & LButtModifier )
-            {   if( dy ) /* Slab Vertical */
-                {   ClampDial( 7, (Real)dy/YRange );
-                    ReDrawFlag |= RFSlab;
-                }
-            } else if( status & MButtModifier )
-            {   if( dx ) /* Translate X Horizontal */
-                {   ClampDial( 4, (Real)dx/XRange );
-                    ReDrawFlag |= RFTransX;
-                }
-                if( dy ) /* Translate Y Vertical   */
-                {   ClampDial( 5, (Real)dy/YRange );
-                    ReDrawFlag |= RFTransY;
-                }
-            } else if( !(status & RButtModifier) )
-                if( dy )  /* Zoom Vertical */
-                {   ClampDial( 3, (Real)dy/HRange );
-                    ReDrawFlag |= RFZoom;
-                }
-        } else if( status & MButtModifier )
-        {   if( dx ) /* Rotate Y Horizontal */
-            {   WrapDial( 1, (Real)dx/WRange );
-                ReDrawFlag |= RFRotateY;
-            }
-            if( dy ) /* Rotate X Vertical */
-            {   WrapDial( 0, (Real)dy/HRange );
-                ReDrawFlag |= RFRotateX;
-            }
-            UpdateScrollBars();
-        } else if( status & RButtModifier )
-            if( dx )  /* Z Rotation Horizontal */
-            {   WrapDial( 2, (Real)dx/WRange );
-                ReDrawFlag |= RFRotateZ;
-            }
-        
-    } else /* MMInsight */
-        if( status & LButtModifier )
-        {   if( status & MButtModifier )
-            {   if( status & RButtModifier )
-                {   ClampDial( 7, (Real)dx/XRange - 
-                                  (Real)dy/YRange );
-                    ReDrawFlag |= RFSlab;
-                } else
-                {   ClampDial( 3, (Real)dx/WRange - 
-                                  (Real)dy/HRange );
-                    ReDrawFlag |= RFZoom;
-                }
-            } else if( status & RButtModifier )
-            {   WrapDial( 2, (Real)dx/WRange - 
-                             (Real)dy/HRange );
-                ReDrawFlag |= RFRotateZ;
-            } else
-            {   if( dx ) /* Rotate Y Horizontal */
-                {   WrapDial( 1, (Real)dx/WRange );
-                    ReDrawFlag |= RFRotateY;
-                }
-                if( dy ) /* Rotate X Vertical */
-                {   WrapDial( 0, (Real)dy/HRange );
-                    ReDrawFlag |= RFRotateX;
-                }
-                UpdateScrollBars();
-            }
-        } else if( status & MButtModifier )
-        {   if( dx ) /* Translate X Horizontal */
-            {   ClampDial( 4, (Real)dx/XRange );
-                ReDrawFlag |= RFTransX;
-            }
-            if( dy ) /* Translate Y Vertical   */
-            {   ClampDial( 5, (Real)dy/YRange );
-                ReDrawFlag |= RFTransY;
-            }
-        } 
-}
-
-
-pascal void CanvScrollProc( cntrl, code )
-    ControlHandle cntrl;  short code;
+pascal void CanvScrollProc( ControlHandle cntrl, short code )
 {   
     register int pos;
     
-    pos = GetCtlValue(cntrl); 
+#ifdef USEOLDROUTINENAMES
+    pos = GetCtlValue(cntrl);
+#else
+    pos = GetControlValue(cntrl); 
+#endif
+
     switch( code )
-    {   case(inUpButton):    pos -= 5;   break;
+    {
+#ifdef USEOLDROUTINENAMES
+        case(inUpButton):    pos -= 5;   break;
         case(inDownButton):  pos += 5;   break;
         case(inPageUp):      pos -= 10;  break;
         case(inPageDown):    pos += 10;  break;
-        default:             return;
+#else
+        case(kControlUpButtonPart):    pos -= 5;   break;
+        case(kControlDownButtonPart):  pos += 5;   break;
+        case(kControlPageUpPart):      pos -= 10;  break;
+        case(kControlPageDownPart):    pos += 10;  break;
+#endif
+        default:             return;       
     }
     
     if( pos>100 )
@@ -1614,7 +1646,12 @@ pascal void CanvScrollProc( cntrl, code )
     } else if( pos<0 )
         pos += 100;
         
+#ifdef USEOLDROUTINENAMES        
     SetCtlValue(cntrl,pos);
+#else
+    SetControlValue(cntrl,pos);
+#endif
+
     if( cntrl == HScroll )
     {   DialValue[1] = (pos/50.0)-1.0;
         ReDrawFlag |= RFRotateY;
@@ -1626,10 +1663,10 @@ pascal void CanvScrollProc( cntrl, code )
 }
 
 
-static void ClickCanvWin( ptr )
-    EventRecord *ptr;
+static void ClickCanvWin( EventRecord *ptr )
 {
     register int code,pos;
+    register int stat;
 
     ControlHandle hand;
     GrafPtr savePort;
@@ -1641,13 +1678,19 @@ static void ClickCanvWin( ptr )
         GlobalToLocal(&ptr->where);
         code = FindControl(ptr->where,CanvWin,&hand);
         if( !code )
-        {   InitX = PointX = ptr->where.h;
-            InitY = PointY = ptr->where.v;
-            HeldButton = True;
+        {   stat = GetStatus(ptr->modifiers);
+            ProcessMouseDown(ptr->where.h,ptr->where.v,stat);
             
+#ifdef USEOLDROUTINENAMES            
         } else if( code == inThumb )   
         {   TrackControl(hand,ptr->where,0L);
             pos = GetCtlValue(hand);
+#else
+        } else if( code == kControlIndicatorPart )   
+        {   TrackControl(hand,ptr->where,0L);
+            pos = GetControlValue(hand);
+#endif
+
             if( hand == HScroll )
             {   DialValue[1] = (pos/50.0)-1.0;
                 ReDrawFlag |= RFRotateY;
@@ -1667,30 +1710,49 @@ static void ClickCanvWin( ptr )
 }
 
 
-
-pascal void CmndScrollProc( cntrl, code )
-    ControlHandle cntrl;  short code;
+pascal void CmndScrollProc( ControlHandle cntrl, short code )
 {
     switch( code )
-    {   case(inUpButton):    if( ScrlStart < ScrlMax )
+    {   
+#ifdef USEOLDROUTINENAMES
+        case(inUpBotton):
+#else
+        case(kControlUpButtonPart):
+#endif
+                             if( ScrlStart < ScrlMax )
                              {   SetTermScroll((ScrlMax-ScrlStart)-1);
                                  PaintScreen();
                              }
                              break;
                              
-        case(inDownButton):  if( ScrlStart > 0 )
+#ifdef USEOLDROUTINENAMES
+        case(inDownButton):
+#else                             
+        case(kControlDownButtonPart):  
+#endif
+                             if( ScrlStart > 0 )
                              {   SetTermScroll((ScrlMax-ScrlStart)+1);
                                  PaintScreen();
                              }
                              break;
                                  
-        case(inPageUp):      if( ScrlStart < (ScrlMax-10) )
+#ifdef USEOLDROUTINENAMES
+        case(inPageUp):
+#else
+        case(kControlPageUpPart):
+#endif
+                             if( ScrlStart < (ScrlMax-10) )
                              {   SetTermScroll((ScrlMax-ScrlStart)-10);
                                  PaintScreen();
                              }
                              break;
                              
-        case(inPageDown):    if( ScrlStart > 10 )
+#ifdef USEOLDROUTINENAMES
+        case(inPageDown):
+#else
+        case(kControlPageDownPart):
+#endif
+                             if( ScrlStart > 10 )
                              {   SetTermScroll((ScrlMax-ScrlStart)+10);
                                  PaintScreen();
                              }
@@ -1699,8 +1761,7 @@ pascal void CmndScrollProc( cntrl, code )
 }
 
 
-static void ClickCmndWin( ptr )
-    EventRecord *ptr;
+static void ClickCmndWin( EventRecord *ptr )
 {
     register int code;
     ControlHandle hand;
@@ -1712,9 +1773,15 @@ static void ClickCmndWin( ptr )
         
         GlobalToLocal(&ptr->where);
         code = FindControl(ptr->where,CmndWin,&hand);
+#ifdef USEOLDROUTINENAMES
         if( code == inThumb )   
         {   TrackControl(CmndScroll,ptr->where,0L);
             SetTermScroll(GetCtlValue(CmndScroll));
+#else 
+        if( code == kControlIndicatorPart )
+        {   TrackControl(CmndScroll,ptr->where,0L);
+            SetTermScroll(GetControlValue(CmndScroll));
+#endif
         } else if( code )
             TrackControl(CmndScroll,ptr->where,
 #ifdef __CONDITIONALMACROS__
@@ -1727,8 +1794,7 @@ static void ClickCmndWin( ptr )
 }
 
 
-static void ZoomCanvWin( pos, code )
-    Point pos;  int code;
+static void ZoomCanvWin( Point pos, int code )
 {
     GrafPtr savePort;
     
@@ -1743,8 +1809,7 @@ static void ZoomCanvWin( pos, code )
 }
 
 
-static void ZoomCmndWin( pos, code )
-    Point pos;  int code;
+static void ZoomCmndWin( Point pos, int code )
 {
     GrafPtr savePort;
                                     
@@ -1759,8 +1824,7 @@ static void ZoomCmndWin( pos, code )
 }
 
 
-static void HandleMouseDownEvent( ptr )
-    EventRecord *ptr;
+static void HandleMouseDownEvent( EventRecord *ptr )
 {
     register long hand;
     register int code;
@@ -1813,49 +1877,44 @@ static void HandleMouseDownEvent( ptr )
 }
 
 
+static void HandleMouseUpEvent( EventRecord *ptr )
+{
+    register int stat;
+    GrafPtr savePort;
+    
+    if( CanvWin == FrontWindow() )
+    {   GetPort(&savePort);
+        SetPort(CanvWin);
+        GlobalToLocal(&ptr->where);
+        SetPort(savePort);
+                                    
+        stat = GetStatus(ptr->modifiers);
+        ProcessMouseUp(ptr->where.h,ptr->where.v,stat);
+    }
+}
 
-static void HandleMoveEvent( status )
-    int status;
+
+static void HandleMoveEvent( int mask )
 {
     register WindowPtr win;
-    register int dx,dy;
     GrafPtr savePort;
     Point pos;
     
     win = FrontWindow();
-    if( win==CanvWin )
+    if( win == CanvWin )
     {   GetPort(&savePort);
         SetPort(CanvWin);
         GetMouse(&pos);
         
-        /* Invert Button Bit */
-        status ^= LButtModifier;
-        
-        if( (status & (LButtModifier|MButtModifier|RButtModifier))
-            || ((MouseMode==MMQuanta) && (status&ShiftModifier)) )
-        {   if( !HeldButton )
-            {   InitX = PointX = pos.h;
-                InitY = PointY = pos.v;
-                HeldButton = True;
-            }
-        } else HeldButton = False;
+        ProcessMouseMove(pos.h,pos.v,GetStatus(mask));
 
-        if( HeldButton && !IsClose(pos.h,InitX) 
-                       && !IsClose(pos.v,InitY) )
-        {   dx = pos.h - PointX;
-            dy = pos.v - PointY;
-            MouseMove(status,dx,dy);
-            PointX = pos.h;
-            PointY = pos.v;
-        }   
-        
-        if( HeldButton || ((pos.h>0) && (pos.v>0) &&
+        if( MouseCaptureStatus || ((pos.h>0) && (pos.v>0) &&
               (pos.v<CanvWin->portRect.bottom-15) &&
               (pos.h<CanvWin->portRect.right-15)) )
         {   SetCursor(*CanvCursor);
         } else ArrowCursor;
         SetPort(savePort);
-    } else if( win==CmndWin )
+    } else if( win == CmndWin )
     {   GetPort(&savePort);
         SetPort(CmndWin);
         GetMouse(&pos);
@@ -1875,7 +1934,7 @@ static int MacKeyMap[32] = { 0x00, 0x01, 0x00, 0x0d, 0x05, 0x00, 0x00, 0x00,
                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                              0x00, 0x00, 0x00, 0x00, 0x02, 0x06, 0x10, 0x0e };
                               
-static void HandleEvents()
+static void HandleEvents( void )
 {
     register int key,row;
     register long hand;
@@ -1887,30 +1946,10 @@ static void HandleEvents()
     SystemTask();
     if( GetNextEvent(everyEvent,&event) )
     {   switch( event.what )
-        {   case(mouseDown):    HeldButton = False;
-                                HandleMouseDownEvent(&event);
+        {   case(mouseDown):    HandleMouseDownEvent(&event);
                                 break;
                                 
-            case(mouseUp):      if( HeldButton && Database )
-                                {   GetPort(&savePort);
-                                    SetPort(CanvWin);
-                                    GlobalToLocal(&event.where);
-                                    SetPort(savePort);
-                                    
-                                    PointX = event.where.h;
-                                    PointY = event.where.v;
-                                    
-                                    if( IsClose(PointX,InitX) &&
-                                        IsClose(PointY,InitY) )
-                                    {   if( event.modifiers & 
-                                            (ShiftModifier|CntrlModifier) )
-                                        {      PickAtom(True,PointX,PointY);
-                                        } else PickAtom(False,PointX,PointY);
-                                        /* AdviseUpdate(AdvPickNumber); */
-                                        /* AdviseUpdate(AdvPickAtom);   */
-                                    }
-                                }
-                                HeldButton = False;
+            case(mouseUp):      HandleMouseUpEvent(&event);
                                 break;
             
             case(autoKey):
@@ -1963,8 +2002,6 @@ static void HandleEvents()
                                 break;
             
             case(activateEvt):  HiliteMenu(0);
-                                HeldButton = False;
-                                
                                 win = (WindowPtr)event.message;
                                 if( win==CanvWin )
                                 {   DrawGrowIcon(CanvWin);
@@ -1975,7 +2012,7 @@ static void HandleEvents()
                                     {   HideControl(HScroll);
                                         HideControl(VScroll);
                                     }
-                                } else /* win==CmndWin */
+                                } else /* win == CmndWin */
                                 {   DrawCmndGrowIcon();
                                     if( event.modifiers & activeFlag )
                                     {   ShowControl(CmndScroll);
@@ -1999,15 +2036,7 @@ static void HandleEvents()
                                 } else
                                 {   TermCursor = False;
                                     HideCaret();
-                                }
-                                
-                                /* Mouse Move Handling! */
-                                if( win == CanvWin )
-                                {   GetPort(&savePort);
-                                    SetPort(CanvWin);
-                                    GetMouse(&MousePrev);
-                                    SetPort(savePort);
-                                }
+                                }                                
                                 break;
                                 
             case(kHighLevelEvent):
@@ -2027,8 +2056,7 @@ static void HandleEvents()
 }
 
 
-static int HandleFileSpec( fss )
-    FSSpec *fss;
+static int HandleFileSpec( FSSpec *fss )
 {
     register int format;
     register FILE *fp;
@@ -2036,11 +2064,11 @@ static int HandleFileSpec( fss )
     
     FSpGetFInfo(fss,&info);
     if( info.fdType == 'RSML' )
-    {   fp = fopen(Filename,"r");
+    {   fp = fopen(Filename,"rb");
         if( fp )
         {   LoadScriptFile(fp,Filename);
-            return( True );
-        } else return( False );
+            return True;
+        } else return False;
     }
     
     if( Database )
@@ -2049,7 +2077,8 @@ static int HandleFileSpec( fss )
     if( info.fdType == 'mMOL' )
     {      format = FormatMDL;
 #ifdef CEXIOLIB
-    } else if( info.fdType == 'CEX0' )
+    } else if( (info.fdType == 'CEX0') ||
+               (info.fdType == 'CEX1') )
     {      format = FormatCEX;
 #endif
     } else format = FormatPDB;
@@ -2057,9 +2086,9 @@ static int HandleFileSpec( fss )
     FetchFile(format,True,Filename);
     if( Database )
     {   DefaultRepresentation();
-        return( True );
+        return True;
     }
-    return( False );
+    return False;
 }
 
 
@@ -2069,8 +2098,7 @@ pascal OSErr HandleAEQuitApp( AppleEvent*, AppleEvent*, long );
 pascal OSErr HandleAEIgnore( AppleEvent*, AppleEvent*, long );
 
 
-pascal OSErr HandleAEOpenDoc( event, reply, ref )
-    AppleEvent *event; AppleEvent *reply; long ref;
+pascal OSErr HandleAEOpenDoc( AppleEvent *event, AppleEvent *reply, long ref )
 {
     register OSErr stat;
     register long i;
@@ -2115,21 +2143,29 @@ pascal OSErr HandleAEOpenDoc( event, reply, ref )
     return noErr;
 }
 
-pascal OSErr HandleAEQuitApp( event, reply, ref )
-    AppleEvent *event; AppleEvent *reply; long ref;
+
+pascal OSErr HandleAEQuitApp( AppleEvent *event, AppleEvent *reply, long ref )
 {
+    UnusedArgument(event);
+    UnusedArgument(reply);
+    UnusedArgument(ref);
+
     RasMolExit();
     return noErr;
 }
 
-pascal OSErr HandleAEIgnore( event, reply, ref )
-    AppleEvent *event; AppleEvent *reply; long ref;
+
+pascal OSErr HandleAEIgnore( AppleEvent *event, AppleEvent *reply, long ref )
 {
+    UnusedArgument(event);
+    UnusedArgument(reply);
+    UnusedArgument(ref);
+
     return noErr;
 }
 
 
-static void InitialiseApplication()
+static void InitialiseApplication( void )
 {
     register PScrapStuff ptr;
     
@@ -2193,40 +2229,56 @@ static void InitialiseApplication()
 }
 
 
-static void InitDefaultValues()
+static void InitDefaultValues( void )
 {
     Interactive = True;
 
     ReDrawFlag = RFInitial;
     LabelOptFlag = False;
     CalcBondsFlag = True;
+    AllowWrite = False;
 }
 
 
-int main()
+int main( void )
 {
-    GrafPtr savePort;
+    static char VersionStr[255];
+    
+    Interactive = False;
+    SwitchLang(English);
+
+    sprintf (VersionStr,"%s\nVersion %s %s\n%s\n", 
+             MAIN_COPYRIGHT, VERSION, 
+             VER_DATE, VER_COPYRIGHT);
     
     InitialiseApplication();
-    InitDefaultDefaultValues();
+    InitDefaultValues();
 
     OpenDisplay(DefaultWide,DefaultHigh);
     InitTerminal();
+
+    SwitchLang(English);
     
     WriteString("RasMol Molecular Renderer\n");
     WriteString("Roger Sayle, August 1995\n");
-    WriteString("Version 2.6\n");
+    WriteString(VersionStr);
+    WriteString("*** See \"help notice\" for further notices ***\n");
 
 #ifdef __powerc
     WriteString("[PowerPC Native]\n");
 #endif
 
 #ifdef EIGHTBIT
-    WriteString("[8bit version]\n\n");
-#else
-    WriteString("[24bit version]\n\n");
+    WriteString("[8-bit version]\n\n");
+#endif
+#ifdef SIXTEENBIT
+    WriteString("[16-bit version]\n\n");
+#endif
+#ifdef THIRTYTWOBIT
+    WriteString("[32-bit version]\n\n");
 #endif
 
+    InitialiseCmndLine();
     InitialiseCommand();
     InitialiseTransform();
     InitialiseDatabase();
@@ -2235,17 +2287,13 @@ int main()
     InitialiseAbstree();
     InitialiseOutFile();
     InitialiseRepres();
+    InitHelpFile();
 
     /* LoadInitFile(); */
     
     ResetCommandLine(1);
     RefreshScreen();
-    
-    GetPort(&savePort);
-    SetPort(CanvWin);
-    GetMouse(&MousePrev);
-    SetPort(savePort);
-    
+        
     while( True )
         HandleEvents();
 }

@@ -1,7 +1,54 @@
+/***************************************************************************
+ *                              RasMol 2.7.1                               *
+ *                                                                         *
+ *                                 RasMol                                  *
+ *                 Molecular Graphics Visualisation Tool                   *
+ *                              22 June 1999                               *
+ *                                                                         *
+ *                   Based on RasMol 2.6 by Roger Sayle                    *
+ * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
+ *                      Stevenage, Hertfordshire, UK                       *
+ *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
+ *                   Copyright (C) Roger Sayle 1992-1999                   *
+ *                                                                         *
+ *                  and Based on Mods by Arne Mueller                      *
+ *                      Version 2.6x1, May 1998                            *
+ *                   Copyright (C) Arne Mueller 1998                       *
+ *                                                                         *
+ *           Version 2.7.0, 2.7.1 Mods by Herbert J. Bernstein             *
+ *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *                      yaya@bernstein-plus-sons.com                       *
+ *                    2.7.0 March 1999, 2.7.1 June 1999                    *
+ *              Copyright (C) Herbert J. Bernstein 1998-1999               *
+ *                                                                         *
+ * Please read the file NOTICE for important notices which apply to this   *
+ * package. If you are not going to make changes to RasMol, you are not    * 
+ * only permitted to freely make copies and distribute them, you are       * 
+ * encouraged to do so, provided you do the following:                     *
+ *   * 1. Either include the complete documentation, especially the file   *
+ *     NOTICE, with what you distribute or provide a clear indication      *
+ *     where people can get a copy of the documentation; and               *
+ *   * 2. Please give credit where credit is due citing the version and    * 
+ *     original authors properly; and                                      *  
+ *   * 3. Please do not give anyone the impression that the original       *   
+ *     authors are providing a warranty of any kind.                       *
+ *                                                                         *
+ * If you would like to use major pieces of RasMol in some other program,  *
+ * make modifications to RasMol, or in some other way make what a lawyer   *
+ * would call a "derived work", you are not only permitted to do so, you   *
+ * are encouraged to do so. In addition to the things we discussed above,  *
+ * please do the following:                                                *
+ *   * 4. Please explain in your documentation how what you did differs    *
+ *     from this version of RasMol; and                                    *
+ *   * 5. Please make your modified source code available.                 *
+ *                                                                         *
+ * This version of RasMol is not in the public domain, but it is given     *
+ * freely to the community in the hopes of advancing science. If you make  *
+ * changes, please make them in a responsible manner, and please offer us  *
+ * the opportunity to include those changes in future versions of RasMol.  *
+ ***************************************************************************/
+
 /* repres.c
- * RasMol2 Molecular Graphics
- * Roger Sayle, August 1995
- * Version 2.6
  */
 #include "rasmol.h"
 
@@ -33,9 +80,11 @@
 #include "repres.h"
 #include "render.h"
 #include "command.h"
+#include "cmndline.h"
 #include "abstree.h"
 #include "transfor.h"
 #include "pixutils.h"
+#include "infile.h"
 
 
 #define RootSix          2.44948974278
@@ -50,6 +99,13 @@
 #define LightDot(x,y,z)  ((x)+(y)+(z)+(z))
 #define LightLength      RootSix
 
+
+#define ForEachAtom  for(chain=Database->clist;chain;chain=chain->cnext) \
+                     for(group=chain->glist;group;group=group->gnext)    \
+                     for(aptr=group->alist;aptr;aptr=aptr->anext)
+#define ForEachBond  for(bptr=Database->blist;bptr;bptr=bptr->bnext)
+#define ForEachBack  for(chain=Database->clist;chain;chain=chain->cnext) \
+                     for(bptr=chain->blist;bptr;bptr=bptr->bnext)
 
 
 typedef struct { int dx, dy, dz; } DotVector;
@@ -66,17 +122,25 @@ static Monitor *FreeMonit;
 static Label *FreeLabel;
 
 
+/*=======================*/
+/*  Function Prototypes  */
+/*=======================*/
+  
+#ifdef FUNCPROTO
+void AddMonitors( Atom __far*, Atom __far* );
+static void AddDot( Long, Long, Long, int );
+static void CheckVDWDot( Long, Long, Long, int );
+static int TestSolventDot( Long, Long, Long );
+#else
+void AddMonitors();
+static void AddDot();
+static void CheckVDWDot();
+static int TestSolventDot();
+#endif
 
-#define ForEachAtom  for(chain=Database->clist;chain;chain=chain->cnext) \
-                     for(group=chain->glist;group;group=group->gnext)    \
-                     for(aptr=group->alist;aptr;aptr=aptr->anext)
-#define ForEachBond  for(bptr=Database->blist;bptr;bptr=bptr->bnext)
-#define ForEachBack  for(chain=Database->clist;chain;chain=chain->cnext) \
-                     for(bptr=chain->blist;bptr;bptr=bptr->bnext)
- 
 
-static void FatalRepresError(ptr)
-    char *ptr;
+
+static void FatalRepresError( char *ptr )
 {
     char buffer[80];
  
@@ -89,8 +153,7 @@ static void FatalRepresError(ptr)
 /*  Label Handling Functions  */
 /*============================*/
 
-
-static void ResetLabels()
+static void ResetLabels( void )
 {
     register Label *ptr;
  
@@ -104,8 +167,7 @@ static void ResetLabels()
 }
  
 
-void DeleteLabel( label )
-    Label *label;
+void DeleteLabel( Label *label )
 {
     register Label **ptr;
  
@@ -122,7 +184,7 @@ void DeleteLabel( label )
 }
  
 
-int DeleteLabels()
+int DeleteLabels( void )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -142,13 +204,11 @@ int DeleteLabels()
             }
             result = False;
         }
-    DrawLabels = LabelList? True : False;
     return( result );
 }
 
 
-Label *CreateLabel( text, len )
-    char *text;  int len;
+Label *CreateLabel( char *text, int len )
 {
     register Label *ptr;
  
@@ -173,8 +233,7 @@ Label *CreateLabel( text, len )
 }
  
  
-void DefineLabels( label )
-    char *label;
+void DefineLabels( char *label )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -202,8 +261,7 @@ void DefineLabels( label )
         return;
  
     ptr = CreateLabel(label,len);
-    DrawLabels = True;
- 
+
     ForEachAtom
         if( aptr->flag & SelectFlag )
         {   aptr->label = ptr;
@@ -212,8 +270,7 @@ void DefineLabels( label )
 }
  
  
-void DefaultLabels( enable )
-    int enable;
+void DefaultLabels( int enable )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -231,7 +288,12 @@ void DefaultLabels( enable )
     {   ForEachAtom
             if( IsAlphaCarbon(aptr->refno) || IsSugarPhosphate(aptr->refno) )
             {   if( aptr->flag & SelectFlag )
-                {   if( enable )
+                {   if( aptr->label )
+                    {   DeleteLabel( (Label*)aptr->label );
+                        aptr->label = (Label*)0;
+                    }
+
+                    if( enable )
                     {   if( Info.chaincount > 1 )
                         {   if( isdigit(chain->ident) )
                             {   if( !label1 )
@@ -250,9 +312,6 @@ void DefaultLabels( enable )
                             aptr->label = label1;
                             label1->refcount++;
                         }
-                    } else if( aptr->label )
-                    {   DeleteLabel( (Label*)aptr->label );
-                        aptr->label = (Label*)0;
                     }
                     ReDrawFlag |= RFRefresh;
                 }
@@ -263,23 +322,104 @@ void DefaultLabels( enable )
         ForEachAtom
             if( (aptr->flag&SelectFlag) && (aptr->elemno!=6)
                                         && (aptr->elemno!=1) )
-            {   if( enable )
+            {   if( aptr->label )
+                {   DeleteLabel( (Label*)aptr->label );
+                    aptr->label = (Label*)0;
+                }
+
+                if( enable )
                 {   if( !label1 )
                         label1 = CreateLabel("%e",2);
                     aptr->label = label1;
                     label1->refcount++;
-                } else if( aptr->label )
-                {   DeleteLabel( (Label*)aptr->label );
-                    aptr->label = (Label*)0;
                 }
                 ReDrawFlag |= RFRefresh;
             }
- 
-    DrawLabels = LabelList? True : False;
 }
 
 
-void DisplayLabels()
+void LabelTerminii( int enable )
+{
+    register Chain __far *chain;
+    register Group __far *group;
+    register Atom __far *aptr;
+    register Label *label;
+ 
+    if( !Database )
+        return;
+
+    for( chain=Database->clist; chain; chain=chain->cnext )
+        if( chain->glist && chain->glist->gnext )
+        {   group = chain->glist;
+            if( IsProtein(group->refno) )
+            {   /* N terminus */
+                aptr = FindGroupAtom(group,1);
+                if( aptr && (aptr->flag&SelectFlag) )
+                {   if( aptr->label )
+                    {   DeleteLabel( (Label*)aptr->label );
+                        aptr->label = (Label*)0;
+                    }
+                    if( enable )
+                    {   label = CreateLabel("N",1);
+                        aptr->label = label;
+                        label->refcount++;
+                    }
+                }
+
+                while( group->gnext )
+                    group = group->gnext;
+
+                /* C terminus */
+                aptr = FindGroupAtom(group,1);
+                if( aptr && (aptr->flag&SelectFlag) )
+                {   if( aptr->label )
+                    {   DeleteLabel( (Label*)aptr->label );
+                        aptr->label = (Label*)0;
+                    }
+                    if( enable )
+                    {   label = CreateLabel("C",1);
+                        aptr->label = label;
+                        label->refcount++;
+                    }
+                }
+
+            } else if( IsDNA(group->refno) )
+            {   /* 5' terminus */
+                aptr = FindGroupAtom(group,7);
+                if( aptr && (aptr->flag&SelectFlag) )
+                {   if( aptr->label )
+                    {   DeleteLabel( (Label*)aptr->label );
+                        aptr->label = (Label*)0;
+                    }
+                    if( enable )
+                    {   label = CreateLabel("5'",2);
+                        aptr->label = label;
+                        label->refcount++;
+                    }
+                }
+
+                while( group->gnext )
+                    group = group->gnext;
+
+                /* 3' terminus */
+                aptr = FindGroupAtom(group,7);
+                if( aptr && (aptr->flag&SelectFlag) )
+                {   if( aptr->label )
+                    {   DeleteLabel( (Label*)aptr->label );
+                        aptr->label = (Label*)0;
+                    }
+                    if( enable )
+                    {   label = CreateLabel("3'",2);
+                        aptr->label = label;
+                        label->refcount++;
+                    }
+                }
+            }
+        }
+}
+
+
+void DisplayLabels( void )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -310,25 +450,21 @@ void DisplayLabels()
             {   /* Depth-cue atom labels */
                 /* col = aptr->col + (ColorDepth*                  */
                 /*       (aptr->z+ImageRadius-ZOffset))/ImageSize; */
-                col = aptr->col + (ColourMask>>1);
+                col = aptr->col + (FontStroke?0:(ColourMask>>1));
             } else col = LabelCol;
  
             /* (aptr->z+2) + ((aptr->flag & SphereFlag)?aptr->irad:0); */
-            DisplayString(aptr->x+4,aptr->y,z,buffer,col);
+            DisplayRasString(aptr->x+4,aptr->y,z,buffer,col);
         }
 }
+
 
 
 /*==============================*/
 /*  Monitor Handling Functions  */
 /*==============================*/
-
-#ifdef FUNCPROTO
-/* Function Prototype */
-void AddMonitors( Atom __far*, Atom __far* );
-#endif
  
-void DeleteMonitors()
+void DeleteMonitors( void )
 {
     register Monitor *ptr;
  
@@ -344,8 +480,7 @@ void DeleteMonitors()
 }
  
 
-void AddMonitors( src, dst )
-    Atom __far *src, __far *dst;
+void AddMonitors( Atom __far *src, Atom __far *dst )
 {
     register Monitor **prev;
     register Monitor *ptr;
@@ -353,18 +488,19 @@ void AddMonitors( src, dst )
     register Long dist;
  
     /* Delete an already existing monitor! */
-    for( prev=&MonitList; (ptr=*prev); prev=&ptr->next )
-         if( ((ptr->src==src) && (ptr->dst==dst)) ||
-             ((ptr->src==dst) && (ptr->dst==src)) )
-         {   if( ptr->col )
-                 Shade[Colour2Shade(ptr->col)].refcount--;
+    for( prev = &MonitList;  *prev; prev = &ptr->next )
+    {   ptr = *prev;
+        if( ((ptr->src==src) && (ptr->dst==dst)) ||
+            ((ptr->src==dst) && (ptr->dst==src)) )
+        {   if( ptr->col )
+                Shade[Colour2Shade(ptr->col)].refcount--;
  
              *prev = ptr->next;
              ptr->next = FreeMonit;
              FreeMonit = ptr;
              return;
          }
- 
+    }
  
     /* Create a new monitor! */
     if( FreeMonit )
@@ -389,8 +525,7 @@ void AddMonitors( src, dst )
 }
 
 
-void CreateMonitor( src, dst )
-    Long src, dst;
+void CreateMonitor( Long src, Long dst )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -401,10 +536,8 @@ void CreateMonitor( src, dst )
     char buffer[20];
  
     if( src == dst )
-    {   if( !CommandActive )
-            WriteChar('\n');
+    {   InvalidateCmndLine();
         WriteString("Error: Duplicate atom serial numbers!\n");
-        CommandActive = False;
         return;
     }
  
@@ -431,8 +564,7 @@ void CreateMonitor( src, dst )
             }
  
     if( !done )
-    {   if( !CommandActive )
-            WriteChar('\n');
+    {   InvalidateCmndLine();
         WriteString("Error: Atom serial number");
         if( sptr )
         {   sprintf(buffer," %d",dst);
@@ -440,13 +572,12 @@ void CreateMonitor( src, dst )
         {   sprintf(buffer," %d",src);
         } else sprintf(buffer,"s %d and %d",src,dst);
         WriteString(buffer); WriteString(" not found!\n");
-        CommandActive = False;
  
     } else AddMonitors( sptr, dptr );
 }
  
  
-void DisplayMonitors()
+void DisplayMonitors( void )
 {
     register Atom __far *s;
     register Atom __far *d;
@@ -477,7 +608,7 @@ void DisplayMonitors()
             dc = d->col;
         } else sc = dc = ptr->col;
  
-        ClipDashVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc);
+        ClipDashVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc,' ');
  
         if( DrawMonitDistance )
             if( ZValid( (s->z+d->z)/2 ) )
@@ -486,7 +617,7 @@ void DisplayMonitors()
  
                 if( !UseLabelCol )
                 {   /* Use Source atom colour! */
-                    col = sc + (ColourMask>>1);
+                    col = sc + (FontStroke?0:(ColourMask>>1));
                 } else col = LabelCol;
  
                 dist = ptr->dist;
@@ -502,7 +633,7 @@ void DisplayMonitors()
                     cptr++;
                 } else *cptr = '0';
  
-                DisplayString(x+4,y,z,cptr,col);
+                DisplayRasString(x+4,y,z,cptr,col);
             }
     }
 }
@@ -512,15 +643,7 @@ void DisplayMonitors()
 /*  Dot Surface Functions  */
 /*=========================*/
 
-#ifdef FUNCPROTO
-/* Function Prototype */
-static void AddDot( Long, Long, Long, int );
-static void CheckVDWDot( Long, Long, Long, int );
-static int TestSolventDot( Long, Long, Long );
-#endif
- 
- 
-void DeleteSurface()
+void DeleteSurface( void )
 {
     register DotStruct __far *ptr;
     register int shade;
@@ -536,12 +659,10 @@ void DeleteSurface()
         _ffree( DotPtr );
         DotPtr = ptr;
     }
-    DrawDots = False;
 }
  
  
-static void AddDot( x, y, z, col )
-    Long x, y, z; int col;
+static void AddDot( Long x, Long y, Long z, int col )
 {
     register DotStruct __far *ptr;
     register int i, shade;
@@ -563,12 +684,10 @@ static void AddDot( x, y, z, col )
     ptr->xpos[i] = x;
     ptr->ypos[i] = y;
     ptr->zpos[i] = z;
-    DrawDots = True;
 }
  
  
-static void CheckVDWDot( x, y, z, col )
-    Long x, y, z; int col;
+static void CheckVDWDot(  Long x,  Long y,  Long z, int col )
 {
     register Item __far *item;
     register Atom __far *aptr;
@@ -577,7 +696,6 @@ static void CheckVDWDot( x, y, z, col )
     register Long dist;
     register Long rad;
     register int i;
- 
  
     ix = (int)((x+Offset)*IVoxRatio);
     iy = (int)((y+Offset)*IVoxRatio);
@@ -607,8 +725,7 @@ static void CheckVDWDot( x, y, z, col )
 }
  
  
-static int TestSolventDot( x, y, z )
-    Long x, y, z;
+static int TestSolventDot( Long x, Long y, Long z )
 {
     register Item __far *item;
     register Atom __far *aptr;
@@ -657,16 +774,16 @@ static int TestSolventDot( x, y, z )
                           if( (dist+=(Long)dy*dy) < rad )
                           {   dz = (int)(aptr->zorg - z);
                               if( (dist+=(Long)dz*dz) < rad )
-                                  return( False );
+                                  return False;
                           }
                       }
                   }
           }
-    return( True );
+    return True;
 }
  
  
-static void InitElemDots()
+static void InitElemDots( void )
 {
     register int i,size;
  
@@ -679,8 +796,7 @@ static void InitElemDots()
 }
  
  
-static void AddElemDots( elem, density )
-    int elem, density;
+static void AddElemDots( int elem, int density )
 {
     register DotVector __far *ptr;
     register DotVector __far *probe;
@@ -738,7 +854,7 @@ static void AddElemDots( elem, density )
 }
  
  
-static void FreeElemDots()
+static void FreeElemDots( void )
 {
     register int i;
  
@@ -749,8 +865,7 @@ static void FreeElemDots()
 }
  
  
-void CalculateSurface( density )
-    int density;
+void CalculateSurface( int density )
 {
     register DotVector __far *probe;
     register DotVector __far *ptr;
@@ -800,8 +915,69 @@ void CalculateSurface( density )
     FreeElemDots();
 }
  
- 
-void DisplaySurface()
+
+static Long ReadValue( char *ptr, int len )
+{
+    register Long result;
+    register char ch;
+    register int neg;
+
+    result = 0;
+    neg = False;
+    while( len-- )
+    {   ch = *ptr++;
+        if( isdigit(ch) )
+        {   result = (10*result)+(ch-'0');
+        } else if( ch=='-' )
+           neg = True;
+    }
+    return( neg? -result : result );
+}
+
+
+void LoadDotsFile( FILE *fp, int info )
+{
+    register Long x,y,z;
+    register Long count;
+    register int shade;
+    register int col;
+    char buffer[256];
+
+    DeleteSurface();
+    shade = DefineShade(255,255,255);
+    col = Shade2Colour(shade);
+
+    count = 0;
+    while( FetchRecord(fp,buffer) )
+    {   x = ReadValue(buffer+13,8);
+        y = ReadValue(buffer+22,8);
+        z = ReadValue(buffer+31,8);
+
+        x =  x/4 - OrigCX;
+        y =  y/4 - OrigCY;
+        z = -z/4 - OrigCZ;
+        AddDot(x,y,z,col);
+        count++;
+    }
+    fclose(fp);
+
+    if( count )
+        ReDrawFlag |= RFRefresh;
+
+    if( info )
+    {   InvalidateCmndLine();
+
+        if( count > 1 )
+        {   sprintf(buffer,"%ld dots read from file\n",count);
+            WriteString(buffer);
+        } else if( count == 1 )
+        {      WriteString("1 dot read from file\n");
+        } else WriteString("No dots read from file!\n");
+    }
+}
+
+
+void DisplaySurface( void )
 {
     register DotStruct __far *ptr;
     register int xi,yi,zi;
@@ -827,13 +1003,12 @@ void DisplaySurface()
 }
  
 
+
 /*==============================*/
 /*  Ribbon & Cartoon Functions  */
 /*==============================*/
-
  
-static void CalculateVInten( ptr )
-    Knot *ptr;
+static void CalculateVInten( Knot *ptr )
 {
     register Real inten;
  
@@ -857,8 +1032,7 @@ static void CalculateVInten( ptr )
 }
  
 
-static void CalculateHInten( ptr )
-    Knot *ptr;
+static void CalculateHInten( Knot *ptr )
 {
     register Real inten;
  
@@ -887,8 +1061,7 @@ static void CalculateHInten( ptr )
 }
  
  
-void DisplayRibbon( chain )
-    Chain  __far *chain;
+void DisplayRibbon( Chain  __far *chain )
 {
     register Group __far *group;
     register Atom __far *captr;
@@ -939,18 +1112,18 @@ void DisplayRibbon( chain )
             by = o1ptr->y - captr->y;
             bz = o1ptr->z - captr->z;
  
-        } else if( !FindGroupAtom(group,17) &&
-                   (o2ptr=FindGroupAtom(group,8)) )
-        {   /* Deoxyribonucleic Acid */
-            o2ptr = FindGroupAtom(group,8);
-            bx = (o1ptr->x + o2ptr->x)/2 - captr->x;
-            by = (o1ptr->y + o2ptr->y)/2 - captr->y;
-            bz = (o1ptr->z + o2ptr->z)/2 - captr->z;
- 
-        } else /* Ribonucleic Acid */
-        {   bx = o1ptr->x - captr->x;
-            by = o1ptr->y - captr->y;
-            bz = o1ptr->z - captr->z;
+        } else /* Nucleic Acid */
+        {   o2ptr = FindGroupAtom(group,8);
+            if( o2ptr && !FindGroupAtom(group,17) )
+            {   /* Deoxyribonucleic Acid */
+                bx = (o1ptr->x + o2ptr->x)/2 - captr->x;
+                by = (o1ptr->y + o2ptr->y)/2 - captr->y;
+                bz = (o1ptr->z + o2ptr->z)/2 - captr->z;
+            } else /* Ribonucleic Acid */
+            {   bx = o1ptr->x - captr->x;
+                by = o1ptr->y - captr->y;
+                bz = o1ptr->z - captr->z;
+            }
         }
  
         knot2.px = (captr->x + next->x)/2;
@@ -1094,16 +1267,16 @@ void DisplayRibbon( chain )
             {   wide = (int)(group->width*Scale);
                 ClipCylinder( knot1.px, knot1.py, knot1.pz,
                               mid1.px, mid1.py, mid1.pz,
-                              col1, col1, wide );
+                              col1, col1, wide, ' ' );
                 ClipCylinder( mid1.px, mid1.py, mid1.pz,
                               mid2.px, mid2.py, mid2.pz,
-                              col1, col1, wide );
+                              col1, col1, wide, ' ' );
                 ClipCylinder( mid2.px, mid2.py, mid2.pz,
                               mid3.px, mid3.py, mid3.pz,
-                              col1, col1, wide );
+                              col1, col1, wide, ' ' );
                 ClipCylinder( mid3.px, mid3.py, mid3.pz,
                               knot2.px, knot2.py, knot2.pz,
-                              col1, col1, wide );
+                              col1, col1, wide, ' ' );
             } else if( group->flag & DotsFlag )
             {   wide = (int)(group->width*Scale);
                 ClipSphere(knot1.px,knot1.py,knot1.pz,wide,col1);
@@ -1251,7 +1424,7 @@ void DisplayRibbon( chain )
             } else if( group->flag & TraceFlag )
             {   ClipCylinder( knot1.px, knot1.py, knot1.pz,
                               knot2.px, knot2.py, knot2.pz,
-                              col1, col1, (int)(group->width*Scale) );
+                              col1, col1, (int)(group->width*Scale), ' ' );
             } else if( group->flag & DotsFlag )
             {   wide = (int)(group->width*Scale);
                 ClipSphere(knot1.px,knot1.py,knot1.pz,wide,col1);
@@ -1326,7 +1499,7 @@ void DisplayRibbon( chain )
             } else if( group->flag & TraceFlag )
             {   ClipCylinder( knot1.px, knot1.py, knot1.pz,
                               knot2.px, knot2.py, knot2.pz,
-                              col1, col1, (int)(group->width*Scale) );
+                              col1, col1, (int)(group->width*Scale), ' ' );
             } else if( group->flag & DotsFlag )
             {   wide = (int)(group->width*Scale);
                 ClipSphere(knot1.px,knot1.py,knot1.pz,wide,col1);
@@ -1337,24 +1510,23 @@ void DisplayRibbon( chain )
 }
  
  
-
-void ResetRepres()
+void ResetRepres( void )
 {
     DeleteSurface();
     DeleteMonitors();
     SolventDots = False;
     ProbeRadius = 0;
 
-    DrawLabels = False;
     ResetLabels();
 
+    SurfaceChainsFlag = False;
     DrawMonitDistance = True;
     DrawBetaArrows = True;
     CartoonHeight = 100;
 }
 
 
-void InitialiseRepres()
+void InitialiseRepres( void )
 {
     DotPtr = (DotStruct __far*)0;
     MonitList = (Monitor __far*)0;

@@ -1,13 +1,62 @@
+/***************************************************************************
+ *                              RasMol 2.7.1                               *
+ *                                                                         *
+ *                                 RasMol                                  *
+ *                 Molecular Graphics Visualisation Tool                   *
+ *                              22 June 1999                               *
+ *                                                                         *
+ *                   Based on RasMol 2.6 by Roger Sayle                    *
+ * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
+ *                      Stevenage, Hertfordshire, UK                       *
+ *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
+ *                   Copyright (C) Roger Sayle 1992-1999                   *
+ *                                                                         *
+ *                  and Based on Mods by Arne Mueller                      *
+ *                      Version 2.6x1, May 1998                            *
+ *                   Copyright (C) Arne Mueller 1998                       *
+ *                                                                         *
+ *           Version 2.7.0, 2.7.1 Mods by Herbert J. Bernstein             *
+ *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *                      yaya@bernstein-plus-sons.com                       *
+ *                    2.7.0 March 1999, 2.7.1 June 1999                    *
+ *              Copyright (C) Herbert J. Bernstein 1998-1999               *
+ *                                                                         *
+ * Please read the file NOTICE for important notices which apply to this   *
+ * package. If you are not going to make changes to RasMol, you are not    * 
+ * only permitted to freely make copies and distribute them, you are       * 
+ * encouraged to do so, provided you do the following:                     *
+ *   * 1. Either include the complete documentation, especially the file   *
+ *     NOTICE, with what you distribute or provide a clear indication      *
+ *     where people can get a copy of the documentation; and               *
+ *   * 2. Please give credit where credit is due citing the version and    * 
+ *     original authors properly; and                                      *  
+ *   * 3. Please do not give anyone the impression that the original       *   
+ *     authors are providing a warranty of any kind.                       *
+ *                                                                         *
+ * If you would like to use major pieces of RasMol in some other program,  *
+ * make modifications to RasMol, or in some other way make what a lawyer   *
+ * would call a "derived work", you are not only permitted to do so, you   *
+ * are encouraged to do so. In addition to the things we discussed above,  *
+ * please do the following:                                                *
+ *   * 4. Please explain in your documentation how what you did differs    *
+ *     from this version of RasMol; and                                    *
+ *   * 5. Please make your modified source code available.                 *
+ *                                                                         *
+ * This version of RasMol is not in the public domain, but it is given     *
+ * freely to the community in the hopes of advancing science. If you make  *
+ * changes, please make them in a responsible manner, and please offer us  *
+ * the opportunity to include those changes in future versions of RasMol.  *
+ ***************************************************************************/
+
 /* render.c
- * RasMol2 Molecular Graphics
- * Roger Sayle, August 1995
- * Version 2.6
  */
 #include "rasmol.h"
 
 #ifdef IBMPC
-#include <windows.h>
 #include <malloc.h>
+#endif
+#ifdef MSWIN
+#include <windows.h>
 #endif
 #ifdef APPLEMAC
 #include <Types.h>
@@ -35,7 +84,9 @@
 #include "abstree.h"
 #include "transfor.h"
 #include "command.h"
+#include "cmndline.h"
 #include "pixutils.h"
+#include "cif_fract.h"
 
 /* Avoid PowerPC Errors! */
 #ifdef INFINITY
@@ -50,8 +101,10 @@
 
 #ifdef INVERT
 #define InvertY(y) (y)
+#define ProperY(y) (-y)
 #else
 #define InvertY(y) (-(y))
+#define ProperY(y) (y)
 #endif
 
 
@@ -63,13 +116,21 @@
 #define LightZComp       2
 
 
-#if !defined(IBMPC) && !defined(APPLEMAC)
-Card ColConstTable[MAXRAD];
-#endif
+/* Macros for commonly used loops */
+#define ForEachAtom  for(chain=Database->clist;chain;chain=chain->cnext) \
+                     for(group=chain->glist;group;group=group->gnext)    \
+                     for(aptr=group->alist;aptr;aptr=aptr->anext)
+#define ForEachBond  for(bptr=Database->blist;bptr;bptr=bptr->bnext)
+#define ForEachBack  for(chain=Database->clist;chain;chain=chain->cnext) \
+                     for(bptr=chain->blist;bptr;bptr=bptr->bnext)
 
 
 typedef struct { Real h,l; } Interval;
 
+  
+#if !defined(IBMPC) && !defined(APPLEMAC)
+Card ColConstTable[MAXRAD];
+#endif
 
 static Atom __far * __far *YBucket;
 static Atom __far * __far *IBuffer;
@@ -90,7 +151,6 @@ static int RayCount;
 static Item __far *FreeItem;
 static Real VoxRatio;
 static int VoxelCount,InVoxCount;
-static int ProbeCount;
 static int VoxelsDone;
 
 /* Identified Atom Info */
@@ -99,22 +159,22 @@ static Long IdentDist;
 static int IdentFound;
 static int IdentDepth;
 static int PickCount;
-static int PickMode;
-
-
-/* Macros for commonly used loops */
-#define ForEachAtom  for(chain=Database->clist;chain;chain=chain->cnext) \
-		     for(group=chain->glist;group;group=group->gnext)    \
-		     for(aptr=group->alist;aptr;aptr=aptr->anext)
-#define ForEachBond  for(bptr=Database->blist;bptr;bptr=bptr->bnext)
-#define ForEachBack  for(chain=Database->clist;chain;chain=chain->cnext) \
-		     for(bptr=chain->blist;bptr;bptr=bptr->bnext)
 
 
 
+/*=======================*/
+/*  Function Prototypes  */
+/*=======================*/
 
-static void FatalRenderError(ptr)
-    char *ptr;
+static void SqrInterval( Interval __far* );
+static void VoxelInsert( Atom __far*, int );
+static int AtomInter( Atom __far* );
+static void TestAtomProximity( Atom __far *, int, int );
+static void DisplayHBonds( HBond __far *, int );
+
+
+
+static void FatalRenderError( char *ptr )
 {
     char buffer[80];
 
@@ -123,8 +183,7 @@ static void FatalRenderError(ptr)
 }
 
 
-int isqrt( val )
-    Card val;
+unsigned int isqrt( Card val )
 {
 #ifndef sun386
     register int i,result;
@@ -163,17 +222,15 @@ int isqrt( val )
 }
 
 
+
 /*=============================*/
 /*  ClearBuffers Subroutines!  */
 /*=============================*/
  
-#ifdef IBMPC
+#ifdef MSWIN
 /* Windows NT vs Microsoft C vs Borland Turbo C */
-static void ClearMemory( register char __huge*, register long );
 
-static void ClearMemory( ptr, count )
-    register char __huge *ptr;
-    register long count;
+static void ClearMemory(  char __huge *ptr, long count )
 {
 #ifndef _WIN32
 #ifdef __TURBOC__
@@ -216,27 +273,28 @@ static void ClearMemory( ptr, count )
 #endif /* Windows NT */
 }
 
-void ClearBuffers()
+
+void ClearBuffers( void )
 {
-    register char __huge *ptr;
+    register Pixel __huge *ptr;
 
     if( !FBClear )
     {   FBClear = True;
 	ptr = (Pixel __huge*)GlobalLock(FBufHandle);
-        ClearMemory(ptr,(Long)XRange*YRange);
+        ClearMemory((char __huge*)ptr,(Long)XRange*YRange*sizeof(Pixel));
 	GlobalUnlock(FBufHandle);
     }
 
     if( !DBClear )
     {   DBClear = True;
-	ptr = (char __huge*)GlobalLock(DBufHandle);
-        ClearMemory(ptr,(Long)XRange*YRange*sizeof(short));
+	ptr = (Pixel __huge*)GlobalLock(DBufHandle);
+        ClearMemory((char __huge*)ptr,(Long)XRange*YRange*sizeof(short));
 	GlobalUnlock(DBufHandle);
     }
 }
 #else
 #if defined(VMS) || defined(__sgi)        /* memset */
-void ClearBuffers()
+void ClearBuffers( void )
 {
 #ifndef EIGHTBIT
     register Long *ptr;
@@ -246,17 +304,20 @@ void ClearBuffers()
     if( !FBClear )
     {   FBClear = True;
 	fill = Lut[BackCol];
+#ifdef SIXTEENBIT
+        fill |= fill<16;
+#endif
 	ptr = (Long*)FBuffer;
 	end = (Long*)(FBuffer+(Long)XRange*YRange);
-	do { *ptr++=fill; *ptr++=fill;
-	     *ptr++=fill; *ptr++=fill;
+	do { *ptr++ = fill; *ptr++ = fill;
+	     *ptr++ = fill; *ptr++ = fill;
 	} while( ptr<end );
     }
 #else
 
     if( !FBClear )
     {   FBClear = True;
-        memset(FBuffer,Lut[BackCol],(Long)XRange*YRange);
+        memset(FBuffer,Lut[BackCol],(Long)XRange*YRange*sizeof(Pixel));
     }
 #endif
 
@@ -267,7 +328,7 @@ void ClearBuffers()
 }
 
 #else /* !memset */
-void ClearBuffers()
+void ClearBuffers( void )
 {
     register Long *ptr;
     register Long *end;
@@ -280,10 +341,13 @@ void ClearBuffers()
 	fill |= fill<<8;
 	fill |= fill<<16;
 #endif
+#ifdef SIXTEENBIT
+        fill |= fill<<16;
+#endif
 	ptr = (Long*)FBuffer;
 	end = (Long*)(FBuffer+(Long)XRange*YRange);
-	do { *ptr++=fill; *ptr++=fill;
-	     *ptr++=fill; *ptr++=fill;
+	do { *ptr++ = fill; *ptr++ = fill;
+	     *ptr++ = fill; *ptr++ = fill;
 	} while( ptr<end );
     }
 
@@ -291,8 +355,8 @@ void ClearBuffers()
     {   DBClear = True;
 	ptr = (Long*)DBuffer;
 	end = (Long*)(DBuffer+(Long)XRange*YRange);
-	do { *ptr++=0; *ptr++=0;
-	     *ptr++=0; *ptr++=0;
+	do { *ptr++ = 0; *ptr++ = 0;
+	     *ptr++ = 0; *ptr++ = 0;
 	} while( ptr<end );
     }
 }
@@ -300,16 +364,14 @@ void ClearBuffers()
 #endif /* UNIX & VMS */
 
 
-
-
-void ReAllocBuffers()
+void ReAllocBuffers( void )
 {
     register Atom __far * __far *iptr;
     register int index,len;
     register Long temp;
 
     temp = (Long)XRange*YRange*sizeof(short)+32;
-#ifdef IBMPC
+#ifdef MSWIN
     if( DBufHandle ) GlobalFree(DBufHandle);
     DBufHandle = GlobalAlloc(GMEM_MOVEABLE,temp);
     if( !DBufHandle ) FatalRenderError("depth buffer");
@@ -351,7 +413,7 @@ void ReAllocBuffers()
 }
 
 
-void ReSizeScreen()
+void ReSizeScreen( void )
 {
     register Real orig;
 
@@ -359,7 +421,7 @@ void ReSizeScreen()
     {   orig = MaxZoom;
         /* Code should match InitialTransform() */
         /* MaxZoom*DScale*Range*750 == 252      */
-	MaxZoom = 0.336*(WorldSize+1500)/Range;
+	MaxZoom = 0.336*WorldSize/Range;
 	ZoomRange = Range;  MaxZoom -= 1.0;
 
 	/* Handle Change in MaxZoom */
@@ -370,7 +432,7 @@ void ReSizeScreen()
 	}
     }
 
-#ifdef IBMPC
+#ifdef MSWIN
     if( !FBufHandle || (FBufX!=XRange) || (FBufY!=YRange) )
 #else /* UNIX */
     if( !FBuffer || (FBufX!=XRange) || (FBufY!=YRange) )
@@ -386,8 +448,7 @@ void ReSizeScreen()
 }
 
 
-
-static void PrepareYBucket()
+static void PrepareYBucket( void )
 {
     register Atom __far * __far *temp;
     register Chain __far *chain;
@@ -427,17 +488,10 @@ static void PrepareYBucket()
     BucketFlag = True;
 }
 
-#ifdef FUNCPROTO
-/* Function Prototypes */
-static void SqrInterval( Interval __far* );
-static void VoxelInsert( Atom __far*, int );
-static int AtomInter( Atom __far* );
-#endif
 
-
-static void SqrInterval( ival )
-    Interval __far *ival;
-{   register Real l,h;
+static void SqrInterval( Interval __far *ival )
+{
+    register Real l,h;
 
     l = ival->l;
     h = ival->h;
@@ -454,9 +508,8 @@ static void SqrInterval( ival )
     }
 }
 
-static void VoxelInsert( ptr, ref )
-    Atom __far *ptr;
-    int ref;
+
+static void VoxelInsert( Atom __far *ptr,  int ref )
 {
     register Item __far *datum;
     register int i;
@@ -481,7 +534,7 @@ static void VoxelInsert( ptr, ref )
 }
 
 
-void ResetVoxelData()
+void ResetVoxelData( void )
 {
     register Item __far *datum;
     register int i;
@@ -502,8 +555,7 @@ void ResetVoxelData()
 }
 
 
-void CreateVoxelData( flag )
-    int flag;
+void CreateVoxelData( int flag )   
 {
     static Interval ix, iy, iz;
     register int lvx, lvy, lvz;
@@ -517,9 +569,8 @@ void CreateVoxelData( flag )
     register Group __far *group;
     register Atom __far *aptr;
 
-
     ResetVoxelData();
-    ProbeCount = InVoxCount = VoxelCount = 0;
+    InVoxCount = VoxelCount = 0;
     VoxRatio = (Real)SideLen/VOXORDER;
     IVoxRatio = 1.0/VoxRatio;
     VoxelsDone = True;
@@ -539,7 +590,6 @@ void CreateVoxelData( flag )
 	lvx = (int)((mx-rad)*IVoxRatio);  hvx = (int)((mx+rad)*IVoxRatio);
 	lvy = (int)((my-rad)*IVoxRatio);  hvy = (int)((my+rad)*IVoxRatio);
 	lvz = (int)((mz-rad)*IVoxRatio);  hvz = (int)((mz+rad)*IVoxRatio);
-
 
 	for( px=lvx; px<=hvx; px++ )
 	{   ix.l=px*VoxRatio-mx;
@@ -575,7 +625,7 @@ void CreateVoxelData( flag )
 }
 
 
-void ShadowTransform()
+void ShadowTransform( void )
 {
     ShadowI = (LightXComp*LightDot(RotX[0],-RotY[0],RotZ[0]))/LightLength;
     ShadowJ = (LightYComp*LightDot(RotX[0],-RotY[0],RotZ[0]))/LightLength;
@@ -601,15 +651,14 @@ void ShadowTransform()
 }
 
 
-static int AtomInter( ptr )
-    Atom __far *ptr;
+static int AtomInter( Atom __far *ptr )
 {
     register Long modv,radius2;
     register int vx, vy, vz;
     register Real tca;
 
     if( ptr->mbox == RayCount )
-	return( False );
+	return False;
     ptr->mbox = RayCount;
 
     vx = (int)ptr->xorg-ShadowX;
@@ -617,7 +666,7 @@ static int AtomInter( ptr )
     vz = (int)ptr->zorg-ShadowZ;
 
     tca = vx*ShadowI + vy*ShadowJ + vz*ShadowK;
-    if( tca<0.0 ) return( False );
+    if( tca<0.0 ) return False;
     
     radius2 = ptr->radius+10;  radius2 = radius2*radius2;
     modv = (Long)vx*vx + (Long)vy*vy + (Long)vz*vz - radius2;
@@ -625,19 +674,30 @@ static int AtomInter( ptr )
 }
 
 
-static int ShadowRay()
+static int VoxelInter( Item __far *ptr )
+{
+    while( ptr )
+    {   if( (ptr->data!=Exclude) && AtomInter(ptr->data) )
+        {   SBuffer = ptr->data;
+            return True;
+        }
+        ptr = ptr->list;
+    }
+    return False;
+}
+
+
+static int ShadowRay( void )
 {
     register Item __far * __far *ident;
-    register Item __far *ptr;
     register Real ex, ey, ez;
     register Long dx, dy, dz;
     register int ref;
-
    
     RayCount++;
     if( SBuffer )
     {   if( (SBuffer!=Exclude) && AtomInter(SBuffer) )
-	    return( True );
+	    return True;
 	SBuffer = (void __far*)0;
     }
 
@@ -648,48 +708,47 @@ static int ShadowRay()
     ref = VOXORDER2*xcord+VOXORDER*ycord+zcord;
     ident = (Item __far* __far*)(HashTable+ref);
 
-    if( xflag==1 ) 
+    if( xflag == 1 ) 
     {   dx = (Long)(((xcord+1)-ex)*deltax);
     } else if( xflag == -1 )
     {   dx = (Long)((ex-xcord)*deltax); 
     } else dx = INFINITY;
 
-    if( yflag==1 ) 
+    if( yflag == 1 ) 
     {   dy = (Long)(((ycord+1)-ey)*deltay);
     } else if( yflag == -1 )
     {   dy = (Long)((ey-ycord)*deltay); 
     } else dy = INFINITY;
 
-    if( zflag==1 ) 
+    if( zflag == 1 ) 
     {   dz = (Long)(((zcord+1)-ez)*deltaz);
     } else if( zflag == -1 )
     {   dz = (Long)((ez-zcord)*deltaz); 
     } else dz = INFINITY;
-
     
-    while( True )
-    {   for( ptr = *ident; ptr; ptr = ptr->list )
-	    if( (ptr->data!=Exclude) && AtomInter(ptr->data) )
-	    {   SBuffer = ptr->data;
-		return( True );
-	    }
-
-	if( (dx<=dy) && (dx<=dz) )
-	{   xcord += xflag;
-	    if( (xcord<0) || (xcord>=VOXORDER) ) return( False );
-	    ident += xhash; dx += deltax;
-	} else if( dy<=dz  ) /*(dy<=dx)*/
-	{   ycord += yflag;
-	    if( (ycord<0) || (ycord>=VOXORDER) ) return( False );
-	    ident += yhash; dy += deltay;
-	} else /* (dz<=dx) && (dz<=dy) */
-	{   zcord += zflag;
-	    if( (zcord<0) || (zcord>=VOXORDER) ) return( False );
-	    ident += zhash; dz += deltaz;
-	}
+    while( !VoxelInter(*ident) )
+    {   if( (dx<=dy) && (dx<=dz) )
+        {   xcord += xflag;
+            if( (xcord<0) || (xcord>=VOXORDER) )
+                return False;
+            ident += xhash; 
+            dx += deltax;
+        } else if( dy <= dz  ) /*(dy<=dx)*/
+        {   ycord += yflag;
+            if( (ycord<0) || (ycord>=VOXORDER) )
+                return False;
+            ident += yhash;
+            dy += deltay;
+        } else /* (dz<=dx) && (dz<=dy) */
+        {   zcord += zflag;
+            if( (zcord<0) || (zcord>=VOXORDER) )
+                return False;
+            ident += zhash; 
+            dz += deltaz;
+        }
     }
+    return True;
 }
-
 
 
 #define UpdateScanAcross \
@@ -700,7 +759,7 @@ static int ShadowRay()
 
 
 /* ScanLine for Shadows! */
-static void ScanLine()
+static void ScanLine( void )
 {
     static Atom __far *list;
     register Atom __far *ptr;
@@ -724,7 +783,6 @@ static void ScanLine()
     {   *iptr++ = (void __far*)0;  *iptr++ = (void __far*)0;
 	*iptr++ = (void __far*)0;  *iptr++ = (void __far*)0;
     }
-
 
     for( scan=0; scan<YRange; scan++ )
     {   for( ptr = YBucket[scan]; ptr; ptr = ptr->bucket )
@@ -788,13 +846,8 @@ static void ScanLine()
 }
 
 
-#ifdef FUNCPROTO
-/* Function Prototype */
-static void DisplayHBonds( HBond __far *, int );
-#endif
 
-
-static void DisplaySpaceFill()
+static void DisplaySpaceFill( void )
 {
     register Chain __far *chain;
     register Group __far *group;
@@ -814,8 +867,24 @@ static void DisplaySpaceFill()
 		DrawSphere(aptr->x,aptr->y,aptr->z,aptr->irad,aptr->col);
 }
 
+static void DisplayStars( void )
+{
+    register Chain __far *chain;
+    register Group __far *group;
+    register Atom __far *aptr;
 
-static void DisplayWireframe()
+    if( UseClipping )
+    {   ForEachAtom
+	    if( aptr->flag&StarFlag )
+		ClipStar(aptr->x,aptr->y,aptr->z,aptr->radius,aptr->col);
+    } else 
+	ForEachAtom
+	    if( aptr->flag&StarFlag )
+		DrawStar(aptr->x,aptr->y,aptr->z,aptr->radius,aptr->col);
+}
+
+
+static void DisplayWireframe( void )
 {
     register Bond __far *bptr;
     register Atom __far *s;
@@ -824,61 +893,64 @@ static void DisplayWireframe()
 
     if( UseClipping )
     {   ForEachBond
-           if( bptr->flag & DrawBondFlag )
+	   if( bptr->flag & DrawBondFlag )
            {   s = bptr->srcatom; d = bptr->dstatom;
 	       if( !bptr->col ) 
 	       {   sc = s->col;  dc = d->col;
 	       } else sc = dc = bptr->col;
 
 	       if( bptr->flag&WireFlag )
-	       {   ClipTwinVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc);
+	       {   ClipTwinVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc,bptr->altl);
 	       } else if( bptr->flag&CylinderFlag )
 	       {   if( bptr->irad>0 )
 	           {  ClipCylinder(s->x,s->y,s->z,d->x,d->y,d->z,
-                                   sc,dc,bptr->irad);
+                                   sc,dc,bptr->irad, bptr->altl);
 	           } else ClipTwinLine(s->x,s->y,s->z,d->x,d->y,d->z,
-				   sc+ColourMask,dc+ColourMask);
+				   sc+ColourMask,dc+ColourMask,bptr->altl);
                } else /* bptr->flag & DashFlag */
-                   ClipDashVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc);
+                   ClipDashVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc,bptr->altl);
 	   }
     } else
 	ForEachBond
-           if( bptr->flag & DrawBondFlag )
+	   if( bptr->flag & DrawBondFlag )
            {   s = bptr->srcatom; d = bptr->dstatom;
                if( !bptr->col )
                {   sc = s->col;  dc = d->col;
                } else sc = dc = bptr->col;
 
                if( bptr->flag&WireFlag )
-               {      DrawTwinVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc);
+               {      DrawTwinVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc,
+                        bptr->altl);
 	       } else if( bptr->flag&CylinderFlag )
 	       {   if( bptr->irad>0 )
 	           {  DrawCylinder(s->x,s->y,s->z,d->x,d->y,d->z,
-                                   sc,dc,bptr->irad);
+                                   sc,dc,bptr->irad,bptr->altl);
 	           } else DrawTwinLine(s->x,s->y,s->z,d->x,d->y,d->z,
-				   sc+ColourMask,dc+ColourMask);
-	       } else ClipDashVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc);
+				   sc+ColourMask,dc+ColourMask,bptr->altl);
+	       } else ClipDashVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc,
+                        bptr->altl);
            }
 }
 
 
 /* Used by DisplayDoubleBonds! */
-static void DisplayCylinder(x1,y1,z1,x2,y2,z2,c1,c2,rad)
-    int x1,y1,z1,x2,y2,z2,c1,c2,rad;
+static void DisplayCylinder( int x1, int y1, int z1, 
+                             int x2, int y2, int z2, 
+                             int c1, int c2, int rad, char altl)
 {
     if( UseClipping )
     {   if( rad == 0 )
-        {   ClipTwinLine(x1,y1,z1,x2,y2,z2,c1+ColourMask,c2+ColourMask);
-        } else ClipCylinder(x1,y1,z1,x2,y2,z2,c1,c2,rad);
+        {   ClipTwinLine(x1,y1,z1,x2,y2,z2,c1+ColourMask,c2+ColourMask,altl);
+        } else ClipCylinder(x1,y1,z1,x2,y2,z2,c1,c2,rad,altl);
     } else
     {   if( rad == 0 )
-        {   DrawTwinLine(x1,y1,z1,x2,y2,z2,c1+ColourMask,c2+ColourMask);
-        } else DrawCylinder(x1,y1,z1,x2,y2,z2,c1,c2,rad);
+        {   DrawTwinLine(x1,y1,z1,x2,y2,z2,c1+ColourMask,c2+ColourMask,altl);
+        } else DrawCylinder(x1,y1,z1,x2,y2,z2,c1,c2,rad,altl);
     }
 }
 
 
-static void DisplayDoubleBonds()
+static void DisplayDoubleBonds( void )
 {
     register Atom __far *s;
     register Atom __far *d;
@@ -897,12 +969,14 @@ static void DisplayDoubleBonds()
             flag = (bptr->flag&CylinderFlag) && (bptr->irad>4);
             if( !(bptr->flag & DoubBondFlag) || flag )
             {   if( bptr->flag&WireFlag )
-                {   ClipTwinVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc);
+                {   ClipTwinVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc, 
+                     bptr->altl);
                 } else if( bptr->flag&CylinderFlag )
                 {   DisplayCylinder(s->x,s->y,s->z,d->x,d->y,d->z,
-                                    sc,dc,bptr->irad);
+                                    sc,dc,bptr->irad,bptr->altl);
                 } else /* bptr->flag & DashFlag */
-                    ClipDashVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc);
+                    ClipDashVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc,
+                      bptr->altl);
             } 
 
             if( (bptr->flag & (DoubBondFlag|TripBondFlag)) && !flag )
@@ -940,28 +1014,28 @@ static void DisplayDoubleBonds()
 
                 if( bptr->flag&WireFlag )
                 {   ClipTwinVector(s->x+ix,s->y+iy,s->z,
-                                   d->x+ix,d->y+iy,d->z,sc,dc);
+                                   d->x+ix,d->y+iy,d->z,sc,dc,bptr->altl);
                     ClipTwinVector(s->x-ix,s->y-iy,s->z,
-                                   d->x-ix,d->y-iy,d->z,sc,dc);
+                                   d->x-ix,d->y-iy,d->z,sc,dc,bptr->altl);
                 } else if( bptr->flag&CylinderFlag )
                 {   DisplayCylinder(s->x+ix,s->y+iy,s->z,
                                     d->x+ix,d->y+iy,d->z,
-                                    sc,dc,bptr->irad);
+                                    sc,dc,bptr->irad,bptr->altl);
                     DisplayCylinder(s->x-ix,s->y-iy,s->z,
                                     d->x-ix,d->y-iy,d->z,
-                                    sc,dc,bptr->irad);
+                                    sc,dc,bptr->irad,bptr->altl);
                 } else /* bptr->flag & DashFlag */
                 {  ClipDashVector(s->x+ix,s->y+iy,s->z,
-                                  d->x+ix,d->y+iy,d->z,sc,dc);
+                                  d->x+ix,d->y+iy,d->z,sc,dc,bptr->altl);
                    ClipDashVector(s->x+ix,s->y+iy,s->z,
-                                  d->x+ix,d->y+iy,d->z,sc,dc);
+                                  d->x+ix,d->y+iy,d->z,sc,dc,bptr->altl);
                 }
             }
         }
 }
 
 
-static void DisplayBackbone()
+static void DisplayBackbone( void )
 {
     register Chain __far *chain;
     register Bond __far *bptr;
@@ -979,19 +1053,17 @@ static void DisplayBackbone()
            if( bptr->flag&CylinderFlag )
            {   if( bptr->irad>0 )
                { ClipCylinder(s->x,s->y,s->z,d->x,d->y,d->z,
-                              sc,dc,bptr->irad);
+                              sc,dc,bptr->irad,bptr->altl);
                } else ClipTwinLine(s->x,s->y,s->z,d->x,d->y,d->z,
-                                   sc+ColourMask,dc+ColourMask);
+                                   sc+ColourMask,dc+ColourMask,bptr->altl);
            } else if( bptr->flag & WireFlag )
-           {      ClipTwinVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc);
-           } else ClipDashVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc);
+           {      ClipTwinVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc,bptr->altl);
+           } else ClipDashVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc,bptr->altl);
        }
 }
 
 
-static void DisplayHBonds( list, mode )
-    HBond __far *list; 
-    int mode;
+static void DisplayHBonds( HBond __far *list, int mode )
 {
     register HBond __far *ptr;
     register Atom __far *s;
@@ -1014,16 +1086,16 @@ static void DisplayHBonds( list, mode )
 	    if( ptr->flag & CylinderFlag )
 	    {   if( ptr->irad>0 )
 		{   ClipCylinder(s->x,s->y,s->z,d->x,d->y,d->z,
-                                 sc,dc,ptr->irad);
+                                 sc,dc,ptr->irad,ptr->altl);
 		} else ClipTwinLine(s->x,s->y,s->z,d->x,d->y,d->z,
-				    sc+ColourMask,dc+ColourMask);
-	    } else ClipDashVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc);
+				    sc+ColourMask,dc+ColourMask,ptr->altl);
+	    } else ClipDashVector(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc,ptr->altl);
 	}
 }
 
 
 
-static void DisplayBoxes()
+static void DisplayBoxes( void )
 {
     register Real lena, lenb, lenc;
     register Real tmpx, tmpy, tmpz;
@@ -1035,7 +1107,6 @@ static void DisplayBoxes()
     register int dyx,dyy,dyz;
     register int dzx,dzy,dzz;
     register int x, y, z;
-
 
     if( DrawAxes  || DrawBoundBox )
     {   dxx = (int)(MaxX*MatX[0]);
@@ -1053,80 +1124,82 @@ static void DisplayBoxes()
 	if( DrawAxes )
 	{   /* Line (MinX,0,0) to (MaxX,0,0) */
             x = XOffset+dxx;  y = YOffset+dxy;  z = ZOffset+dxz;
-            if( ZValid(z) ) DisplayString(x+2,y,z,"X",BoxCol);
+            if( ZValid(z) ) DisplayRasString(x+2,y,z,"X",BoxCol);
 	    ClipTwinLine(XOffset-dxx,YOffset-dxy,ZOffset-dxz,
-                         x,y,z,BoxCol,BoxCol);
+                         x,y,z,BoxCol,BoxCol,' ');
 
 	    /* Line (0,MinY,0) to (0,MaxY,0) */
             x = XOffset+dyx;  y = YOffset+dyy;  z = ZOffset+dyz;
-            if( ZValid(z) ) DisplayString(x+2,y,z,"Y",BoxCol);
+            if( ZValid(z) ) DisplayRasString(x+2,y,z,"Y",BoxCol);
 	    ClipTwinLine(XOffset-dyx,YOffset-dyy,ZOffset-dyz, 
-			 x,y,z,BoxCol,BoxCol);
+			 x,y,z,BoxCol,BoxCol,' ');
 
 
 	    /* Line (0,0,MinZ) to (0,0,MaxZ) */
             x = XOffset-dzx;  y = YOffset-dzy;  z = ZOffset-dzz;
-            if( ZValid(z) ) DisplayString(x+2,y,z,"Z",BoxCol);
+            if( ZValid(z) ) DisplayRasString(x+2,y,z,"Z",BoxCol);
 	    ClipTwinLine(XOffset+dzx,YOffset+dzy,ZOffset+dzz, 
-			 x,y,z,BoxCol,BoxCol);
+			 x,y,z,BoxCol,BoxCol,' ');
 
 	}
 
 	if( DrawBoundBox )
 	{   /* Line (MinX,MinY,MinZ) to (MaxX,MinY,MinZ) */
 	    x=XOffset-dyx-dzx;  y=YOffset-dyy-dzy;  z=ZOffset-dyz-dzz;
-	    ClipTwinLine(x-dxx,y-dxy,z-dxz,x+dxx,y+dxy,z+dxz,BoxCol,BoxCol);
+	    ClipTwinLine(x-dxx,y-dxy,z-dxz,x+dxx,y+dxy,z+dxz,BoxCol,BoxCol,' ');
 
 	    /* Line (MaxX,MinY,MinZ) to (MaxX,MaxY,MinZ) */
 	    x=XOffset+dxx-dzx;  y=YOffset+dxy-dzy;  z=ZOffset+dxz-dzz;
-	    ClipTwinLine(x-dyx,y-dyy,z-dyz,x+dyx,y+dyy,z+dyz,BoxCol,BoxCol);
+	    ClipTwinLine(x-dyx,y-dyy,z-dyz,x+dyx,y+dyy,z+dyz,BoxCol,BoxCol,' ');
 
 	    /* Line (MaxX,MaxY,MinZ) to (MinX,MaxY,MinZ) */
 	    x=XOffset+dyx-dzx;  y=YOffset+dyy-dzy;  z=ZOffset+dyz-dzz;
-	    ClipTwinLine(x+dxx,y+dxy,z+dxz,x-dxx,y-dxy,z-dxz,BoxCol,BoxCol);
+	    ClipTwinLine(x+dxx,y+dxy,z+dxz,x-dxx,y-dxy,z-dxz,BoxCol,BoxCol,' ');
 
 	    /* Line (MinX,MaxY,MinZ) to (MinX,MinY,MinZ) */
 	    x=XOffset-dxx-dzx;  y=YOffset-dxy-dzy;  z=ZOffset-dxz-dzz;
-	    ClipTwinLine(x+dyx,y+dyy,z+dyz,x-dyx,y-dyy,z-dyz,BoxCol,BoxCol);
+	    ClipTwinLine(x+dyx,y+dyy,z+dyz,x-dyx,y-dyy,z-dyz,BoxCol,BoxCol,' ');
 
 
 	    /* Line (MinX,MinY,MinZ) to (MinX,MinY,MaxZ) */
 	    x=XOffset-dxx-dyx;  y=YOffset-dxy-dyy;  z=ZOffset-dxz-dyz;
-	    ClipTwinLine(x-dzx,y-dzy,z-dzz,x+dzx,y+dzy,z+dzz,BoxCol,BoxCol);
+	    ClipTwinLine(x-dzx,y-dzy,z-dzz,x+dzx,y+dzy,z+dzz,BoxCol,BoxCol,' ');
 
 	    /* Line (MaxX,MinY,MinZ) to (MaxX,MinY,MaxZ) */
 	    x=XOffset+dxx-dyx;  y=YOffset+dxy-dyy;  z=ZOffset+dxz-dyz;
-	    ClipTwinLine(x-dzx,y-dzy,z-dzz,x+dzx,y+dzy,z+dzz,BoxCol,BoxCol);
+	    ClipTwinLine(x-dzx,y-dzy,z-dzz,x+dzx,y+dzy,z+dzz,BoxCol,BoxCol,' ');
 
 	    /* Line (MaxX,MaxY,MinZ) to (MaxX,MaxY,MaxZ) */
 	    x=XOffset+dxx+dyx;  y=YOffset+dxy+dyy;  z=ZOffset+dxz+dyz;
-	    ClipTwinLine(x-dzx,y-dzy,z-dzz,x+dzx,y+dzy,z+dzz,BoxCol,BoxCol);
+	    ClipTwinLine(x-dzx,y-dzy,z-dzz,x+dzx,y+dzy,z+dzz,BoxCol,BoxCol,' ');
 
 	    /* Line (MinX,MaxY,MinZ) to (MinX,MaxY,MaxZ) */
 	    x=XOffset-dxx+dyx;  y=YOffset-dxy+dyy;  z=ZOffset-dxz+dyz;
-	    ClipTwinLine(x-dzx,y-dzy,z-dzz,x+dzx,y+dzy,z+dzz,BoxCol,BoxCol);
+	    ClipTwinLine(x-dzx,y-dzy,z-dzz,x+dzx,y+dzy,z+dzz,BoxCol,BoxCol,' ');
 
 
 	    /* Line (MinX,MinY,MaxZ) to (MaxX,MinY,MaxZ) */
 	    x=XOffset-dyx+dzx;  y=YOffset-dyy+dzy;  z=ZOffset-dyz+dzz;
-	    ClipTwinLine(x-dxx,y-dxy,z-dxz,x+dxx,y+dxy,z+dxz,BoxCol,BoxCol);
+	    ClipTwinLine(x-dxx,y-dxy,z-dxz,x+dxx,y+dxy,z+dxz,BoxCol,BoxCol,' ');
 
 	    /* Line (MaxX,MinY,MaxZ) to (MaxX,MaxY,MaxZ) */
 	    x=XOffset+dxx+dzx;  y=YOffset+dxy+dzy;  z=ZOffset+dxz+dzz;
-	    ClipTwinLine(x-dyx,y-dyy,z-dyz,x+dyx,y+dyy,z+dyz,BoxCol,BoxCol);
+	    ClipTwinLine(x-dyx,y-dyy,z-dyz,x+dyx,y+dyy,z+dyz,BoxCol,BoxCol,' ');
 
 	    /* Line (MaxX,MaxY,MaxZ) to (MinX,MaxY,MaxZ) */
 	    x=XOffset+dyx+dzx;  y=YOffset+dyy+dzy;  z=ZOffset+dyz+dzz;
-	    ClipTwinLine(x+dxx,y+dxy,z+dxz,x-dxx,y-dxy,z-dxz,BoxCol,BoxCol);
+	    ClipTwinLine(x+dxx,y+dxy,z+dxz,x-dxx,y-dxy,z-dxz,BoxCol,BoxCol,' ');
 
 	    /* Line (MinX,MaxY,MaxZ) to (MinX,MinY,MaxZ) */
 	    x=XOffset-dxx+dzx;  y=YOffset-dxy+dzy;  z=ZOffset-dxz+dzz;
-	    ClipTwinLine(x+dyx,y+dyy,z+dyz,x-dyx,y-dyy,z-dyz,BoxCol,BoxCol);
+	    ClipTwinLine(x+dyx,y+dyy,z+dyz,x-dyx,y-dyy,z-dyz,BoxCol,BoxCol,' ');
 	}
     }
 
     if( DrawUnitCell && *Info.spacegroup )
     {   /* Calculate Unit Cell! */
+      if (det(Info.matf2o) < 1.1 )
+      {
 	lena = 250.0*Info.cella;
 	lenb = 250.0*Info.cellb;
 	lenc = 250.0*Info.cellc;
@@ -1145,52 +1218,93 @@ static void DisplayBoxes()
 	dxy = (int)(lena*MatY[0]);
 	dxz = (int)(lena*MatZ[0]);
 
-	dyx = (int)(lenb*(cosg*MatX[0] + sing*MatX[1]));
-	dyy = (int)(lenb*(cosg*MatY[0] + sing*MatY[1]));
-	dyz = (int)(lenb*(cosg*MatZ[0] + sing*MatZ[1]));
+	dyx = (int)(lenb*(cosg*MatX[0] + ProperY(sing*MatX[1])));
+	dyy = (int)(lenb*(cosg*MatY[0] + ProperY(sing*MatY[1])));
+	dyz = (int)(lenb*(cosg*MatZ[0] + ProperY(sing*MatZ[1])));
 
-	dzx = (int)(lenc*(tmpx*MatX[0] + tmpy*MatX[1] + tmpz*MatX[2]));
-	dzy = (int)(lenc*(tmpx*MatY[0] + tmpy*MatY[1] + tmpz*MatY[2]));
-	dzz = (int)(lenc*(tmpx*MatZ[0] + tmpy*MatZ[1] + tmpz*MatZ[2]));
+	dzx = (int)(lenc*(tmpx*MatX[0] + ProperY(tmpy*MatX[1]) + tmpz*MatX[2]));
+	dzy = (int)(lenc*(tmpx*MatY[0] + ProperY(tmpy*MatY[1]) + tmpz*MatY[2]));
+	dzz = (int)(lenc*(tmpx*MatZ[0] + ProperY(tmpy*MatZ[1]) + tmpz*MatZ[2]));
 
 	xorg = XOffset - (int)(OrigCX*MatX[0]+OrigCY*MatX[1]+OrigCZ*MatX[2]);
 	yorg = YOffset - (int)(OrigCX*MatY[0]+OrigCY*MatY[1]+OrigCZ*MatY[2]);
-	zorg = ZOffset + (int)(OrigCX*MatZ[0]+OrigCY*MatZ[1]+OrigCZ*MatZ[2]);
+	zorg = ZOffset - (int)(OrigCX*MatZ[0]+OrigCY*MatZ[1]+OrigCZ*MatZ[2]);
+
+      } else {
+
+        double cellmat[3][3];
+        int ii;
+
+        for (ii = 0; ii < 3; ii++) {
+          cellmat[0][ii] = MatX[0]*Info.matf2o[0][ii] + 
+            ProperY(MatX[1]*Info.matf2o[1][ii]) - MatX[2]*Info.matf2o[2][ii];
+          cellmat[1][ii] = MatY[0]*Info.matf2o[0][ii] + 
+            ProperY(MatY[1]*Info.matf2o[1][ii]) - MatY[2]*Info.matf2o[2][ii];
+          cellmat[2][ii] = MatZ[0]*Info.matf2o[0][ii] + 
+            ProperY(MatZ[1]*Info.matf2o[1][ii]) - MatZ[2]*Info.matf2o[2][ii];
+        }
 
 
+	xorg = XOffset - (int)(OrigCX*MatX[0]+OrigCY*MatX[1]+OrigCZ*MatX[2])
+          + (int)((250.*Info.vecf2o[0])*MatX[0]+
+            ProperY(250.*Info.vecf2o[1])*MatX[1]-
+            (250.*Info.vecf2o[2])*MatX[2]);
+	yorg = YOffset - (int)(OrigCX*MatY[0]+OrigCY*MatY[1]+OrigCZ*MatY[2])
+          + (int)((250.*Info.vecf2o[0])*MatY[0]+
+            ProperY(250.*Info.vecf2o[1])*MatY[1]-
+            (250.*Info.vecf2o[2])*MatY[2]);
+	zorg = ZOffset - (int)(OrigCX*MatZ[0]+OrigCY*MatZ[1]+OrigCZ*MatZ[2])
+          + (int)((250.*Info.vecf2o[0])*MatZ[0]+
+            ProperY(250.*Info.vecf2o[1])*MatZ[1]-
+            (250.*Info.vecf2o[2])*MatZ[2]);
+
+        dxx = (int)(250.*cellmat[0][0]);
+        dxy = (int)(250.*cellmat[1][0]);
+        dxz = (int)(250.*cellmat[2][0]);
+
+        dyx = (int)(250.*cellmat[0][1]);
+        dyy = (int)(250.*cellmat[1][1]);
+        dyz = (int)(250.*cellmat[2][1]);
+
+        dzx = (int)(250.*cellmat[0][2]);
+        dzy = (int)(250.*cellmat[1][2]);
+        dzz = (int)(250.*cellmat[2][2]);
+
+        
+      }
 	/* Draw Unit Cell! */
 	x = xorg;
 	y = yorg;
 	z = zorg;
-	ClipTwinLine(x,y,z,x+dxx,y+dxy,z+dxz,BoxCol,BoxCol);
-	ClipTwinLine(x,y,z,x+dyx,y+dyy,z+dyz,BoxCol,BoxCol);
-	ClipTwinLine(x,y,z,x+dzx,y+dzy,z+dzz,BoxCol,BoxCol);
+	ClipTwinLine(x,y,z,x+dxx,y+dxy,z+dxz,BoxCol,BoxCol,' ');
+	ClipTwinLine(x,y,z,x+dyx,y+dyy,z+dyz,BoxCol,BoxCol,' ');
+	ClipTwinLine(x,y,z,x+dzx,y+dzy,z+dzz,BoxCol,BoxCol,' ');
 
 	x = xorg + dxx + dyx;
 	y = yorg + dxy + dyy;
 	z = zorg + dxz + dyz;
-	ClipTwinLine(x,y,z,x-dxx,y-dxy,z-dxz,BoxCol,BoxCol);
-	ClipTwinLine(x,y,z,x-dyx,y-dyy,z-dyz,BoxCol,BoxCol);
-	ClipTwinLine(x,y,z,x+dzx,y+dzy,z+dzz,BoxCol,BoxCol);
+	ClipTwinLine(x,y,z,x-dxx,y-dxy,z-dxz,BoxCol,BoxCol,' ');
+	ClipTwinLine(x,y,z,x-dyx,y-dyy,z-dyz,BoxCol,BoxCol,' ');
+	ClipTwinLine(x,y,z,x+dzx,y+dzy,z+dzz,BoxCol,BoxCol,' ');
 
 	x = xorg + dxx + dzx;
 	y = yorg + dxy + dzy;
 	z = zorg + dxz + dyz;
-	ClipTwinLine(x,y,z,x-dxx,y-dxy,z-dxz,BoxCol,BoxCol);
-	ClipTwinLine(x,y,z,x+dyx,y+dyy,z+dyz,BoxCol,BoxCol);
-	ClipTwinLine(x,y,z,x-dzx,y-dzy,z-dzz,BoxCol,BoxCol);
+	ClipTwinLine(x,y,z,x-dxx,y-dxy,z-dxz,BoxCol,BoxCol,' ');
+	ClipTwinLine(x,y,z,x+dyx,y+dyy,z+dyz,BoxCol,BoxCol,' ');
+	ClipTwinLine(x,y,z,x-dzx,y-dzy,z-dzz,BoxCol,BoxCol,' ');
 
 	x = xorg + dyx + dzx;
 	y = yorg + dyy + dzy;
 	z = zorg + dyz + dzz;
-	ClipTwinLine(x,y,z,x+dxx,y+dxy,z+dxz,BoxCol,BoxCol);
-	ClipTwinLine(x,y,z,x-dyx,y-dyy,z-dyz,BoxCol,BoxCol);
-	ClipTwinLine(x,y,z,x-dzx,y-dzy,z-dzz,BoxCol,BoxCol);
+	ClipTwinLine(x,y,z,x+dxx,y+dxy,z+dxz,BoxCol,BoxCol,' ');
+	ClipTwinLine(x,y,z,x-dyx,y-dyy,z-dyz,BoxCol,BoxCol,' ');
+	ClipTwinLine(x,y,z,x-dzx,y-dzy,z-dzz,BoxCol,BoxCol,' ');
     }
 }
 
 
-static void DisplaySelected()
+static void DisplaySelected( void )
 {
     register Atom __far *s, __far *d;
     register Chain __far *chain;
@@ -1211,7 +1325,7 @@ static void DisplaySelected()
 	    d = bptr->dstatom;  
 	    col = (d->flag&SelectFlag)? 1 : 0;
 	    dc = Shade2Colour(col);
-	    ClipCylinder(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc,irad);
+	    ClipCylinder(s->x,s->y,s->z,d->x,d->y,d->z,sc,dc,irad,bptr->altl);
 	}
     } else ForEachBond
 	{   s = bptr->srcatom;  
@@ -1222,7 +1336,7 @@ static void DisplaySelected()
 	    col = (d->flag&SelectFlag)? 1 : 0;
 	    dc = Shade2Colour(col);
 	    ClipTwinLine(s->x,s->y,s->z,d->x,d->y,d->z,
-			 sc+ColourMask,dc+ColourMask);
+			 sc+ColourMask,dc+ColourMask,bptr->altl);
 	}
 
 
@@ -1235,13 +1349,15 @@ static void DisplaySelected()
 }
 
 
-static void RenderFrame()
+static void RenderFrame( void )
 {
     register Chain __far *chain;
 
     if( !DisplayMode )
     {   if( DrawAtoms ) 
 	    DisplaySpaceFill();
+        if( DrawStars )
+            DisplayStars();
 
 	if( !UseSlabPlane || (SlabMode != SlabSection) )
 	{   if( DrawBonds ) 
@@ -1255,8 +1371,8 @@ static void RenderFrame()
 		    if( chain->glist )
                         DisplayRibbon( chain );
 
-	    if( DrawDots ) DisplaySurface();
-	    if( DrawLabels ) DisplayLabels();
+	    if( DotPtr ) DisplaySurface();
+	    if( LabelList ) DisplayLabels();
             if( MonitList ) DisplayMonitors();
 	    DisplayHBonds( Database->slist, SSBondMode );
 	    DisplayHBonds( Database->hlist, HBondMode );
@@ -1267,7 +1383,7 @@ static void RenderFrame()
 }
 
 
-void DrawFrame()
+void DrawFrame( void )
 {
     register double temp;
     register int wide;
@@ -1289,7 +1405,7 @@ void DrawFrame()
 	UseClipping = True;
     } else UseClipping = UseScreenClip;
 
-#ifdef IBMPC
+#ifdef MSWIN
     /* Lock Buffers into Memory */
     FBuffer = (Pixel __huge*)GlobalLock(FBufHandle);
     DBuffer = (short __huge*)GlobalLock(DBufHandle);
@@ -1300,7 +1416,8 @@ void DrawFrame()
     View.ymax = YRange;
 
     if( UseStereo )
-    {   temp = StereoAngle/180.0;
+    {
+        temp = StereoAngle/180.0;
         wide = XRange>>1;
 
         /* Create 'Left' View structure */
@@ -1331,7 +1448,7 @@ void DrawFrame()
         RenderFrame();
     }
 
-#ifdef IBMPC
+#ifdef MSWIN
     /* Unlock Buffers */
     GlobalUnlock(FBufHandle);
     GlobalUnlock(DBufHandle);
@@ -1341,16 +1458,7 @@ void DrawFrame()
 }
 
 
-
-#ifdef FUNCPROTO
-/* Function Prototype */
-static void TestAtomProximity( Atom __far *, int, int );
-#endif
-
-
-static void TestAtomProximity( ptr, xpos, ypos )
-    Atom __far *ptr;
-    int xpos, ypos;
+static void TestAtomProximity(  Atom __far *ptr, int xpos, int ypos )
 {
     register Long dist;
     register int dx,dy;
@@ -1377,8 +1485,8 @@ static void TestAtomProximity( ptr, xpos, ypos )
     QAtom = ptr;
 }
 
-static void IdentifyAtom( xpos, ypos )
-    int xpos, ypos;
+
+static void IdentifyAtom( int xpos, int ypos )
 {
     register int rad, wide, dpth;
     register int new, dx, dy, dz;
@@ -1396,7 +1504,20 @@ static void IdentifyAtom( xpos, ypos )
 
     if( !DisplayMode )
     {   if( !UseSlabPlane || (SlabMode != SlabSection) )
-	{   if( DrawBonds )
+        {   for( chain=Database->clist; chain; chain=chain->cnext )
+                for( group=chain->glist; group; group=group->gnext )
+                {   if( group->flag & DrawKnotFlag )
+                    {   if( IsProtein(group->refno) )
+                        {   aptr = FindGroupAtom(group,1);
+                        } else aptr = FindGroupAtom(group,7);
+                        if( aptr ) TestAtomProximity(aptr,xpos,ypos);
+                    }
+                }
+
+            /* Double tolerance for spline knots! */
+            if( IdentFound ) IdentDist >>= 1;
+
+            if( DrawBonds )
 		ForEachBond
 		    if( bptr->flag&DrawBondFlag )
 		    {   TestAtomProximity(bptr->srcatom,xpos,ypos);
@@ -1430,6 +1551,7 @@ static void IdentifyAtom( xpos, ypos )
 			TestAtomProximity(hptr->dst,xpos,ypos);
 		    }
 		}
+
 	}
 
 	ForEachAtom
@@ -1439,7 +1561,7 @@ static void IdentifyAtom( xpos, ypos )
 		QGroup = group;
 	    }
 
-	    if( aptr->flag & SphereFlag )
+	    if( aptr->flag & (SphereFlag | StarFlag) )
 	    {   dy = AbsFun(aptr->y-ypos);
 		if( dy>aptr->irad ) continue;
 		rad = LookUp[aptr->irad][dy];
@@ -1505,16 +1627,18 @@ static void IdentifyAtom( xpos, ypos )
 }
 
 
-void SetPickMode( mode )
-    int mode;
+void SetPickMode( int mode )
 {
-    PickMode = mode;
+    if( PickMode != mode )
+    {   if( (PickMode==PickOrign) || (mode==PickOrign) )
+            ReDrawFlag |= RFTrans | RFRotate;
+        PickMode = mode;
+    }
     PickCount = 0;
 }
 
 
-static void DescribeAtom( ptr, flag )
-    AtomRef *ptr;  int flag;
+static void DescribeAtom( AtomRef *ptr, int flag )
 {
     register char *str;
     register int i,ch;
@@ -1548,8 +1672,7 @@ static void DescribeAtom( ptr, flag )
 }
 
 
-void PickAtom( shift, xpos, ypos )
-    int shift, xpos, ypos;
+int PickAtom( int shift, int xpos, int ypos )
 {
     register AtomRef *ptr;
     register Label *label;
@@ -1557,63 +1680,93 @@ void PickAtom( shift, xpos, ypos )
     register char *str;
     register int len;
 
-    char buffer[40];
+    char buffer[80];
     AtomRef ref;
 
-
     if( PickMode == PickNone )
-        return;
+        return False;
 
     IdentifyAtom(xpos,ypos);
 
-    if( QAtom )
-    {   if( PickMode == PickIdent )
-        {   if( CommandActive )
-	        WriteChar('\n');
-            CommandActive = False;
+    if( !QAtom )
+        return False;
 
-            WriteString("Atom: ");
-            str = ElemDesc[QAtom->refno];
-            if( str[0]!=' ' )   WriteChar(str[0]);
-            WriteChar(str[1]);  WriteChar(str[2]);
-            if( str[3]!=' ' )   WriteChar(str[3]);
+    if( PickMode == PickIdent || PickMode == PickCoord )
+    {   InvalidateCmndLine();
 
-	    sprintf(buffer," %d  ",QAtom->serno);
-            WriteString(buffer);
+        WriteString("Atom: ");
+        str = ElemDesc[QAtom->refno];
+        if( str[0]!=' ' )   WriteChar(str[0]);
+        WriteChar(str[1]);  WriteChar(str[2]);
+        if( str[3]!=' ' )   WriteChar(str[3]);
 
-            str = Residue[QGroup->refno];
-            if( QAtom->flag&HeteroFlag )
-            {   WriteString("Hetero: ");
-            } else WriteString("Group: ");
+        if( !(QAtom->altl == ' ')) {
+          WriteChar(';');
+          WriteChar(QAtom->altl);
+        }
 
-            if( str[0]!=' ' )  WriteChar(str[0]);
-            WriteChar(str[1]); WriteChar(str[2]);
+        sprintf(buffer," %d  ",QAtom->serno);
+        WriteString(buffer);
 
-            sprintf(buffer," %d",QGroup->serno);
-            WriteString(buffer);
+        if (!(QGroup->serno == -9999)) {
+          str = Residue[QGroup->refno];
+          if( QAtom->flag&HeteroFlag )
+          {   WriteString("Hetero: ");
+          } else WriteString("Group: ");
 
-            if( QChain->ident!=' ' )
-            {   WriteString("  Chain: ");
-                WriteChar(QChain->ident);
-            }
-            WriteChar('\n');
+          if( str[0]!=' ' )  WriteChar(str[0]);
+          WriteChar(str[1]); WriteChar(str[2]);
 
-        } else if( PickMode == PickLabel )
-        {   if( !QAtom->label )
-            {   if( MainGroupCount > 1 )
-                {   strcpy(buffer,"%n%r");
-                    str = buffer+4;
-                    if( Info.chaincount > 1 )
-                    {   if( isdigit(QChain->ident) )
-                            *str++ = ':';
-                        *str++ = '%';
-                        *str++ = 'c';
-                    }
-                    strcpy(str,".%a");
+          sprintf(buffer," %d",QGroup->serno);
+          WriteString(buffer);
+          if (!(QGroup->insert == ' ') && !(QGroup->insert=='\0'))
+            WriteChar(QGroup->insert);
+        }
 
-                    len = (str-buffer) + 3;
-                    label = CreateLabel(buffer,len);
-                } else label = CreateLabel("%e%i",4);
+        if( QChain->ident!=' ' )
+        {   WriteString("  Chain: ");
+            WriteChar(QChain->ident);
+        }
+
+        if( QAtom->model) {
+          sprintf(buffer,"  Model: %d",QAtom->model);
+          WriteString(buffer);
+        }
+        WriteChar('\n');
+        if (PickMode == PickCoord ) {
+           register double x, y, z;
+
+           x = (double)(QAtom->xorg + OrigCX)/250.0
+               +(double)(QAtom->xtrl)/10000.0;
+           y = (double)(QAtom->yorg + OrigCY)/250.0
+               +(double)(QAtom->ytrl)/10000.0;
+           z = (double)(QAtom->zorg + OrigCZ)/250.0
+               +(double)(QAtom->ztrl)/10000.0;
+
+#ifdef INVERT
+           sprintf(buffer, "  Coordinates: %9.3f %9.3f %9.3f\n",x,-y,-z);
+#else
+           sprintf(buffer, "  Coordinates: %9.3f %9.3f %9.3f\n",x,y,-z);
+#endif
+           WriteString(buffer);
+        }
+
+    } else if( PickMode == PickLabel )
+    {   if( !QAtom->label )
+        {   if( MainGroupCount > 1 )
+            {   strcpy(buffer,"%n%r");
+                str = buffer+4;
+                if( Info.chaincount > 1 )
+                {   if( isdigit(QChain->ident) )
+                        *str++ = ':';
+                    *str++ = '%';
+                    *str++ = 'c';
+                }
+                strcpy(str,".%a");
+
+                len = (str-buffer) + 3;
+                label = CreateLabel(buffer,len);
+            } else label = CreateLabel("%e%i%A",6);
 
                 QAtom->label = label;
                 label->refcount++;
@@ -1621,125 +1774,132 @@ void PickAtom( shift, xpos, ypos )
             {   DeleteLabel( (Label*)QAtom->label );
                 QAtom->label = (void*)0;
             }
-
-            DrawLabels = LabelList? True : False;
             ReDrawFlag |= RFRefresh;
 
         } else if( PickMode == PickCentr )
         {   CenX = QAtom->xorg;
             CenY = QAtom->yorg;
             CenZ = QAtom->zorg;
+            ReDrawFlag |= RFRotate;
 
             ref.chn = QChain;
             ref.grp = QGroup;
             ref.atm = QAtom;
 
-            if( CommandActive )
-	        WriteChar('\n');
-            CommandActive = False;
-
+            InvalidateCmndLine();
             WriteString("Rotating about ");
             DescribeAtom(&ref,True);
             WriteChar('\n');
 
-        } else if( PickMode == PickMonit )
-        {   /* State Machine Implementation */
+    } else if( PickMode == PickOrign )
+    {   CenX = QAtom->xorg;
+        CenY = QAtom->yorg;
+        CenZ = QAtom->zorg;
+        ReDrawFlag |= RFRotate;
 
-            if( PickCount == 0 )
-            {   PickHist[0].atm = QAtom;
-                PickCount = 1;
-            } else if( PickCount == 1 )
-            {   if( !shift )
-                {   if( PickHist[0].atm != QAtom )
-                    {   AddMonitors(PickHist[0].atm,QAtom);
-                        ReDrawFlag |= RFRefresh;
-                    }
-                    PickCount = 2;
-                } else PickHist[0].atm = QAtom;
-            } else /* PickCount == 2 */
-                if( !shift )
-                {   PickHist[0].atm = QAtom;
-                    PickCount = 1;
-                } else if( PickHist[0].atm != QAtom )   
+        ref.chn = QChain;
+        ref.grp = QGroup;
+        ref.atm = QAtom;
+
+        InvalidateCmndLine();
+        WriteString("Rotating about ");
+        DescribeAtom(&ref,True);
+        WriteChar('\n');
+
+    } else if( PickMode == PickMonit )
+    {   /* State Machine Implementation */
+
+        if( PickCount == 0 )
+        {   PickHist[0].atm = QAtom;
+            PickCount = 1;
+        } else if( PickCount == 1 )
+        {   if( !shift )
+            {   if( PickHist[0].atm != QAtom )
                 {   AddMonitors(PickHist[0].atm,QAtom);
                     ReDrawFlag |= RFRefresh;
-                }
-
-        } else /* Distance, Angle or Torsion! */
-        {   if( PickCount )
-            {   if( shift )
-                {   PickCount--;
-                } else if( PickCount == PickMode )
-                    PickCount = 0;
+                 }
+                 PickCount = 2;
+            } else PickHist[0].atm = QAtom;
+        } else /* PickCount == 2 */
+            if( !shift )
+            {   PickHist[0].atm = QAtom;
+                PickCount = 1;
+            } else if( PickHist[0].atm != QAtom )   
+            {   AddMonitors(PickHist[0].atm,QAtom);
+                ReDrawFlag |= RFRefresh;
             }
 
-            ptr = PickHist+PickCount;
-            ptr->chn = QChain;
-            ptr->grp = QGroup;
-            ptr->atm = QAtom;
-            PickCount++;
+    } else /* Distance, Angle or Torsion! */
+    {   if( PickCount )
+        {   if( shift )
+            {   PickCount--;
+            } else if( PickCount == PickMode )
+                PickCount = 0;
+        }
 
-            if( CommandActive )
-	        WriteChar('\n');
-            CommandActive = False;
+        ptr = PickHist+PickCount;
+        ptr->chn = QChain;
+        ptr->grp = QGroup;
+        ptr->atm = QAtom;
+        PickCount++;
 
-            WriteString("Atom #");
-            WriteChar(PickCount+'0');
-            WriteString(": ");
-            DescribeAtom(ptr,True);
-            WriteChar('\n');
+        InvalidateCmndLine();
+        WriteString("Atom #");
+        WriteChar(PickCount+'0');
+        WriteString(": ");
+        DescribeAtom(ptr,True);
+        WriteChar('\n');
 
-            if( PickCount == PickMode )
-            {   if( PickMode == PickDist )
-                {   temp = (float)CalcDistance(PickHist[0].atm,
-                                               PickHist[1].atm);
+        if( PickCount == PickMode )
+        {   if( PickMode == PickDist )
+            {   temp = (float)CalcDistance(PickHist[0].atm,
+                                           PickHist[1].atm);
 
-                    WriteString("Distance ");
-                    DescribeAtom(PickHist,False);
-                    WriteChar('-');
-                    DescribeAtom(PickHist+1,False);
-                    sprintf(buffer,": %.3f\n\n",temp);
-                    WriteString(buffer);
+                WriteString("Distance ");
+                DescribeAtom(PickHist,False);
+                WriteChar('-');
+                DescribeAtom(PickHist+1,False);
+                sprintf(buffer,": %.3f\n\n",temp);
+                WriteString(buffer);
 
-                } else if( PickMode == PickAngle )
-                {   temp = (float)CalcAngle(PickHist[0].atm,
-                                            PickHist[1].atm,
-                                            PickHist[2].atm);
+            } else if( PickMode == PickAngle )
+            {   temp = (float)CalcAngle(PickHist[0].atm,
+                                        PickHist[1].atm,
+                                        PickHist[2].atm);
 
-                    WriteString("Angle ");
-                    DescribeAtom(PickHist,False);
-                    WriteChar('-');
-                    DescribeAtom(PickHist+1,False);
-                    WriteChar('-');
-                    DescribeAtom(PickHist+2,False);
-                    sprintf(buffer,": %.1f\n\n",temp);
-                    WriteString(buffer);
+                WriteString("Angle ");
+                DescribeAtom(PickHist,False);
+                WriteChar('-');
+                DescribeAtom(PickHist+1,False);
+                WriteChar('-');
+                DescribeAtom(PickHist+2,False);
+                sprintf(buffer,": %.1f\n\n",temp);
+                WriteString(buffer);
 
-                } else /* PickMode == PickTorsn */
-                {   temp = (float)CalcTorsion(PickHist[0].atm,
-                                              PickHist[1].atm,
-                                              PickHist[2].atm,
-                                              PickHist[3].atm);
+            } else /* PickMode == PickTorsn */
+            {   temp = (float)CalcTorsion(PickHist[0].atm,
+                                          PickHist[1].atm,
+                                          PickHist[2].atm,
+                                          PickHist[3].atm);
 
-                    WriteString("Torsion ");
-                    DescribeAtom(PickHist,False);
-                    WriteChar('-');
-                    DescribeAtom(PickHist+1,False);
-                    WriteChar('-');
-                    DescribeAtom(PickHist+2,False);
-                    WriteChar('-');
-                    DescribeAtom(PickHist+3,False);
-                    sprintf(buffer,": %.1f\n\n",temp);
-                    WriteString(buffer);
-                }
+                WriteString("Torsion ");
+                DescribeAtom(PickHist,False);
+                WriteChar('-');
+                DescribeAtom(PickHist+1,False);
+                WriteChar('-');
+                DescribeAtom(PickHist+2,False);
+                WriteChar('-');
+                DescribeAtom(PickHist+3,False);
+                sprintf(buffer,": %.1f\n\n",temp);
+                WriteString(buffer);
             }
         }
     }
+    return True;
 }
 
 
-void SetStereoMode( enable )
-    int enable;
+void SetStereoMode( int enable )
 {
     ReDrawFlag |= RFRefresh | RFTransX;
     StereoView = ViewLeft;
@@ -1748,11 +1908,12 @@ void SetStereoMode( enable )
 }
 
 
-void ResetRenderer()
+void ResetRenderer( void )
 {
     DrawAtoms = False;  MaxAtomRadius = 0;
     DrawBonds = False;  MaxBondRadius = 0;
-    DrawRibbon = False; DrawDots = False;
+    DrawStars = False;
+    DrawRibbon = False;
 
     SlabMode = SlabClose;
     UseSlabPlane = False;
@@ -1775,7 +1936,7 @@ void ResetRenderer()
 }
 
 
-static void InitialiseTables()
+static void InitialiseTables( void )
 {
     register Byte __far *ptr;
     register unsigned int root,root2;
@@ -1814,7 +1975,7 @@ static void InitialiseTables()
 }
 
 
-void InitialiseRenderer()
+void InitialiseRenderer( void )
 {
     register int rad,maxval;
 
@@ -1823,7 +1984,7 @@ void InitialiseRenderer()
     IBuffer = (void __far*)0;   
     YBucket = (void __far*)0;
 
-#if defined(IBMPC) || defined(APPLEMAC)
+#if defined(MSWIN) || defined(APPLEMAC)
     FBufHandle = NULL;
     DBufHandle = NULL;
 #endif

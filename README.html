@@ -1,0 +1,609 @@
+<!doctype html public "-//IETF//DTD HTML 2.0//EN">
+<HTML>
+<HEAD>
+<TITLE>
+RasMol V2.7.1.1 README
+</TITLE>
+<meta name="keywords" content="RasMol RasWin RasMac Roger Sayle
+PDB CIF Protein Data Bank Crystallographic Information File
+RasMol Manual">
+</HEAD>
+<BODY BACKGROUND="html_graphics/rasmolwallpaper.jpg">
+
+<a href="http://www.iucr.org/iucr-top/welcome.html">
+<img alt="[IUCr Home Page]" src="html_graphics/iucrhome.jpg"></a>
+<a href="http://www.iucr.org/iucr-top/cif/home.html">
+<img alt="[CIF Home Page]" src="html_graphics/cifhome.jpg"></a>
+<A HREF="http://www.OpenRasMol.org"><IMG SRC="html_graphics/rasmolbutton.jpg"
+ALT="[OpenRasMol]"></A>
+<hr>
+<CENTER>
+| <a href="http://www.OpenrasMol.org">OpenRasMol</a> |
+<A href="#Copying">Copying and Distribution</A> |
+<A href="#Contents">Contents</A> |
+<A href="INSTALL.html">Installation Instructions</A> |<BR>
+| <A href="ChangeLog.html">Changes</A> |
+<A href="TODO.html">Things To Do</A> |
+<A href="#Introduction">Introduction</A> | 
+<A href="#CodeAndBinaries">Source Code and Binaries</A> |<BR>
+| <A href="doc/rasmol.html">RasMol Manual</A> |
+<a href="doc/esrasmol27.html">Spanish Translation of RasMol Manual</a>| 
+<a href="README.html">Release README</A> |<BR>
+</CENTER>
+
+<font color="#0808A0">
+<H1 ALIGN=CENTER>README<BR>
+RasMol 2.7.1.1</H1>
+
+<center>
+<table border=0 callpadding=3 cellspacing=0>
+<tr>
+<td rowspan=7><IMG  SRC="html_graphics/rasmollogo.jpg" ALT="RasMol"><BR>
+<td colspan=11 bgcolor="#C0C0FF">&nbsp;
+<tr>
+<td rowspan=5 bgcolor="#C0C0FF">&nbsp;
+<th valign="bottom">Version
+<td rowspan=5 bgcolor="#C0C0FF">&nbsp;
+<th align="center">MAC PPC<br>binaries
+<td rowspan=5 bgcolor="#C0C0FF">&nbsp;
+<th align="center">MSWIN<br>binaries
+<th align="center">RasWin<br>Help File
+<td rowspan=5 bgcolor="#C0C0FF">&nbsp;
+<th align="center">LINUX<br>binaries
+<th align="center">RasMol<br>Help File
+<td rowspan=5 bgcolor="#C0C0FF">&nbsp;
+
+
+<tr><td><a href="../RasMol_2.7.1/README.html">2.7.1</a>
+<td align="center">
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.MAC/RasMac_PPC_8BIT.bin">8</a>
+&nbsp;&nbsp;&nbsp;
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.MAC/RasMac_PPC_32BIT.bin">32</a>
+<td align="center"><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.MSWIN/raswin.exe"  TYPE="application/octet-stream">8</a>
+<td align="center"><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1/doc/raswin.hlp" TYPE="application/octet-stream">raw</a>&nbsp;<A HREF="../RasMol_2.7.1/doc/raswin.hlp.gz" TYPE="application/octet-stream">gz</a>
+<td align="center">
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1/RasMol.LINUX/RedHat_6.0/i386/rasmol_8BIT" TYPE="application/octet-stream">8</a>
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1/RasMol.LINUX/RedHat_6.0/i386/rasmol_16BIT" TYPE="application/octet-stream">16</a>
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1/RasMol.LINUX/RedHat_6.0/i386/rasmol_32BIT" TYPE="application/octet-stream">32</a>
+<td align="center"><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1/doc/rasmol.hlp" TYPE="application/octet-stream">raw</a>&nbsp;<A HREF="../RasMol_2.7.1/doc/rasmol.hlp.gz" TYPE="application/octet-stream">gz</a>
+
+<tr><td><a href="../RasMol_2.7.1.1/README.html">2.7.1.1</a>
+<td align="center">
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1.MAC/RasMac_PPC_8BIT.bin">8</a>
+&nbsp;&nbsp;&nbsp;
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1.MAC/RasMac_PPC_32BIT.bin">32</a>
+<td align="center"><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1.MSWIN/raswin.exe"  TYPE="application/octet-stream">8</a>
+<td align="center"><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/doc/raswin.hlp" TYPE="application/octet-stream">raw</a>&nbsp;<A HREF="../RasMol_2.7.1.1/doc/raswin.hlp.gz" TYPE="application/octet-stream">gz</a>
+<td align="center">
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/RasMol.LINUX/Mandrake_7.2/i586/rasmol_8BIT" TYPE="application/octet-stream">8</a>
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/RasMol.LINUX/Mandrake_7.2/i586/rasmol_16BIT" TYPE="application/octet-stream">16</a>
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/RasMol.LINUX/Mandrake_7.2/i586/rasmol_32BIT" TYPE="application/octet-stream">32</a>
+<td align="center"><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/doc/rasmol.hlp" TYPE="application/octet-stream">raw</a>&nbsp;<A HREF="../RasMol_2.7.1.1/doc/rasmol.hlp.gz" TYPE="application/octet-stream">gz</a>
+
+<tr><td><a href="../RasMol_2.7.2/README.html">2.7.2</a>
+<td align="center">
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.MAC/RasMac_PPC_8BIT.bin">8</a>
+&nbsp;&nbsp;&nbsp;
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.MAC/RasMac_PPC_32BIT.bin">32</a>
+<td align="center"><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2.MSWIN/raswin.exe"  TYPE="application/octet-stream">8</a>
+<td align="center"><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2/doc/raswin.hlp" TYPE="application/octet-stream">raw</a>&nbsp;<A HREF="../RasMol_2.7.2/doc/raswin.hlp.gz" TYPE="application/octet-stream">gz</a>
+<td align="center">
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2/RasMol.LINUX/Mandrake_7.1/i386/rasmol_8BIT" TYPE="application/octet-stream">8</a>
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2/RasMol.LINUX/Mandrake_7.1/i386/rasmol_16BIT" TYPE="application/octet-stream">16</a>
+<A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2/RasMol.LINUX/Mandrake_7.1/i386/rasmol_32BIT" TYPE="application/octet-stream">32</a>
+<td align="center"><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.2/doc/rasmol.hlp" TYPE="application/octet-stream">raw</a>&nbsp;<A HREF="../RasMol_2.7.2/doc/rasmol.hlp.gz" TYPE="application/octet-stream">gz</a>
+<tr><td colspan=6>&nbsp;
+<tr><td colspan=11 bgcolor="#C0C0FF" align=center>See <A href="#CodeAndBinaries">Source Code and Binaries</A> for more.
+</table>
+</center>
+<H3 ALIGN=CENTER>
+Molecular Graphics Visualisation Tool<BR>
+21 January 2001<BR>
+</H3>
+</font><font color="#000000">
+<CENTER>
+Based on RasMol 2.6 by
+Roger Sayle<BR>
+Biomolecular Structures Group, Glaxo Wellcome Research & Development<BR>
+Stevenage, Hertfordshire, UK<BR>
+Version 2.6, August 1995, Version 2.6.4, December 1998<BR>
+Copyright &#169; Roger Sayle 1992-1999<BR>
+</CENTER>
+<P>
+<CENTER>
+and Based on Mods by Arne Mueller<BR>
+Version 2.6x1, May 1998<BR>
+Copyright &#169; Arne Mueller 1998<BR>
+</CENTER>
+<P>
+<CENTER>
+Version 2.7.0, 2.7.1, 2.7.1.1 Mods
+by
+Herbert J. Bernstein<BR>
+Bernstein + Sons,
+P.O. Box 177, Bellport, NY, USA,
+<A HREF="mailto:yaya@bernstein-plus-sons.com">yaya@bernstein-plus-sons.com</A><BR>
+2.7.0 March 1999, 2.7.1 June 1999, 2.7.1.1 January 2001<BR>
+Copyright &#169; Herbert J. Bernstein 1998-2001
+<P>
+Translations of most of the RasMol messages into Spanish contributed by 
+Fernando Gabriel Ranea (Laboratorio de Micolog&iacute;a,
+Museo de Farmacobot&aacute;nica, Facultad de Farmacia y Bioqu&iacute;mica. 
+Universidad
+de Buenos Aires
+(<a href="mailto:davinci@dinamica.com.ar">davinci@dinamica.com.ar</a>)).
+</CENTER>
+<P>
+ The original RasMol manual was created by Roger Sayle.  In July 1996,
+ Dr. Margaret Wong of the Chemistry Department, Swinburne University
+ of Technology, Australia, made extensive revisions to the RasMol 2.5
+ manual to accurately reflect the operation of RasMol 2.6.  Eric Martz
+ of the University of Massachusetts made further revisions.  In May
+ 1997, William McClure of Carnegie Mellon University reorganized the
+ HTML version of the manual into multiple sections which could be
+ downloaded quickly and added use of frames.   Portions of the 2.7.1
+ version of the RasMol manual were derived with  permission from
+ William McClure's version using Roger Sayle's rasmol.doc for
+ version 2.6.4 as the primary source.
+<p>
+<CENTER>Documentation Last Updated 21 January 2001<BR>
+Edited by Herbert J. Bernstein and Frances C. Bernstein</CENTER>
+<p>
+<H4 Align="CENTER">Translation of RasMol 2.7.1 Manual into Spanish</H4>
+<P>Thanks to the efforts of Jos&eacute; Miguel Fern&aacute;ndez
+Fern&aacute;ndez (Departamento 
+de Bioqu&iacute;mica y Biolog&iacute;a Molecular. Universidad de Granada.
+Espa&ntilde;a (<A HREF="mailto:jmfernan@ugr.es">jmfernan@ugr.es</A>)) a 
+<a href="doc/esrasmol27.html">translation of the
+Manual for Rasmol version 2.7.1 into Spanish</a> is now available.
+La traducci&oacute;n espa&ntilde;ola del manual de la
+versi&oacute;n de la Dra. Wong revisada por Eric Martz fue realizada por
+Isabel Serv&aacute;n Mart&iacute;nez y Jos&eacute; Miguel Fern&aacute;ndez
+Fern&aacute;ndez.  La actual traducci&oacute;n del Manual de RasMol 2.7.1
+ha sido realizada usando como base la anterior de RasMol 2.6 por
+&nbsp;Jos&eacute; Miguel Fern&aacute;ndez Fern&aacute;ndez.
+</P>
+<HR>
+
+<H4 ALIGN=CENTER>Test Version of Next Release Available</H4>
+<P>
+RasMol 2.7.1.1 is an interim release for testing of the integration
+of multilingual capabilities into RasMol.  These same mods
+will then be integrated with pending mods, and with the
+basic structure of RasMol 2.7.2 to create RasMol 2.7.2.1.
+<P>A preliminary release of RasMol 2.7.2 (without the
+multilingual capabilities) is available at:
+<P align=center>
+<a href="http://www.bernstein-plus-sons.com/software/RasMol_2.7.2">
+http://www.bernstein-plus-sons.com/software/RasMol_2.7.2</a>
+<P Align="CENTER">
+<B>
+THIS IS A PRELIMINARY RELEASE INVOLVING EXTENSIVE MODIFICATIONS<BR>
+*****  USE WITH CAUTION  ******<BR>
+</B>
+
+<HR>
+<H4 ALIGN=CENTER>RasTop 1.3 Available</H4>
+<P>
+RasTop by P. Valadon is a 
+graphical interface to RasMol adapted for Windows platform,
+i.e. RasTop is a GUI front end for RasWin.
+<P>
+
+<LI><A HREF="http://www.bernstein-plus-sons.com/software/RasTop_1.3">RasTop -- GUI front end for RasWin (RasTop 1.3)</a>
+<UL>
+<LI><a href="#features_rastop_1_3">RasTop 1.3 Features</a>
+</UL>
+
+<HR>
+<H2 ALIGN=CENTER><A NAME="Copying">IMPORTANT - Copying and Distribution</A></H2>
+<P>
+   This version is based on RasMol version 2.6_CIF.2, on RasMol version
+2.6x1 and on RasMol version 2.6.4. Please read the file 
+<A HREF = "doc/NOTICE.html">NOTICE</A> for
+important notices which apply to this package.  If you are not going to
+make changes to RasMol, you are not only permitted to freely make copies
+and distribute them, you are encouraged to do so, provided you do the
+following:
+<UL>
+<LI>  1.  Either include the complete documentation, especially the file
+ <A HREF = "doc/NOTICE.html">NOTICE</A>, with what you distribute or
+provide a clear indication where people can get a copy of the documentation; and
+<LI>  2.  Please give credit where credit is due citing the version and
+original authors properly; and
+<LI>  3.  Please do not give anyone the impression that the original authors
+are providing a warranty of any kind.
+</UL>
+<P>
+If you would like to use major pieces of RasMol in some other program, make
+modifications to RasMol, or in some other way make what a lawyer would call
+a "derived work", you are not only permitted to do so, you are encouraged
+to do so.   In addition to the things we discussed above, please do the
+following:
+<UL>
+<LI>  4.  Please explain in your documentation how what you did differs from
+this version of RasMol; and
+<LI>  5.  Please make your modified source code available.
+</UL>
+<P>
+This version of RasMol is <b>not</b> in the public domain, but it is given
+freely to the community in the hopes of advancing science.  If you make
+changes, please make them in a responsible manner, and please offer
+us the opportunity to include those changes in future versions of RasMol.
+<HR>
+<H3 ALIGN=CENTER><A NAME="Contents">Contents</A></H3>
+<P>
+<UL>
+<LI><A href="#Copying">IMPORTANT - Copying and Distribution</A>
+<LI><A href="INSTALL.html">Installation Instructions</A>
+<LI><A href="ChangeLog.html">Changes</A>
+<LI><A href="TODO.html">Things To Do</A>
+<LI><A href="#Introduction">Introduction</A>
+<LI><A href="#CodeAndBinaries">Source Code and Binaries</A>
+<LI>Directories
+  <UL>
+  <LI><A href="ChangeLog/">ChangeLog</A> -- Full ChangeLog directory
+  <LI><A href="src/">src</A> -- source code
+   <UL>
+     <LI><A href="src/mac/">mac</A> -- Macintosh build directory
+     <LI><A href="src/mswin/">mswin</A> -- Windows build directory
+   </UL>
+  <LI><A href="doc/README.html">doc</A> -- documentation
+  <LI><A href="data/">data</A> -- sample data files
+  </UL>
+</UL>
+<HR>
+<H3 ALIGN=CENTER><A NAME="Introduction">Introduction</A></H3>
+<P>
+This posting is to announce the release of RasMol version 2.7.1.1, which
+makes the following changes to RasMol 2.7.1:
+<UL>
+<LI>Introduction of a multilingual structure for RasMol.
+<LI>Population of messages and menu lists for English and Spanish.
+<LI>Upgrade of some of the Windows printer logic
+<LI>Correction of coordinate handling for Mol2 and XYZ coordinates
+<LI>Fix to the parsing of D2O.
+</UL>
+This is an interim release to facillitate testing of the new multilingual
+capabilities.  Our thanks to Fernando Gabriel Ranea <davinci@dinamica.com.ar>
+for doing the hard work of creating an initial Spanish translation of RasMol 2.7.1.
+We have created this new version to allow on-the-fly switching among langauges.
+Use the command "Spanish" to request Spanish messages and menus, and "English"
+to return to the original English format.
+Corrections and translations for additional languages
+greatly appreciated.
+
+<P>
+RasMol version 2.7.1, 
+made the following changes to RasMol 2.7.0:
+<UL>
+<LI>The ability to automatically mark non bonded atoms in 
+wireframe and stick displays.  Our thanks to R. Curtis Haltiwanger
+for suggesting this change.
+<LI>The ability to use a proportionally spaced font and to draw labels
+with heavier strokes.  Our thanks to Eric Martz for suggesting this change.
+<LI>The ability to auto-recognize PDB vs. CIF and mmCIF datasets.
+<LI>Extensive updating to the manual.  Our thanks to William McClure,
+Margaret Wong, Eric Martz and Frances Bernstein.
+<LI>Updating the canvas title with the PDB ID code and EXPDTA information,
+so models will be clearly distinguished from experimental data.
+Our thanks to Helen Berman for suggesting this change.
+<LI>The ability to report coordinates.
+<LI>Additions to the list of pre-defined colours.
+<LI>Improved accuracy of coordinates in pseudo-PDB output.
+<LI>Fixes to the centering logic.
+</UL>
+<P>
+RasMol version 2.7.0.1 was a
+technically minor, but operationally critical upgrade to version 2.7.0,
+correcting a serious error in the selection logic introduced in the process
+of merging versions to create version 2.7.0.
+<P>
+RasMol version 2.7.0 combined Roger Sayle's version 2.6.4 with 
+Herbert Bernstein's CIF 
+modified version 2.6_CIF(Rev 2) and with Arne Mueller's version 2.6x1.  This
+combined version allows selection by alternate conformers as well as
+by models, production of Ramachandran printer plots (as in F. Bernstein's
+fisipl), and access to A. Mueller's POVray output as POVray3 in addition to
+the existing POVray version 2 output.  (POVray3 should not be used
+in the PC or Mac version, yet).
+<P>
+    RasMol version 2.6x1 was an upgrade to RasMol by Arne Mueller to add 
+code to allow listing of information about the chains, groups or
+atoms in a selection, listing of phi-psi, allow selection by cis angle cutoff, and to provide a POV-Ray version 3 output. 
+<P>
+    RasMol version 2.6.4 was a major code cleanup and reorganization by Roger
+Sayle, dropping obsolete non-ANSI C options and providing speed improvments.
+<P>
+    RasMol version 2.6_CIF(Rev 2) added pre-compiled binaries for
+OpenVMS 7.1 (DEC Alpha) and OpenVMS 6.2 (DEC VAX) and  replaced the binary
+for 68K Apple MacIntoshes in RasMol version 2.6_CIF(Rev 1).
+
+<P>
+  Rasmol version 2.6_CIF(Rev 1) was
+a minor update to RasMol version 2.6_CIF, which added support for alternate
+conformer coloring of small molecule CIFs, using _atom_site_disorder_group,
+recognizes requests for bonds which have neither atom names nor atom numbers,
+ensures zapping of existing bonds when connect command is used.
+
+<P>
+    RasMol version 2.6_CIF added several new features to RasMol:
+<P>
+<UL>
+<LI>Support for reading IUCr CIF and mmCIF format;
+<LI>Coloring for alternate conformers and multiple NMR models;<BR>
+<LI>Display of all NMR models in a data set.
+</UL>
+<P>    
+    This version is available for the Apple Macintosh and PowerMac in 
+addition to UNIX, VMS and Microsoft Windows versions.  However, because
+of limitations in the memory management under MacOS, very large
+multiple NMR model datasets are not supported on the Mac or PowerMac at
+this time.
+<P>
+    For a complete list of changes from RasMol 2.6 refer to the 
+distribution's <A href="ChangeLog.html">&quot;ChangeLog&quot;</A>.
+<P>
+    For installation instructions see 
+    <A href="INSTALL.html">&quot;INSTALL&quot;</A>.
+<P>
+    For a list of open issues in this version, see
+    <A href="TODO.html">&quot;TODO&quot;</A>.  Roger Sayle's
+prior list of pending projects is in <A href="PROJECTS">&quot;PROJECTS&quot;</A>.
+
+
+<P> 
+RasMol is a molecular graphics program intended for the visualisation
+of proteins, nucleic acids and small molecules. The program is aimed at
+display, teaching and generation of publication quality images. The
+program has been developed at the University of Edinburgh's
+Biocomputing Research Unit and the Biomolecular Structures Group at
+Glaxo Research and Development, Greenford, UK.
+<P> 
+RasMol reads in molecular co-ordinate files in a number of formats and
+interactively displays the molecule on the screen in a variety of colour
+schemes and representations. Currently supported input file formats
+include Brookhaven Protein Databank (PDB), Tripos' Alchemy and Sybyl
+Mol2 formats, Molecular Design Limited's (MDL) Mol file format,
+Minnesota Supercomputer Center's (MSC) XMol XYZ format, CHARMm format,
+MOPAC format, CIF format and mmCIF format files. If connectivity
+information and/or secondary structure information is not contained in
+the file this is calculated automatically. The loaded molecule may be
+shown as wireframe, cylinder (drieding) stick bonds, alpha-carbon
+trace, spacefilling (CPK) spheres, macromolecular ribbons (either
+smooth shaded solid ribbons or parallel strands), hydrogen bonding and
+dot surface. Atoms may also be labelled with arbitrary text strings.
+Alternate conformers and multiple NMR models may be specially coloured
+and identified in atom labels. Different parts of the molecule may be
+displayed and coloured independently of the rest of the molecule or
+shown in different representations simultaneously. The space filling
+spheres can even be shadowed. The displayed molecule may be rotated,
+translated, zoomed, z-clipped (slabbed) interactively using either the
+mouse, the scroll bars, the command line or an attached dials box.
+RasMol can read a prepared list of commands from a `script' file (or
+via interprocess communication) to allow a given image or viewpoint to
+be restored quickly. RasMol can also create a script file containing
+the commands required to regenerate the current image. Finally the
+rendered image may be written out in a variety of formats including
+both raster and vector PostScript, GIF, PPM, BMP, PICT, Sun rasterfile
+or as a MolScript input script or Kinemage.
+<P>	
+	RasMol will run on a wide range of architectures and systems including
+SGI, sun4, sun3, sun386i, SGI, DEC, HP and E&S workstations, IBM
+RS/6000, Cray, Sequent, DEC Alpha (OSF/1, OpenVMS and Windows NT), IBM
+PC (under Microsoft Windows, Windows NT, OS/2, Linux, BSD386 and *BSD),
+Apple Macintosh (System 7.0 or later), PowerMac and VAX VMS (under DEC
+Windows). UNIX and VMS versions require an 8bit, 24bit or 32bit X
+Windows frame buffer (X11R4 or later). The X Windows version of RasMol
+provides optional support for a hardware dials box and accelerated
+shared memory rendering (via the XInput and MIT-SHM extensions) if
+available.
+<P>
+As of this writing (29 January 2001), this version has
+been built for i586 Mandrake 7.2 Linux, Mac, 
+IBM PC under Windows 95/98, and SGI IRIX 6.4.
+Reports of builds and/or problems on other platforms appreciated.
+<P>
+<HR>
+<H3 ALIGN=CENTER><A NAME="CodeAndBinaries">Source Code and Binaries</A></H3>
+<P>
+ The complete source code
+and user documentation of RasMol 2.7.1.1 may be obtained by
+anonymous FTP at:
+<P>
+    <A href="ftp://ftp.bernstein-plus-sons.com/software/RasMol_2.7.1.1.tar.gz">ftp://ftp.bernstein-plus-sons.com/software/RasMol_2.7.1.1.tar.gz</A>
+<P>
+or on the web at:
+<P>
+    <A href="http://www.bernstein-plus-sons.com/software/RasMol_2.7.1.1.tar.gz">http://www.bernstein-plus-sons.com/software/RasMol_2.7.1.1.tar.gz</A>
+<P>	
+
+	The source code and documentation are
+stored in several files appropriate for the receiving operating system.
+Please read the "README" file in the distribution directory.   See the table
+below for appropriate binaries.  <B>Mac and Windows binaries are no longer
+included on the tar</B>.
+Unix and VMS users should retrieve the same file for source code and
+documentation, and one or more of the following pre-compiled binaries:
+<B>WARNING:  <B>ALL</B> binaries are gzipped!!!</B>
+
+<P>
+
+<TABLE>
+
+<TR><TH ALIGN=LEFT>System <TH ALIGN=LEFT>Binary <TH ALIGN=LEFT>Help Files<BR>
+
+   
+<TR><TH ALIGN=LEFT>Linux (Mandrake 7.2, i586):
+<TD><A HREF="RasMol.LINUX/Mandrake_7.2/i586/rasmol_8BIT.gz">
+RasMol.LINUX/Mandrake_7.2/i586/rasmol_8BIT.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD><A HREF="RasMol.LINUX/Mandrake_7.2/i586/rasmol_16BIT.gz">
+RasMol.LINUX/Mandrake_7.2/i586/rasmol_16BIT.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD><A HREF="RasMol.LINUX/Mandrake_7.2/i586/rasmol_32BIT.gz">
+RasMol.LINUX/Mandrake_7.2/i586/rasmol_32BIT.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
+ 
+
+
+<TR><TH ALIGN=LEFT>SGI (IRIX 6.4):
+<TD><A HREF="RasMol.SGI/IRIX_6.4/rasmol_8BIT.gz">
+RasMol.SGI/IRIX_6.4/rasmol_8BIT.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD><A HREF="RasMol.SGI/IRIX_6.4/rasmol_16BIT.gz">
+RasMol.SGI/IRIX_6.4/rasmol_16BIT.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD><A HREF="RasMol.SGI/IRIX_6.4/rasmol_32BIT.gz">
+RasMol.SGI/IRIX_6.4/rasmol_32BIT.gz</A>
+<TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
+ 
+
+              
+<TR><TH ALIGN=LEFT>Mac:  <TD><A HREF="RasMol.MAC/RasMac_FAT_8BIT.bin.gz">RasMac_FAT_8BIT.bin.gz</A><TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="RasMol.MAC/RasMac_PPC_8BIT.bin.gz">RasMac_PPC_8BIT.bin.gz</A><TD><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="RasMol.MAC/RasMac_68K_8BIT.bin.gz">RasMac_68K_8BIT.bin.gz</A><TD><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="RasMol.MAC/RasMac_FAT_32BIT.bin.gz">RasMac_FAT_32BIT.bin.gz</A><TD><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="RasMol.MAC/RasMac_PPC_32BIT.bin.gz">RasMac_PPC_32BIT.bin.gz</A><TD><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="RasMol.MAC/RasMac_68K_32BIT.bin.gz">RasMac_68K_32BIT.bin.gz</A><TD><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
+              
+<TR><TH ALIGN=LEFT>Windows: <TD><A href="RasMol.MSWIN/raswin.exe.gz">RasWin.exe.gz</A> <TD><A href="doc/rasmol.hlp.gz">rasmol.hlp.gz</A>, <A href="doc/raswin.hlp.gz">raswin.hlp.gz</A><BR>
+</TABLE>
+
+<P>
+
+For those who have difficulty downloading &quot;gzipped&quot; files,
+uncompressed files are available:
+<TABLE>
+
+<TR><TH ALIGN=LEFT>System <TH ALIGN=LEFT>Binary <TH ALIGN=LEFT>Help Files<BR>
+
+   
+<TR><TH ALIGN=LEFT>Linux (Mandrake 7.2, i586):
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/RasMol.LINUX/Mandrake_7.2/i586/rasmol_8BIT">
+RasMol.LINUX/Mandrake_7.2/i586/rasmol_8BIT</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/RasMol.LINUX/Mandrake_7.2/i586/rasmol_16BIT">
+RasMol.LINUX/Mandrake_7.2/i586/rasmol_16BIT</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/RasMol.LINUX/Mandrake_7.2/i586/rasmol_32BIT">
+RasMol.LINUX/Mandrake_7.2/i586/rasmol_32BIT</A>
+<TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
+
+
+ 
+<TR><TH ALIGN=LEFT>SGI (IRIX 6.4):
+<TD><A 
+HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/RasMol.SGI/IRIX_6.4/rasmol_8BIT">
+RasMol.SGI/IRIX_6.4/rasmol_8BIT</A>
+<TD><A 
+HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD><A 
+HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/RasMol.SGI/IRIX_6.4/rasmol_16BIT">
+RasMol.SGI/IRIX_6.4/rasmol_16BIT</A>
+<TD><A 
+HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp;
+<TD><A 
+HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/RasMol.SGI/IRIX_6.4/rasmol_32BIT">
+RasMol.SGI/IRIX_6.4/rasmol_32BIT</A>
+<TD><A 
+HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
+              
+            
+<TR><TH ALIGN=LEFT>Mac:  <TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1.MAC/RasMac_FAT_8BIT.bin">RasMac_FAT_8BIT.bin</A><TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/doc/rasmol.hlp">rasmol.hlp</A><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1.MAC/RasMac_PPC_8BIT.bin">RasMac_PPC_8BIT.bin</A><TD><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1.MAC/RasMac_68K_8BIT.bin">RasMac_68K_8BIT.bin</A><TD><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1.MAC/RasMac_FAT_32BIT.bin">RasMac_FAT_32BIT.bin</A><TD><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1.MAC/RasMac_PPC_32BIT.bin">RasMac_PPC_32BIT.bin</A><TD><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1.MAC/RasMac_68K_32BIT.bin">RasMac_68K_32BIT.bin</A><TD><BR>
+<TR><TH ALIGN=LEFT>&nbsp; <TD>&nbsp; <TD>&nbsp; <BR>
+              
+<TR><TH ALIGN=LEFT>Windows: <TD><A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1.MSWIN/raswin.exe">RasWin.exe</A> <TD><A href="doc/rasmol.hlp">rasmol.hlp</A>, <A HREF="http://www.bernstein-plus-sons.com/cgi-bin/yaya/decomp.cgi/software/RasMol_2.7.1.1/doc/raswin.hlp">raswin.hlp</A><BR>
+</TABLE>
+
+<P> 
+You will need both an appropriate binary and a copy of rasmol.hlp for each
+system, and, under Windows, a copy of raswin.hlp for the WinHelp sub-system.
+<P>
+   Please remember to use
+&quot;binary&quot; mode when transferring these files between systems. Check that
+the file size is the same before and after transfer.
+<P>	
+Any comments, suggestions or questions about this
+modified version of RasMol should be directed to
+<A HREF="mailto:rasmol@bernstein-plus-sons.com">rasmol@bernstein-plus-sons.com</A>.
+<P>
+<hr>
+<h4><a name="features_rastop_1_3">RasTop 1.3 Features</a></h4>
+<P>
+RasTop is a 
+graphical interface to RasMol adapted for Windows platform,
+i.e. RasTop is a GUI front end for RasWin.
+<P>
+RasTop offers a user-friendly graphical interface around 
+"RasMol molecular engine".  No more typing on the command line; 
+each command in the menu generates its own script that is 
+transferred to RasMol. RasTop has numerous extensions to handle 
+atom selections: addition and subtraction of atoms, groups, or 
+chains, selection on screen with a lasso, ability to go back 
+to the previous selection, copying to and pasting selections 
+from the clipboard, new set operations such as inverse, 
+extraction, summation, subtraction, and exclusion, and finally 
+full saving of all user-defined atom sets under an extended script 
+format called RSM script.
+<P>
+During its development, a few new capabilities were added: back 
+clipping, 32-bit output under Windows, full centring command 
+either on a selected atom or to the origin, variation of depthcue
+in slab mode, and a colouring command, shadepower, which 
+generates new metal-like surfaces.
+<P>
+RasTop allows several molecules to be opened at the same time 
+(on different windows) and provides limited editing of the 
+molecular file.
+<P>
+RasTop 1.3, like RasMol 2.7.1, contains a lot of new code.
+Under its current version, RasTop 1.3 has been extensively 
+tested with molecular files in pdb format and showed good 
+stability. Nevertheless you should be careful in testing 
+other formats.
+<P>Released by P. Valadon, 27 August 2000
+<P>
+<HR>
+<CENTER>
+| <a href="http://www.OpenrasMol.org">OpenRasMol</a> |
+<A href="#Copying">Copying and Distribution</A> |
+<A href="#Contents">Contents</A> |
+<A href="INSTALL.html">Installation Instructions</A> |<BR>
+| <A href="ChangeLog.html">Changes</A> |
+<A href="TODO.html">Things To Do</A> |
+<A href="#Introduction">Introduction</A> | 
+<A href="#CodeAndBinaries">Source Code and Binaries</A> |<BR>
+| <A href="doc/rasmol.html">RasMol Manual</A> |
+<a href="doc/esrasmol27.html">Spanish Translation of RasMol Manual</a>| 
+<a href="README.html">Release README</A> |<BR>
+</CENTER>
+
+<HR>
+Updated 29 January 2001.<BR>
+Herbert J. Bernstein<BR>
+Bernstein + Sons, 5 Brewster Lane, Bellport, NY 11713-2803, USA<BR>
+<A HREF="mailto:yaya@bernstein-plus-sons.com">
+yaya@bernstein-plus-sons.com</A><BR>
++1-631-286-1339<BR>
+</font>
+</BODY>
+</HTML>

@@ -1,13 +1,61 @@
+/***************************************************************************
+ *                              RasMol 2.7.1                               *
+ *                                                                         *
+ *                                 RasMol                                  *
+ *                 Molecular Graphics Visualisation Tool                   *
+ *                              22 June 1999                               *
+ *                                                                         *
+ *                   Based on RasMol 2.6 by Roger Sayle                    *
+ * Biomolecular Structures Group, Glaxo Wellcome Research & Development,   *
+ *                      Stevenage, Hertfordshire, UK                       *
+ *         Version 2.6, August 1995, Version 2.6.4, December 1998          *
+ *                   Copyright (C) Roger Sayle 1992-1999                   *
+ *                                                                         *
+ *                  and Based on Mods by Arne Mueller                      *
+ *                      Version 2.6x1, May 1998                            *
+ *                   Copyright (C) Arne Mueller 1998                       *
+ *                                                                         *
+ *           Version 2.7.0, 2.7.1 Mods by Herbert J. Bernstein             *
+ *           Bernstein + Sons, P.O. Box 177, Bellport, NY, USA             *
+ *                      yaya@bernstein-plus-sons.com                       *
+ *                    2.7.0 March 1999, 2.7.1 June 1999                    *
+ *              Copyright (C) Herbert J. Bernstein 1998-1999               *
+ *                                                                         *
+ * Please read the file NOTICE for important notices which apply to this   *
+ * package. If you are not going to make changes to RasMol, you are not    *
+ * only permitted to freely make copies and distribute them, you are       *
+ * encouraged to do so, provided you do the following:                     *
+ *   * 1. Either include the complete documentation, especially the file   *
+ *     NOTICE, with what you distribute or provide a clear indication      *
+ *     where people can get a copy of the documentation; and               *
+ *   * 2. Please give credit where credit is due citing the version and    *
+ *     original authors properly; and                                      *
+ *   * 3. Please do not give anyone the impression that the original       *
+ *     authors are providing a warranty of any kind.                       *
+ *                                                                         *
+ * If you would like to use major pieces of RasMol in some other program,  *
+ * make modifications to RasMol, or in some other way make what a lawyer   *
+ * would call a "derived work", you are not only permitted to do so, you   *
+ * are encouraged to do so. In addition to the things we discussed above,  *
+ * please do the following:                                                *
+ *   * 4. Please explain in your documentation how what you did differs    *
+ *     from this version of RasMol; and                                    *
+ *   * 5. Please make your modified source code available.                 *
+ *                                                                         *
+ * This version of RasMol is not in the public domain, but it is given     *
+ * freely to the community in the hopes of advancing science. If you make  *
+ * changes, please make them in a responsible manner, and please offer us  *
+ * the opportunity to include those changes in future versions of RasMol.  *
+ ***************************************************************************/
+
 /* molecule.h
- * RasMol2 Molecular Graphics
- * Roger Sayle, August 1995
- * Version 2.6
  */
 #define MAXMASK 40
-#define MAXELEM 256
+#define MAXELEM 1024
 #define MINELEM 29
 #define MAXRES  100
-#define MINRES  53
+#define MINRES  54
+#define CIS     90  /* max. omega-angle to form a cis-peptidbond */
 
 
 #define IsAmino(x)       ((x)<=23)
@@ -41,7 +89,7 @@
 #define IsNucleicBackbone(x) (((x)>=7) && ((x)<=18))
 #define IsShapelySpecial(x)  ((x)==19)
 #define IsCysteineSulphur(x) ((x)==20)
-#define IsCoenzyme(x)        (((x)>=50) && ((x)<=52))
+#define IsCoenzyme(x)        (((x)>=50) && ((x)<=53))
 
 
 /*=================*/
@@ -62,6 +110,7 @@
 #define NormAtomFlag    0x10
 #define NonBondFlag     0x20
 #define BreakFlag       0x40     /* Break in backbone     */
+#define StarFlag        0x80     /* Star representation   */
 
 /* Bond Flags */
 #define WireFlag        0x02     /* Depth-cued wireframe         */
@@ -83,6 +132,7 @@
 #define TraceFlag       0x10     /* Smooth trace representation */
 #define CartoonFlag     0x20     /* Richardson protein cartoon  */
 #define DotsFlag        0x40     /* Dotted trace representation */
+#define CisBondFlag     0x80     /* Cis bonded residue          */
 
 /* Structure Flags */
 #define Helix3Flag      0x01     /* 3,10-Helix structure       */
@@ -101,6 +151,7 @@ typedef struct _Atom {
         struct _Atom __far *bucket;       /* Sphere Y-Bucket       */
         struct _Atom __far *next;         /* Active Object List    */
         Long   xorg, yorg, zorg;          /* World Co-ordinates    */
+        short  xtrl, ytrl, ztrl;          /* Trailing Bits         */
         short  x, y, z;                   /* Image Co-ordinates    */
         short  radius;                    /* World Radius          */
         short  temp;                      /* Temperature Factor    */
@@ -113,6 +164,7 @@ typedef struct _Atom {
         char   altl;                      /* Alternate Location    */
         short  irad;                      /* Image Radius          */
         short  mbox;                      /* Shadow Casting NOnce  */
+        short  model;                     /* Atom Model Number     */
     } Atom;
 
 
@@ -124,19 +176,23 @@ typedef struct _Bond {
         short irad;                      /* Image Radius          */
         short col;                       /* Bond Colour           */
         Byte  flag;                      /* Database flags        */
+        char  altl;                      /* Bond Alternate Loc    */
     } Bond;
 
 typedef struct _Group {
         struct _Group __far *gnext;       /* Linked list of groups */
         Atom __far *alist;                /* Linked list of atoms  */
         short serno;                      /* Group serial number   */
+        short sserno;                     /* Secondary serial no.  */ 
         short width;                      /* Ribbon Width          */
         short col1;                       /* Ribbon Colour #1      */
         short col2;                       /* Ribbon Colour #2      */
         char  insert;                     /* PDB insertion code    */
+        char  sinsert;                    /* Secondary insert code */
         Byte  refno;                      /* Residue index number  */
         Byte  struc;                      /* Secondary Structure   */
         Byte  flag;                       /* Database flags        */
+        short model;                      /* Group Model Number    */
     } Group;
  
 #ifdef APPLEMAC
@@ -170,6 +226,7 @@ typedef struct _HBond {
         Char offset;                      /* Signed Offset            */
         Byte flag;                        /* Database flags           */
         Byte col;                         /* Hydrogen bond colour     */
+        char altl;                        /* Bond Alternate Loc       */
     } HBond;
 
 typedef struct _Molecule {
@@ -211,19 +268,25 @@ typedef struct _IntCoord {
     } IntCoord;
 
 typedef struct _InfoStruct {
-        char filename[256];
+        char filename[1024];
         char moleculename[80];
         char classification[42];
-        char identcode[6];
+        char date[12];
+        char technique[80];
+        char identcode[80];
 
-        char spacegroup[11];
+        char spacegroup[12];
         Real cellalpha, cellbeta, cellgamma;
         Real cella, cellb, cellc;
+
+        double vecf2o[3], veco2f[3], matf2o[3][3], mato2f[3][3];
+        double cell[6];
 
         Long bondcount;
         int chaincount;
         int ssbondcount;
         int hbondcount;
+        int cisbondcount;
 
         int structsource;
         int laddercount;
@@ -231,6 +294,15 @@ typedef struct _InfoStruct {
         int turncount;
     } InfoStruct;
 
+#ifdef APPLEMAC
+void RegisterAlloc(void __far * );
+#else
+#define RegisterAlloc(x)
+#endif
+void FreeAlloc(void __far * );
+
+/* used to describe an defined part of the selected molecule */
+typedef enum{NO, ATM, CRD, GRP, CHN} Selection;
 
 
 #ifdef MOLECULE
@@ -274,7 +346,7 @@ char Residue[MAXRES][4] = {
     /*=================*/
           "UNK", "ACE", "FOR", "HOH",
           "DOD", "SO4", "PO4", "NAD",
-          "COA", "NAP"  };
+          "COA", "NAP", "NDP"  };
 
 
 /* Avoid SGI Compiler Warnings! */
@@ -316,6 +388,7 @@ int MainGroupCount;
 int HetaGroupCount;
 Long MainAtomCount; 
 Long HetaAtomCount;
+int CisBondCutOff;
 
 Long MinX, MinY, MinZ;
 Long MaxX, MaxY, MaxZ;
@@ -325,6 +398,9 @@ int MinMainTemp, MaxMainTemp;
 int MinHetaTemp, MaxHetaTemp;
 int MinMainRes,  MaxMainRes;
 int MinHetaRes,  MaxHetaRes;
+int MinAltl,     MaxAltl;
+
+short MinModel, MaxModel;
 
 Molecule __far *CurMolecule;
 Chain __far *CurChain;
@@ -340,6 +416,10 @@ int ElemNo,ResNo;
 int HasHydrogen;
 int MaskCount;
 int NMRModel;
+int NullBonds;
+int MarkAtoms;
+
+int HBondChainsFlag;
 
 #else
 extern char Residue[MAXRES][4];
@@ -350,6 +430,7 @@ extern int MainGroupCount;
 extern int HetaGroupCount;
 extern Long MainAtomCount;
 extern Long HetaAtomCount;
+extern int CisBondCutOff;
 
 extern Long MinX, MinY, MinZ;
 extern Long MaxX, MaxY, MaxZ;
@@ -359,6 +440,9 @@ extern int MinMainTemp, MaxMainTemp;
 extern int MinHetaTemp, MaxHetaTemp;
 extern int MinMainRes,  MaxMainRes;
 extern int MinHetaRes,  MaxHetaRes;
+extern int MinAltl,     MaxAltl;
+
+extern short MinModel, MaxModel;
 
 extern Molecule __far *CurMolecule;
 extern Chain __far *CurChain;
@@ -374,15 +458,23 @@ extern int ElemNo,ResNo;
 extern int HasHydrogen;
 extern int MaskCount;
 extern int NMRModel;
+extern int NullBonds;
+extern int MarkAtoms;
 
-#ifdef FUNCPROTO
+extern int HBondChainsFlag;
+#ifndef APPLEMAC
+#define RegisterAlloc(x)
+#endif
+#endif
+
 void CreateChain( int );
 void CreateGroup( int );
 void ProcessGroup( int );
-void CreateMolGroup();
+void CreateMolGroup( void );
+void CreateNextMolGroup( void );
 int FindResNo( char* );
 
-Atom __far *CreateAtom();
+Atom __far *CreateAtom( void );
 Atom __far *FindGroupAtom( Group __far*, int );
 void ProcessAtom( Atom __far* );
 
@@ -393,58 +485,27 @@ int ComplexAtomType( char* );
 Bond __far *ProcessBond( Atom __far*, Atom __far*, int );
 void CreateBond( Long, Long, int );
 void CreateBondOrder( Long, Long );
-void CreateMoleculeBonds( int, int );
-void FindDisulphideBridges();
-void CalcHydrogenBonds();
+void CreateNewBond( Long, Long );
+void CreateMoleculeBonds( int, int, int );
+Atom __far *FindCysSulphur( Group __far *group );
+void FindDisulphideBridges( void );
+void FindCisBonds( void );
+void CalcHydrogenBonds( void );
 
-void InitInternalCoords();
-IntCoord __far* AllocInternalCoord();
-int ConvertInternal2Cartesian();
-void FreeInternalCoords();
+void InitInternalCoords( void );
+IntCoord __far* AllocInternalCoord( void );
+int ConvertInternal2Cartesian( void );
+void FreeInternalCoords( void );
 
 void DetermineStructure( int );
 void RenumberMolecule( int );
 
-void InitialiseDatabase();
-void DescribeMolecule();
-void DestroyDatabase();
-void PurgeDatabase();
-
-#else /* non-ANSI C compiler */
-
-void CreateChain();
-void CreateGroup();
-void CreateMolGroup();
-int FindResNo();
-
-Atom __far *CreateAtom();
-Atom __far *FindGroupAtom();
-void ProcessAtom();
-
-int NewAtomType();
-int SimpleAtomType();
-int ComplexAtomType();
-
-Bond __far *ProcessBond();
-void CreateBond();
-void CreateBondOrder();
-void CreateMoleculeBonds();
-void FindDisulphideBridges();
-void CalcHydrogenBonds();
-
-void InitInternalCoords();
-IntCoord __far* AllocInternalCoord();
-int ConvertInternal2Cartesian();
-void FreeInternalCoords();
-
-void DetermineStructure();
-void RenumberMolecule();
-
-void InitialiseDatabase();
-void DescribeMolecule();
-void DestroyDatabase();
-void PurgeDatabase();
-
-#endif
+void InitialiseDatabase( void );
+void ReviseTitle( void );
+void DescribeMolecule( void );
+void DestroyDatabase( void );
+void PurgeDatabase( void );
+#ifdef APPLEMAC
+void RegisterAlloc( void *);
 #endif
 
