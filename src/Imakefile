@@ -1,9 +1,10 @@
 # Imakefile
 # RasMol2 Molecular Graphics
 # Roger Sayle, June 1994
-# Version 2.4
+# Version 2.6
 
 # DEPTHDEF = -DTHIRTYTWOBIT
+# DEPTHDEF = -DSIXTEENBIT
 DEPTHDEF = -DEIGHTBIT
 
 # RasMol's on-line help direcory
@@ -17,14 +18,18 @@ DEFINES = -DRASMOLDIR=\"$(RASMOLDIR)\" $(DEPTHDEF)
 SRCS = rasmol.c rasmol.h molecule.c molecule.h abstree.c abstree.h \
        command.c command.h tokens.h transfor.c transfor.h render.c render.h \
        x11win.c graphics.h pixutils.c pixutils.h font.h outfile.c outfile.h \
-       script.c script.h
+       script.c script.h infile.c infile.h repres.c repres.h
 
-OBJS = rasmol.o molecule.o abstree.o command.o transfor.o render.o x11win.o \
-       pixutils.o outfile.o script.o
+OBJS = rasmol.o molecule.o abstree.o command.o transfor.o render.o repres.o \
+       x11win.o pixutils.o outfile.o script.o infile.o
 
 # Previous Risc/Os definition
-# LOCAL_LIBRARIES = -lm -lXinput $(XLIB)
-LOCAL_LIBRARIES = -lm -lXi $(XLIB)
+# LDLIBS = -lm -lXinput $(XLIB)
+
+# Additional RS6000 AIX MITSHM Library
+# LDLIBS = -lm -lXi -lXextSam $(XLIB)
+
+LDLIBS = -lm -lXi $(XLIB)
 
 
 

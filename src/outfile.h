@@ -1,13 +1,15 @@
 /* outfile.h
  * RasMol2 Molecular Graphics
- * Roger Sayle, October 1994
- * Version 2.5
+ * Roger Sayle, August 1995
+ * Version 2.6
  */
 
 #ifdef OUTFILE
+int UseTransparent;
 int UseOutLine;
 
 #else
+extern int UseTransparent;
 extern int UseOutLine;
 
 #ifdef FUNCPROTO

@@ -5,13 +5,13 @@
 \f2\fmodern Courier New;
 }\deff0\fs20
 #{\footnote rasmol}
-${\footnote RasMol V2.3}
+${\footnote RasMol V2.6}
 +{\footnote doc}
-\par{\fs28\b RasMol V2.3}\par\par
+\par{\fs28\b RasMol V2.6}\par\par
 {\fs24\b Molecular Visualisation Program}\par\par
 {\b Roger Sayle}\par
-{\b Glaxo Research and Development}\line
-{\b Greenford, Middlesex, U.K.}\par\par
+{\b Glaxo Wellcome Research and Development}\line
+{\b Stevenage, Hertfordshire, U.K.}\par\par
 \par{\fs24\b Table of Contents}\par\par
 \tx250\li250\fi-250
 {\f1\'b7}\tab
@@ -29,7 +29,7 @@ ${\footnote RasMol V2.3}
 \pard
 \par\page\par
 +{\footnote doc}
-Copyright \'a9 1992,1993,1994 by Roger Sayle (rasmol@ggr.co.uk) {}
+Copyright \'a9 1992-1995 by Roger Sayle (rasmol@ggr.co.uk) {}
 \par\par
 {\fs16
 The information supplied in this document is believed to be true but {}
@@ -58,14 +58,17 @@ from such use, including death, bancruptcy or outbreak of war. {}
 #{\footnote chintro}
 ${\footnote Introduction}
 {\fs24\b Introduction}\par\par
-RasMol2 is an X11 windows system tool intended for the visualisation of {}
-proteins and nucleic acids. RasMol requires either an 8bit pseudo colour {}
-or a 24bit (32bit) true colour display. The program reads in a specified {}
-Brookhaven protein databank (PDB) file and determines the connectivity from {}
-the residue information provided. This may then rendered on the screen {}
-in a variety of formats and colour schemes. Currently available molecule {}
-representations include depth-cued wireframes, sticks, space filling `union {}
-of spheres', ball and stick models and protein ribbon diagrams. {}
+RasMol2 is a molecular graphics program intended for the visualisation of {}
+proteins, nucleic acids and small molecules. The program is aimed at {}
+display, teaching and generation of publication quality images. RasMol {}
+runs on Microsoft Windows, Apple Macintosh, UNIX and VMS systems. The {}
+UNIX and VMS systems require an 8, 24 or 32 bit colour X Windows display {}
+(X11R4 or later). The program reads in a molecule co-ordinate file and {}
+interactively displays the molecule on the screen in a variety of colour {}
+schemes and molecule representations. Currently available representations {}
+include depth-cued wireframes, 'Dreiding' sticks, spacefilling (CPK) spheres, {}
+ball and stick, solid and strand biomolecular ribbons, atom labels and dot {}
+surfaces. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote chcomref}
@@ -83,38 +86,57 @@ The commands/keywords currently recognised by RasMol are given below. {}
 \cellx1200\cellx2400\cellx3600\cellx4800
 \intbl
 {\uldb backbone}{\v backbone}\cell
+{\uldb background}{\v background}\cell
+{\uldb centre}{\v centre}\cell
+{\uldb clipboard}{\v clipboard}\cell
+\row\intbl
 {\uldb colour}{\v colour}\cell
+{\uldb connect}{\v connect}\cell
+{\uldb cpk}{\v cpk}\cell
+{\uldb dots}{\v dots}\cell
+\row\intbl
+{\uldb define}{\v define}\cell
+{\uldb echo}{\v echo}\cell
 {\uldb exit}{\v exit}\cell
-{\uldb hbond}{\v hbond}\cell
+{\uldb hbonds}{\v hbonds}\cell
 \row\intbl
 {\uldb help}{\v help}\cell
+{\uldb label}{\v label}\cell
 {\uldb load}{\v load}\cell
-{\uldb quit}{\v quit}\cell
-{\uldb reset}{\v reset}\cell
+{\uldb print}{\v print}\cell
 \row\intbl
+{\uldb quit}{\v quit}\cell
+{\uldb renumber}{\v renumber}\cell
+{\uldb reset}{\v reset}\cell
 {\uldb restrict}{\v restrict}\cell
+\row\intbl
 {\uldb ribbon}{\v ribbon}\cell
 {\uldb rotate}{\v rotate}\cell
 {\uldb save}{\v save}\cell
-\row\intbl
 {\uldb script}{\v script}\cell
+\row\intbl
 {\uldb select}{\v select}\cell
 {\uldb set}{\v set}\cell
 {\uldb show}{\v show}\cell
-\row\intbl
 {\uldb slab}{\v slab}\cell
-{\uldb spacefill}{\v spacefill}\cell
-{\uldb structure}{\v structure}\cell
-{\uldb ssbond}{\v ssbond}\cell
 \row\intbl
+{\uldb source}{\v source}\cell
+{\uldb spacefill}{\v spacefill}\cell
+{\uldb ssbonds}{\v ssbonds}\cell
+{\uldb strands}{\v strands}\cell
+\row\intbl
+{\uldb structure}{\v structure}\cell
+{\uldb trace}{\v trace}\cell
 {\uldb translate}{\v translate}\cell
 {\uldb wireframe}{\v wireframe}\cell
+\row\intbl
 {\uldb write}{\v write}\cell
 {\uldb zap}{\v zap}\cell
 {\uldb zoom}{\v zoom}\cell
-\row\pard\par
+\row\pard\par\trowd
 \par\page\par
 +{\footnote doc}
+#{\footnote trace}
 #{\footnote backbone}
 ${\footnote Backbone}
 K{\footnote backbone}
@@ -136,11 +158,23 @@ command. The command {}
 turns off the selected `bonds', and {}
 {\f2\b backbone on} {}
 or with a number turns them on. The number can be used {}
-to determine the cylinder radius of the representation in 0.004 angstrom {}
-units. Backbone objects may be coloured using the RasMol {}
+to specify the cylinder radius of the representation in either angstrom {}
+or rasmol units. A parameter value of 500 (2.0 angstroms) or above {}
+results in a "Parameter value too large" error. Backbone objects may be {}
+coloured using the RasMol {}
 {\uldb colour backbone}{\v colour} {}
-command. A parameter value of 500 (2 angstroms) or above results in an {}
-"Integer argument too large" error. {}
+command. {}
+\par\par
+The reserved work {}
+{\f2\b backbone} {}
+is also used as a predefined set and as a parameter to the {}
+{\f2\b set hbond} {}
+and {}
+{\f2\b set ssbond} {}
+commands. The RasMol command {}
+{\f2\b trace} {}
+is synonymous with the command {}
+{\f2\b backbone.} {}
 \par\page\par
 +{\footnote doc}
 #{\footnote background}
@@ -161,6 +195,12 @@ brackets. Typing the command {}
 will give a list of the predefined colour names recognised by RasMol. {}
 When running under X Windows, RasMol also recognises colours in the {}
 X server's colour name database. {}
+\par\par
+The {}
+{\f2\b background} {}
+command is synonymous with the RasMol {}
+{\uldb set background}{\v setbackground} {}
+command. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote center}
@@ -189,6 +229,29 @@ Type {}
 for more information on RasMol atom expressions. {}
 \par\page\par
 +{\footnote doc}
+#{\footnote clipboard}
+${\footnote Clipboard}
+K{\footnote clipboard}
+{\b Clipboard}\par\par
+\tx1200
+{\f2\b Syntax:\tab
+clipboard\par
+}\pard\par
+The RasMol {}
+{\f2\b clipboard} {}
+command places a copy of the currently displayed image on the local {}
+graphics `clipboard'. Note: this command is not yet supported on {}
+UNIX or VMS machines. It is intended to make transfering images {}
+between applications easier under Microsoft Windows or on an Apple {}
+Macintosh. {}
+\par\par
+When using RasMol on a UNIX or VMS system this functionality may be {}
+achieved by generating a raster image in a format that can be read {}
+by the receiving program using the RasMol {}
+{\uldb write}{\v write} {}
+command. {}
+\par\page\par
++{\footnote doc}
 #{\footnote color}
 #{\footnote colour}
 ${\footnote Colour}
@@ -199,7 +262,7 @@ K{\footnote colour}
 colour \{<object>\} <colour>\line\tab
 color \{<object>\} <colour>\par
 }\pard\par
-Colour the atoms (or other objects) of the selected zone. The colour may {}
+Colour the atoms (or other objects) of the selected region. The colour may {}
 be given as either a colour name or a comma separated triple of Red, Green {}
 and Blue (RGB) components enclosed in square brackets. Typing the command {}
 {\uldb help colours}{\v help} {}
@@ -210,8 +273,10 @@ Allowed objects are {}
 {\f2\b atoms,} {}
 {\f2\b bonds,} {}
 {\uldb backbone,}{\v backbone} {}
-{\uldb hbonds,}{\v hbonds} {}
 {\uldb ribbons}{\v ribbons} {}
+{\uldb labels}{\v labels} {}
+{\uldb dots,}{\v dots} {}
+{\uldb hbonds,}{\v hbonds} {}
 and {}
 {\uldb ssbonds.}{\v ssbonds} {}
 If no object is specified, the default keyword {}
@@ -219,24 +284,127 @@ If no object is specified, the default keyword {}
 is assumed. {}
 Some colour schemes are defined for certain object types. The colour scheme {}
 {\f2\b none} {}
-can be applied all objects accept atoms, stating that the selected {}
+can be applied all objects accept atoms and dots, stating that the selected {}
 objects have no colour of their own, but use the colour of their associated {}
 atoms (i.e. the atoms they connect). {}
 {\f2\b Atom} {}
 objects can also be coloured by {}
-{\uldb amino,}{\v aminocolours} {}
 {\uldb cpk,}{\v cpkcolours} {}
+{\uldb amino,}{\v aminocolours} {}
 {\uldb chain,}{\v chaincolours} {}
 {\uldb group,}{\v groupcolours} {}
 {\uldb shapely,}{\v shapelycolours} {}
 {\uldb structure,}{\v structurecolours} {}
 {\uldb temperature}{\v temperaturecolours} {}
+{\uldb charge}{\v chargecolours} {}
 and {}
-{\uldb user}{\v usercolours} {}
-and hydrogen bond objects can also be coloured by {}
-{\uldb type.}{\v hbondtypecolours} {}
+{\uldb user. Hydrogen bonds can also be coloured by}{\v usercolours} {}
+{\uldb type}{\v hbondtypecolours} {}
+and dot surfaces can also be coloured by {}
+{\uldb electrostatic potential.}{\v potentialcolours} {}
 For more information type {}
 {\uldb help colour <colour>.}{\v chcolours} {}
+\par\page\par
++{\footnote doc}
+#{\footnote connect}
+${\footnote Connect}
+K{\footnote connect}
+{\b Connect}\par\par
+\tx1200
+{\f2\b Syntax:\tab
+connect \{<boolean>\}\par
+}\pard\par
+The RasMol {}
+{\f2\b connect} {}
+command is used to force RasMol to (re)calculate the connectivity {}
+of the current molecule. If the original input file contained {}
+connectivity information, this is discarded. The command {}
+{\f2\b connect false} {}
+uses an extremely fast heuristic algorithmm that is suitable for {}
+determing bonding in large bio-molecules such as proteins and {}
+nucleic acids.  The command {}
+{\f2\b connect true} {}
+uses a slower more accurate algorithm based upon covalent radii {}
+that is more suitable for small molecules containing inorganic {}
+elements or strained rings. If no parameters are given, RasMol {}
+determines which algorithm to use based on the number of atoms {}
+in the file. Greater than 255 atoms causes RasMol to use the {}
+faster implementation. This is the method used to determine {}
+bonding, if necessary, when a molecule is first read in using {}
+the {}
+{\uldb load}{\v load} {}
+command. {}
+\par\page\par
++{\footnote doc}
+#{\footnote define}
+${\footnote Define}
+K{\footnote define}
+{\b Define}\par\par
+\tx1200
+{\f2\b Syntax:\tab
+define <identifier> <expression>\par
+}\pard\par
+The RasMol {}
+{\f2\b define} {}
+command allows the user to associate an arbitrary set of atoms with a {}
+unique identifier. This allows the definition of user-defined sets. These {}
+sets are declared statically, i.e. once defined the contents of the set {}
+do not change, even if the expression defining them depends on the {}
+current transformation and representation of the molecule. {}
+\par\page\par
++{\footnote doc}
+#{\footnote dots}
+${\footnote Dots}
+K{\footnote dots}
+{\b Dots}\par\par
+\tx1200
+{\f2\b Syntax:\tab
+dots \{<boolean>\}\line\tab
+dots \{<value>\}\par
+}\pard\par
+The RasMol {}
+{\f2\b dots} {}
+command is used to generate a Van der Waal's dot surface around the {}
+currently selected atoms. Dot surfaces display regularly spaced points {}
+on a sphere of Van der Waals' radius about each selected atom. Dots that {}
+would are `buried' within the Van der Waal's radius of any other atom {}
+(selected or not) are not displayed. {}
+The command {}
+{\f2\b dots on} {}
+deletes any existing dot surface and generates a dots surface around {}
+the currently selected atom set with a default dot density of 100. The {}
+command {}
+{\f2\b dots off} {}
+deletes any existing dot surface. The dot density may be {}
+specified by providing a numeric parameter between 1 and 1000. This {}
+value approximately corresponds to the number of dots on the surface {}
+of a medium sized atom. {}
+\par\par
+By default, the colour of each point on a dot surface is the colour {}
+of it's closest atom at the time the surface is generated. The colour {}
+of the whole dot surface may be changed using the {}
+{\uldb colour dots}{\v colour} {}
+command. {}
+\par\page\par
++{\footnote doc}
+#{\footnote echo}
+${\footnote Echo}
+K{\footnote echo}
+{\b Echo}\par\par
+\tx1200
+{\f2\b Syntax:\tab
+echo \{<string>\}\par
+}\pard\par
+The RasMol {}
+{\f2\b echo} {}
+command is used to display a message in the RasMol command/terminal {}
+window. The string parameter may optionally be delimited in double {}
+quote characters. If no parameter is specified, the {}
+{\f2\b echo} {}
+command displays a blank line. This command is particularly useful {}
+for displaying text from within a RasMol {}
+{\uldb script}{\v script} {}
+file. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote hbond}
@@ -291,19 +459,120 @@ The RasMol {}
 command provides on-line help on the given topic. {}
 \par\page\par
 +{\footnote doc}
+#{\footnote labels}
+#{\footnote label}
+${\footnote Label}
+K{\footnote label}
+{\b Label}\par\par
+\tx1200
+{\f2\b Syntax:\tab
+label \{<string>\}\line\tab
+label <boolean>\par
+}\pard\par
+The RasMol {}
+{\f2\b label} {}
+command allows an arbitrary formatted text string to be {}
+associated with each currently selected atom.  This string may contain {}
+embedded `expansion specifiers' which display properties of the atom {}
+being labelled. An expansion specifier consists of a `%' character {}
+followed by a single alphabetic character specifying the property to be {}
+displayed (similar to C's printf syntax). {}
+An actual '%' character may be displayed by using the expansion {}
+specifier `%%'. {}
+\par\par
+Atom labelling for the currently selected atoms may be turned off with {}
+the command {}
+{\f2\b label off.} {}
+By default, if no string is given as a parameter RasMol uses labels {}
+appropriate for the current molecule. {}
+RasMol uses the label "%n%r:%c.%a" if the molecule contains more than {}
+one chain, "%e%i" if the molecule has only a single residue (a small {}
+molecule) and "%n%r.%a" otherwise. {}
+\par\par
+The colour of each label may be changed using the {}
+{\uldb colour label}{\v colour} {}
+command. By default, each label is drawn in the same colour as the atom {}
+to which it is attached. The size of the displayed text may be changed {}
+using the {}
+{\uldb set fontsize}{\v setfontsize} {}
+command. {}
+\par\par
+The following table lists the current expansion specifiers: {}
+\par\par
+\cellx500\cellx1000\cellx3500
+\intbl
+%a\cell   \cell Atom Name\cell\row\intbl
+%b\cell %t\cell B-factor/Temperature\cell\row\intbl
+%c\cell %s\cell Chain Identifier\cell\row\intbl
+%e\cell   \cell Element Atomic Symbol\cell\row\intbl
+%i\cell   \cell Atom Serial Number\cell\row\intbl
+%n\cell   \cell Residue Name\cell\row\intbl
+%r\cell   \cell Residue Number\cell\row
+\pard\par\trowd
+\par\page\par
++{\footnote doc}
 #{\footnote load}
 ${\footnote Load}
 K{\footnote load}
 {\b Load}\par\par
 \tx1200
 {\f2\b Syntax:\tab
-load \{pdb\} <filename>\line\tab
-load alchemy <filename>\par
+load \{<format>\} <filename>\line\tab
 }\pard\par
-Load either a Brookhaven Protein Databank (PDB) file or Alchemy(tm) format {}
-file into RasMol2. Only a single PDB file may be loaded at a time. This {}
-command selects all the atoms in the molecule, and sets the default {}
-representation to be a cpk coloured wireframe model. {}
+Load a molecule co-ordinate file into RasMol2. Valid molecule file {}
+formats are {}
+{\f2\b pdb} {}
+(Brookhaven Protein Databank), {}
+{\f2\b mdl} {}
+(Molecular Design Limited's MOL file format), {}
+{\f2\b alchemy} {}
+(Tripos' Alchemy file format), {}
+{\f2\b mol2} {}
+(Tripos' Sybyl Mol2 file format), {}
+{\f2\b charmm} {}
+(CHARMm file format) or {}
+{\f2\b xyz} {}
+(MSC's XMol XYZ file format). If no file format is specified, {}
+{\f2\b pdb} {}
+is assumed by default. Only a single molecule may be loaded at a time. {}
+To delete a molecule prior to loading another use the RasMol {}
+{\uldb zap}{\v zap} {}
+command. {}
+\par\par
+The {}
+{\f2\b load} {}
+command selects all the atoms in the molecule, centres it on the {}
+screen and renders it as a CPK coloured wireframe model. If the molecule {}
+contains no bonds (i.e. contains only alpha carbons), it is drawn as {}
+an alpha carbon backbone. If the file specifies less bonds than atoms, {}
+RasMol determines connectivity using the {}
+{\uldb connect}{\v connect} {}
+command. {}
+\par\page\par
++{\footnote doc}
+#{\footnote print}
+${\footnote Print}
+K{\footnote print}
+{\b Print}\par\par
+\tx1200
+{\f2\b Syntax:\tab
+print\par
+}\pard\par
+The RasMol {}
+{\f2\b print} {}
+command sends the currently displayed image to the local default printer {}
+using the operating system's native printer driver. Note: this command {}
+is not yet supported under UNIX or VMS. It is intended to take advantage {}
+of Microsoft Windows and Apple Macintosh printer drivers. For example, {}
+allowing images to be printed directly on a dot matrix printer. {}
+\par\par
+When using RasMol on a UNIX or VMS system this functionality may be {}
+achieved by either generating a PostScript file using the RasMol {}
+{\uldb write ps}{\v write} {}
+or {}
+{\uldb write vectps}{\v write} {}
+commands and printing that or generating a raster image file and using a {}
+utility to dump that to the local printer. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote exit}
@@ -316,7 +585,11 @@ K{\footnote quit}
 quit\line\tab
 exit\par
 }\pard\par
-Exit from the RasMol program. {}
+Exit from the RasMol program. The RasMol commands {}
+{\f2\b exit} {}
+and {}
+{\f2\b quit} {}
+are synonymous. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote renum}
@@ -375,11 +648,11 @@ restrict \{<expression>\}\par
 }\pard\par
 The RasMol {}
 {\f2\b restrict} {}
-command both defines the currently active zone of the {}
+command both defines the currently selected region of the {}
 molecule and disables the representation of (most of) those parts of the {}
 molecule no longer selected.  All subsequent RasMol commands that modify {}
 a molecule's colour or representation effect only the currently selected {}
-zone. The parameter of a {}
+region. The parameter of a {}
 {\f2\b restrict} {}
 command is a RasMol atom expression that is evaluated for every atom {}
 of the current molecule. This command is very similar to the RasMol {}
@@ -389,7 +662,7 @@ command, except restrict disables the {}
 {\uldb spacefill}{\v spacefill} {}
 and {}
 {\uldb backbone}{\v backbone} {}
-representations in the non-active zone. {}
+representations in the non-selected region. {}
 \par\par
 Type "help expression" for more information on RasMol atom expressions. {}
 \par\page\par
@@ -406,12 +679,10 @@ ribbons <value>\par
 }\pard\par
 The RasMol {}
 {\f2\b ribbons} {}
-command displays the currently loaded protein as a smooth "ribbon" {}
-of depth-cued curves passing along the backbone of the protein. The {}
-ribbon is composed of a number of strands that run parallel to one {}
-another along the peptide plane of each residue. The ribbon is drawn {}
-between each amino acid whose alpha carbon is currently selected. {}
-The colour of the ribbon is changed by the RasMol {}
+command displays the currently loaded protein or nucleic acid as a {}
+smooth solid "ribbon" surface passing along the backbone of the protein. {}
+The ribbon is drawn between each amino acid whose alpha carbon is {}
+currently selected. The colour of the ribbon is changed by the RasMol {}
 {\uldb colour ribbon}{\v colour} {}
 command. If the current ribbon colour is {}
 {\f2\b none} {}
@@ -419,13 +690,17 @@ command. If the current ribbon colour is {}
 position along its length. {}
 \par\par
 The width of the ribbon at each position is determined by the optional {}
-parameter in the usual RasMol units. By default this value is 380, which {}
-produces a ribbon 1.52 Angstroms wide. The number of strands in the {}
-ribbon may be altered using the RasMol {}
-{\uldb set strands}{\v setstrands} {}
-command. The rendering of the ribbon may also be changed using the {}
-{\uldb set ribbons}{\v setribbons} {}
-command. {}
+parameter in the usual RasMol units. By default the width of the ribbon {}
+is taken from the secondary structure of the protein or a constant value {}
+of 720 (2.88 Angstroms) for nucleic acids. {}
+The default width of protein alpha helices and beta sheets is 380 (1.52 {}
+Angstroms) and 100 (0.4 Angstroms) for turns and random coil. The {}
+secondary structure assignment is either from the PDB file or calculated {}
+using the DSSP algorithm as used by the {}
+{\uldb structure}{\v structure} {}
+command. This command is similar to the RasMol command {}
+{\uldb strands}{\v strands} {}
+which renders the biomolecular ribbon as parallel depth-cued curves. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote rotate}
@@ -456,27 +731,56 @@ save \{pdb\} <filename>\line\tab
 save alchemy <filename>\par
 }\pard\par
 Save the currently selected set of atoms in either a Brookhaven Protein {}
-Database (PDB) or Alchemy(tm) format file.  This command should not be {}
-confused with the RasMol {}
+Database (PDB) or Alchemy(tm) format file. {}
+The distinction between this command and the RasMol {}
 {\uldb write}{\v write} {}
-command which generates either image or script files. {}
+command has been dropped. The only difference is that without a format {}
+specifier the {}
+{\f2\b save} {}
+command generates a {}
+{\f2\b PDB} {}
+file and the {}
+{\uldb write}{\v write} {}
+command generates a {}
+{\f2\b GIF} {}
+image. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote script}
 ${\footnote Script}
 K{\footnote script}
 {\b Script}\par\par
+#{\footnote source}
 \tx1200
 {\f2\b Syntax:\tab
 script <filename>\par
 }\pard\par
 The RasMol {}
 {\f2\b script} {}
-command reads a set of commands sequentially from a {}
+command reads a set of RasMol commands sequentially from a {}
 text file and executes them. This allows sequences of commonly used {}
-commands to be stored and performed by a single command. A RasMol script {}
+commands to be stored and performed by single command. A RasMol script {}
 file may contain a further script command up to a maximum "depth" of 10, {}
-allowing compilicated sequences of actions to be executed. {}
+allowing compilicated sequences of actions to be executed. RasMol {}
+ignores all characters after the first '#' character on each line {}
+allowing the scripts to be annotated. Script files are often also {}
+annotated using the RasMol {}
+{\uldb echo}{\v echo} {}
+command. {}
+\par\par
+The most common way to generate a RasMol script file is to use the {}
+{\uldb write script}{\v write} {}
+or {}
+{\uldb write rasmol}{\v write} {}
+commands to output the sequence of commands that are needed to {}
+regenerate the current view, representation and colouring of the {}
+currently displayed molecule. {}
+\par\par
+The RasMol command {}
+{\f2\b source} {}
+is synonymous with the {}
+{\f2\b script} {}
+command. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote select}
@@ -487,15 +791,22 @@ K{\footnote select}
 {\f2\b Syntax:\tab
 select \{<expression>\}\par
 }\pard\par
-Define the currently active zone of the molecule. All subsequent RasMol {}
+Define the currently selected region of the molecule. All subsequent RasMol {}
 commands that manipulate a molecule or modify its colour or representation, {}
-only effects the currently selected zone. The parameter of a {}
+only effects the currently selected region. The parameter of a {}
 {\f2\b select} {}
 command is a RasMol expression that is evaluated for every atom of the {}
-current molecule. The currently selected (active) zone of the molecule {}
+current molecule. The currently selected (active) region of the molecule {}
 are those atoms that cause the expression to evaluate true. To select {}
 the whole molecule use the RasMol command {}
 {\f2\b select all.} {}
+The behaviour of the {}
+{\f2\b select} {}
+command without any parameters is determined by the RasMol {}
+{\uldb hetero}{\v sethetero} {}
+and {}
+{\uldb hydrogen}{\v set} {}
+parameters. {}
 \par\par
 Type "help expression" for more information on RasMol atom expressions. {}
 \par\page\par
@@ -514,30 +825,40 @@ command allows the user to alter various internal program parameters {}
 such as those controlling rendering options. Each parameter has its {}
 own set or permissible parameter options. Typically, ommiting the {}
 paramter option resets that parameter to its default value. A list of {}
-valid parameter names is given below. For more information on each {}
-internal parameter type {}
-{\uldb help set <parameter>.}{\v help} {}
+valid parameter names is given below. {}
 \par\par
 \cellx1200\cellx2400\cellx3600\cellx4800
 \intbl
 {\uldb ambient}{\v setambient}\cell
+{\uldb axes}{\v setaxes}\cell
 {\uldb background}{\v setbackground}\cell
 {\uldb bondmode}{\v setbondmode}\cell
+\row\intbl
+{\uldb boundbox}{\v setboundbox}\cell
+{\uldb display}{\v setdisplay}\cell
+{\uldb fontsize}{\v setfontsize}\cell
 {\uldb hbonds}{\v sethbonds}\cell
 \row\intbl
 {\uldb hetero}{\v sethetero}\cell
 {\uldb hourglass}{\v sethourglass}\cell
 {\uldb hydrogen}{\v sethydrogen}\cell
-{\uldb mouse}{\v setmouse}\cell
+{\uldb kinemage}{\v setkinemage}\cell
 \row\intbl
+{\uldb menus}{\v setmenus}\cell
+{\uldb mouse}{\v setmouse}\cell
+{\uldb radius}{\v setradius}\cell
 {\uldb shadow}{\v setshadow}\cell
+\row\intbl
 {\uldb slabmode}{\v setslabmode}\cell
+{\uldb solvent}{\v setsolvent}\cell
 {\uldb specular}{\v setspecular}\cell
 {\uldb specpower}{\v setspecpower}\cell
 \row\intbl
 {\uldb ssbonds}{\v setssbonds}\cell
 {\uldb strands}{\v setstrands}\cell
-\row\pard\par
+{\uldb unitcell}{\v setunitcell}\cell
+{\uldb vectps}{\v setvectps}\cell
+\row\pard\par\trowd
 \par\page\par
 +{\footnote doc}
 #{\footnote show}
@@ -547,7 +868,8 @@ K{\footnote show}
 \tx1200
 {\f2\b Syntax:\tab
 show information\line\tab
-show sequence\par
+show sequence\line\tab
+show symmetry\par
 }\pard\par
 The RasMol {}
 {\f2\b show} {}
@@ -577,11 +899,12 @@ The RasMol {}
 command enables, disables or positions the z-clipping plane of the {}
 molecule. The program only draws those portions of the {}
 molecule that are further from the viewer than the slabbing plane. {}
-Integer values range  from zero at the very back of the molecule to {}
+Values range  from zero at the very back of the molecule to {}
 100 which is completely in front of the molecule. Intermediate values {}
 determine the percentage of the molecule to be drawn. {}
 \par\page\par
 +{\footnote doc}
+#{\footnote cpk}
 #{\footnote spacefill}
 ${\footnote Spacefill}
 K{\footnote spacefill}
@@ -593,24 +916,34 @@ spacefill temperature\line\tab
 spacefill user\line\tab
 spacefill <value>\par
 }\pard\par
-Represent the currently selected zone as a spacefilling union of spheres {}
-model. An integer parameter may be used to specify the radius of each {}
-atom given in 4nm units. If no parameter is given, each atom is drawn as {}
-a sphere of its Van der Waals radius. {}
+The RasMol {}
+{\f2\b spacefill} {}
+command is used to represent all of the currently selected atoms as solid {}
+spheres. This command is used to produce both union-of-spheres and {}
+ball-and-stick models of a molecule. The command, {}
+{\f2\b spacefilll true,} {}
+the default, represents each atom as a sphere of Van der Waals radius. {}
+The command {}
+{\f2\b spacefill off} {}
+turns off the representation of the selected atom as spheres. A sphere {}
+radius may be specified as an integer in RasMol units (1/250th Angstrom) {}
+or a value containing a decimal point. A value of 500 (2.0 {}
+Angstroms) or greater results in a "Parameter value too large" error. {}
 \par\par
 The {}
 {\f2\b temperature} {}
-option is used to set the radius of each selected sphere {}
-to the value in the temperature field of the molecule file. A zero or {}
-negative value causes no change in the selected atom. Temperature values {}
-greater than 2.00 are truncated to 2.00 Angstrom radius. {}
-\par\par
-The {}
+option sets the radius of each sphere to the value stored in its temperature {}
+field. Zero or negative values causes have no effect and values greater than {}
+2.0 are truncated to 2. The {}
 {\f2\b user} {}
-option allows the radius of the selected spheres to be determined {}
-by matching each atom against optional lines in the input data file. Details {}
-of the wildcard pattern matching used by Raster3D's COLOR records is given {}
-in the manual. {}
+option allows the radius of each spheres to be specified by additional lines {}
+in the molecule's PDB file using Raster 3D's COLOR record extension. {}
+\par\par
+The RasMol command {}
+{\f2\b cpk} {}
+is synonymous with the {}
+{\f2\b spacefill} {}
+command. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote ssbond}
@@ -650,6 +983,51 @@ the cysteine groups. By using the {}
 command the position of the cysteine's alpha carbons may be used instead. {}
 \par\page\par
 +{\footnote doc}
+#{\footnote strands}
+${\footnote Strands}
+K{\footnote strands}
+{\b Strands}\par\par
+\tx1200
+{\f2\b Syntax:\tab
+strands \{<boolean>\}\line\tab
+strands <value>\par
+}\pard\par
+The RasMol {}
+{\f2\b strands} {}
+command displays the currently loaded protein or nucleic acid as a {}
+smooth "ribbon" of depth-cued curves passing along the backbone of the {}
+protein. The ribbon is composed of a number of strands that run parallel {}
+to one another along the peptide plane of each residue. The ribbon is {}
+drawn between each amino acid whose alpha carbon is currently selected. {}
+The colour of the ribbon is changed by the RasMol {}
+{\uldb colour ribbon}{\v colour} {}
+command. If the current ribbon colour is {}
+{\f2\b none} {}
+(the default), the colour is taken from the alpha carbon at each {}
+position along its length. The colour of the central and outermost {}
+strands may be coloured independently using the {}
+{\uldb colour ribbon1}{\v colour} {}
+and {}
+{\uldb colour ribbon2}{\v colour} {}
+commands respectively. The number of strands in the ribbon may be {}
+altered using the RasMol {}
+{\uldb set strands}{\v setstrands} {}
+command. {}
+\par\par
+The width of the ribbon at each position is determined by the optional {}
+parameter in the usual RasMol units. By default the width of the ribbon {}
+is taken from the secondary structure of the protein or a constant value {}
+of 720 for nucleic acids (which produces a ribbon 2.88 Angstroms wide). {}
+The default width of protein alpha helices and beta sheets is 380 (1.52 {}
+Angstroms) and 100 (0.4 Angstroms) for turns and random coil. The {}
+secondary structure assignment is either from the PDB file or calculated {}
+using the DSSP algorithm as used by the {}
+{\uldb structure}{\v structure} {}
+command. This command is similar to the RasMol command {}
+{\uldb ribbons}{\v ribbons} {}
+which renders the biomolecular ribbon as a smooth shaded surface. {}
+\par\page\par
++{\footnote doc}
 #{\footnote structure}
 ${\footnote Structure}
 K{\footnote structure}
@@ -666,7 +1044,7 @@ structural assignment records (HELIX and SHEET) these are discarded. {}
 Initially, the hydrogen bonds of the current molecule are found, if this {}
 hasn't been done already. The secondary structure is the determined using {}
 Kabsch and Sander's DSSP algorithm. Once finished the program reports the {}
-number of helices and ladders found. {}
+number of helices, strands and turns found. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote translate}
@@ -706,11 +1084,22 @@ K{\footnote wireframe}
 wireframe \{<boolean>\}\line\tab
 wireframe <value>\par
 }\pard\par
-Represent each bond within the selected zone of the molecule as either {}
-a cylinder or depth-cued vector. If no parameter is given, RasMol draws {}
-each bond as a hither-and-yon shaded narrow vector. An integer parameter {}
-specifies the radius of a cylinder, given in 4nm units, to be used as a {}
-stick bond. {}
+The RasMol {}
+{\f2\b wireframe} {}
+command represents each bond within the selected region of the molecule {}
+as either a cylinder, a line or depth-cued vector. The display of bonds {}
+as depth-cued vectors (drawn darker the further away from the viewer) {}
+is turned on by the command {}
+{\f2\b wireframe} {}
+or {}
+{\f2\b wireframe on.} {}
+The selected bonds are displayed as cylinders by specifying a radius {}
+either as an integer in RasMol units or containing a decimal point as {}
+a value in Angstroms.  A parameter value of 500 (2.0 angstroms) or {}
+above results in an "Parameter value too large" error. Bonds may be {}
+coloured using the {}
+{\uldb colour bonds}{\v colour} {}
+command. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote write}
@@ -722,7 +1111,7 @@ K{\footnote write}
 write \{<format>\} <filename>\par
 }\pard\par
 Write the current image to a file in a standard raster format. Currently {}
-supported file formats include {}
+supported image file formats include {}
 "{\f2\b gif}" {}
 (Compuserve GIF), {}
 "{\f2\b ppm}" {}
@@ -734,11 +1123,36 @@ and {}
 "{\f2\b epsf}" {}
 (Encapsulated PostScript), {}
 "{\f2\b monops}" {}
-(Monochrome Encapsulated PostScript) and {}
+(Monochrome Encapsulated PostScript), {}
 "{\f2\b bmp}" {}
-(Microsoft bitmap). This command should not be confused with the RasMol {}
+(Microsoft bitmap) and {}
+"{\f2\b pict}" {}
+(Apple PICT). The {}
+{\f2\b write} {}
+command may also be used to generate command scripts for other graphics {}
+programs. The format {}
+{\f2\b script} {}
+writes out a file containing the RasMol {}
+{\uldb script}{\v script} {}
+commands to reproduce the current image. The format {}
+{\f2\b molscript} {}
+writes out the commands required to render the current view of the {}
+molecule as ribbons in Per Kraulis' Molscript program and the format {}
+{\f2\b kinemage} {}
+the commands for David Richardson's program Mage. {}
+\par\par
+The distinction between this command and the RasMol {}
 {\uldb save}{\v save} {}
-command which save the currently selected portion of the molecule. {}
+command has been dropped. The only difference is that without a format {}
+specifier the {}
+{\uldb save}{\v save} {}
+command generates a {}
+{\f2\b PDB} {}
+file and the {}
+{\f2\b write} {}
+command generates a {}
+{\f2\b GIF} {}
+image. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote zap}
@@ -764,8 +1178,10 @@ zoom <value>\par
 }\pard\par
 Change the magnification of the currently displayed image. Boolean {}
 parameters either magnify or reset the scale of current molecule. An {}
-integer parameter between 10 and 200 specifies the desired magnification {}
-as a percentage of the default scale. {}
+integer parameter specifies the desired magnification as a percentage {}
+of the default scale. The minimum parameter value is 10, the maximum {}
+parameter value is dependent upon the size of the molecule being {}
+displayed. For medium sized proteins this is about 500. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote chsetopt}
@@ -781,23 +1197,35 @@ A complete list of internal parameter names is given below. {}
 \cellx1200\cellx2400\cellx3600\cellx4800
 \intbl
 {\uldb ambient}{\v setambient}\cell
+{\uldb axes}{\v setaxes}\cell
 {\uldb background}{\v setbackground}\cell
 {\uldb bondmode}{\v setbondmode}\cell
+\row\intbl
+{\uldb boundbox}{\v setboundbox}\cell
+{\uldb display}{\v setdisplay}\cell
+{\uldb fontsize}{\v setfontsize}\cell
 {\uldb hbonds}{\v sethbonds}\cell
 \row\intbl
 {\uldb hetero}{\v sethetero}\cell
 {\uldb hourglass}{\v sethourglass}\cell
 {\uldb hydrogen}{\v sethydrogen}\cell
-{\uldb mouse}{\v setmouse}\cell
+{\uldb kinemage}{\v setkinemage}\cell
 \row\intbl
+{\uldb menus}{\v setmenus}\cell
+{\uldb mouse}{\v setmouse}\cell
+{\uldb radius}{\v setradius}\cell
 {\uldb shadow}{\v setshadow}\cell
+\row\intbl
 {\uldb slabmode}{\v setslabmode}\cell
+{\uldb solvent}{\v setsolvent}\cell
 {\uldb specular}{\v setspecular}\cell
 {\uldb specpower}{\v setspecpower}\cell
 \row\intbl
 {\uldb ssbonds}{\v setssbonds}\cell
 {\uldb strands}{\v setstrands}\cell
-\row\pard\par
+{\uldb unitcell}{\v setunitcell}\cell
+{\uldb vectps}{\v setvectps}\cell
+\row\pard\par\trowd
 \par\page\par
 +{\footnote doc}
 #{\footnote setambient}
@@ -826,6 +1254,30 @@ image appears when printed or to alter the feeling of depth for {}
 wireframe or ribbon representations. {}
 \par\page\par
 +{\footnote doc}
+#{\footnote setaxes}
+${\footnote Set Axes}
+K{\footnote set axes}
+{\b Set Axes}\par\par
+K{\footnote axes}
+\tx1200
+{\f2\b Syntax:\tab
+set axes <boolean>\par
+}\pard\par
+The RasMol {}
+{\f2\b axes} {}
+parameter controls the display of orthogonal co-ordinate axes on {}
+the current display. The co-ordinate axes are those used in the {}
+molecule data file, and the origin is the centre of the molecule's {}
+bounding box. The {}
+{\f2\b set axes} {}
+command is similar the the commands {}
+{\uldb set boundbox}{\v setboundbox} {}
+and {}
+{\uldb set unitcell}{\v setunitcell} {}
+that display the bounding box and the crystallographic unit cell {}
+respectively. {}
+\par\page\par
++{\footnote doc}
 #{\footnote setbackground}
 ${\footnote Set Background}
 K{\footnote set background}
@@ -845,6 +1297,11 @@ brackets. Typing the command {}
 will give a list of the predefined colour names recognised by RasMol. {}
 When running under X Windows, RasMol also recognises colours in the {}
 X server's colour name database. {}
+\par\par
+The command {}
+{\f2\b set background} {}
+is synonymous with the RasMol command {}
+{\uldb background.}{\v background} {}
 \par\page\par
 +{\footnote doc}
 #{\footnote setbondmode}
@@ -857,7 +1314,44 @@ K{\footnote bondmode}
 set bondmode and\line\tab
 set bondmode or\par
 }\pard\par
-set bondmode {}
+The RasMol {}
+{\f2\b set bondmode} {}
+command controls the mechanism used to select individual bonds. When {}
+using the {}
+{\uldb select}{\v select} {}
+and {}
+{\uldb restrict}{\v restrict} {}
+commands, a given bond will be selected if i) the bondmode is {}
+{\f2\b or} {}
+and either of the connected atoms is selected, or ii) the bondmode is {}
+{\f2\b and} {}
+and both atoms connected by the bond are selected. Hence an individual {}
+bond may be uniquely identified by using the command {}
+"{\f2\b set bondmode and}" {}
+and then uniquely selecting the atoms at both ends. {}
+\par\page\par
++{\footnote doc}
+#{\footnote setboundbox}
+${\footnote Set BoundBox}
+K{\footnote set boundbox}
+{\b Set BoundBox}\par\par
+K{\footnote boundbox}
+\tx1200
+{\f2\b Syntax:\tab
+set boundbox <boolean>\par
+}\pard\par
+The RasMol {}
+{\f2\b boundbox} {}
+parameter controls the display of the current molecules bounding box {}
+on the display. The bounding box is orthogonal to the data file's {}
+original co-ordinate axes. The {}
+{\f2\b set boundbox} {}
+command is similar the the commands {}
+{\uldb set axes}{\v setaxes} {}
+and {}
+{\uldb set unitcell}{\v setboundbox} {}
+that display orthogonal co-ordinate axes and the bounding box {}
+respectively. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote setdisplay}
@@ -870,7 +1364,19 @@ K{\footnote display}
 set display selected\line\tab
 set display normal\par
 }\pard\par
-set display {}
+This command controls the display mode within RasMol. By default, {}
+{\f2\b set display normal,} {}
+RasMol displays the molecule in the representation specified by the {}
+user. The command {}
+{\f2\b set display selected} {}
+changes the display mode such that the molecule is temporarily drawn {}
+so as to indicate currently selected portion of the molecule. The {}
+user specified colour scheme and representation remains unchanged. {}
+In this representation all selected atoms are shown in yellow and {}
+all non selected atoms are shown in blue. The colour of the background {}
+is also changed to a dark grey to indicate the change of display mode. {}
+This command is typically only used by external Graphical User {}
+Interfaces (GUIs). {}
 \par\page\par
 +{\footnote doc}
 #{\footnote sethbonds}
@@ -885,7 +1391,50 @@ K{\footnote backbone}
 set hbonds backbone\line\tab
 set hbonds sidechain\par
 }\pard\par
-set hbonds {}
+The RasMol {}
+{\f2\b hbonds} {}
+parameter determines whether hydrogen bonds are drawn between {}
+the donor and acceptor atoms of the hydrogen bond, {}
+{\f2\b set hbonds sidechain} {}
+or between the alpha carbon atoms of the protein backbone and between {}
+the phosphorous atoms of the nucleic acid backbone, {}
+{\f2\b set hbonds backbone.} {}
+The actual display of hydrogen bonds is controlled by the {}
+{\uldb hbonds}{\v hbonds} {}
+command. Drawing hydrogen bonds between protein alpha carbons or {}
+nucleic acid phosphorous atoms is useful when the rest of the molecule {}
+is shown in only a schematic representation such as {}
+{\uldb backbone,}{\v backbone} {}
+{\uldb ribbons}{\v ribbons} {}
+or {}
+{\uldb strands.}{\v strands} {}
+his parameter is similar to the RasMol {}
+{\uldb ssbonds}{\v setssbonds} {}
+parameter. {}
+\par\page\par
++{\footnote doc}
+#{\footnote setfontsize}
+${\footnote Set FontSize}
+K{\footnote set fontsize}
+{\b Set FontSize}\par\par
+K{\footnote fontsize}
+\tx1200
+{\f2\b Syntax:\tab
+set fontsize \{<value>\}\par
+}\pard\par
+The RasMol {}
+{\f2\b set fontsize} {}
+command is used to control the size of the characters that {}
+form atom labels. This value corresponds to the height of {}
+the displayed character in pixels. The maximum value of {}
+{\f2\b fontsize} {}
+is 32 pixels, and the default value is 8 pixels high. To {}
+display atom labels on the screen use the RasMol {}
+{\uldb label}{\v label} {}
+command and to change the colour of displayed labels, use {}
+the {}
+{\uldb colour labels}{\v colour} {}
+command. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote sethetero}
@@ -897,7 +1446,36 @@ K{\footnote hetero}
 {\f2\b Syntax:\tab
 set hetero <boolean>\par
 }\pard\par
-set hetero {}
+The RasMol {}
+{\f2\b hetero} {}
+parameter is used to modify the `default' behaviour of the RasMol {}
+{\uldb select}{\v select} {}
+command, i.e. the behaviour of {}
+{\f2\b select} {}
+without any parameters. When this value is {}
+{\f2\b false,} {}
+the default {}
+{\uldb select}{\v select} {}
+region does not include an heterogenous atoms (refer to the {}
+predefined set {}
+{\uldb hetero}{\v heteroset} {}
+). When this value is {}
+{\f2\b true,} {}
+the default {}
+{\uldb select}{\v select} {}
+region may contain hetero atoms. This parameter is similar to {}
+the RasMol {}
+{\uldb hydrogen}{\v sethydrogen} {}
+parameter which determines whether hydrogen atoms should be {}
+included in the default set. If both {}
+{\f2\b hetero} {}
+and {}
+{\uldb hydrogen}{\v sethydrogen} {}
+are {}
+{\f2\b true,} {}
+{\uldb select}{\v select} {}
+without any parameters is equivalent to {}
+{\uldb select all.}{\v select} {}
 \par\page\par
 +{\footnote doc}
 #{\footnote sethourglass}
@@ -932,7 +1510,78 @@ K{\footnote hydrogen}
 {\f2\b Syntax:\tab
 set hydrogen <boolean>\par
 }\pard\par
-set hydrogen {}
+The RasMol {}
+{\f2\b hydrogen} {}
+parameter is used to modify the `default' behaviour of the RasMol {}
+{\uldb select}{\v select} {}
+command, i.e. the behaviour of {}
+{\f2\b select} {}
+without any parameters. When this value is {}
+{\f2\b false,} {}
+the default {}
+{\uldb select}{\v select} {}
+region does not include any hydrogen or deuterium atoms (refer {}
+to the predefined set {}
+{\uldb hydrogen}{\v hydrogenset} {}
+). When this value is {}
+{\f2\b true,} {}
+the default {}
+{\uldb select}{\v select} {}
+region may contain hydrogen atoms. This parameter is similar to {}
+the RasMol {}
+{\uldb hetero}{\v sethetero} {}
+parameter which determines whether heterogenous atoms should be {}
+included in the default set. If both {}
+{\f2\b hydrogen} {}
+and {}
+{\uldb hetero}{\v sethetero} {}
+are {}
+{\f2\b true,} {}
+{\uldb select}{\v select} {}
+without any parameters is equivalent to {}
+{\uldb select all.}{\v select} {}
+\par\page\par
++{\footnote doc}
+#{\footnote setkinemage}
+${\footnote Set Kinemage}
+K{\footnote set kinemage}
+{\b Set Kinemage}\par\par
+K{\footnote mage}
+K{\footnote kinemage}
+\tx1200
+{\f2\b Syntax:\tab
+set kinemage <boolean>\par
+}\pard\par
+The RasMol {}
+{\f2\b set kinemage} {}
+command controls the amount of detail stored in a Kinemage output {}
+file generated by the RasMol {}
+{\uldb write kinemage}{\v write} {}
+command. The output kinemage files are intended to be displayed by {}
+David Richardson's Mage program. {}
+{\f2\b set kinemage false,} {}
+the default, only stores the currently displayed representation in {}
+the generated output file. The command {}
+{\f2\b set kinemage true,} {}
+generates a more complex Kinemage that contains both the wireframe {}
+and backbone representations as well as the co-ordinate axes, {}
+bounding box and crystal unit cell. {}
+\par\page\par
++{\footnote doc}
+#{\footnote setmenus}
+${\footnote Set Menus}
+K{\footnote set menus}
+{\b Set Menus}\par\par
+K{\footnote menus}
+\tx1200
+{\f2\b Syntax:\tab
+set menus <boolean>\par
+}\pard\par
+The RasMol {}
+{\f2\b set menus} {}
+command enables the canvas window's menu buttons or menu bar. This {}
+command is typically only used by graphical user interfaces or to {}
+create as large as image as possible when using Microsoft Windows. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote setmouse}
@@ -968,30 +1617,49 @@ provide the same mouse bindings as other packages for experienced {}
 users. {}
 \par\page\par
 +{\footnote doc}
-#{\footnote setribbons}
-${\footnote Set Ribbons}
-K{\footnote set ribbons}
-{\b Set Ribbons}\par\par
-K{\footnote ribbons}
-K{\footnote strands}
-K{\footnote solid}
+#{\footnote setradius}
+${\footnote Set Radius}
+K{\footnote set radius}
+{\b Set Radius}\par\par
+K{\footnote radius}
 \tx1200
 {\f2\b Syntax:\tab
-set ribbons strands\line\tab
-set ribbons solid\par
+set radius \{<value>\}\par
 }\pard\par
 The RasMol {}
-{\f2\b set ribbons} {}
-command controls the way that macromolecular ribbons are displayed. {}
-The default value {}
-{\f2\b strands} {}
-display macromolecular ribbons as parallel depth-cued strands that {}
-pass along the protein or nucleic acid backbone. The number of strands {}
-in the ribbon may be altered using the RasMol {}
-{\uldb set strands}{\v setstrands} {}
-command. The {}
-{\f2\b set ribbons solid} {}
-command renders the macromolecular ribbon as a solid shaded ribbon. {}
+{\f2\b set radius} {}
+command is used to alter the behaviour of the RasMol {}
+{\uldb dots}{\v dots} {}
+command depending upon the value of the {}
+{\uldb solvent}{\v setsolvent} {}
+parameter. {}
+When {}
+{\uldb solvent}{\v setsolvent} {}
+is {}
+{\f2\b true,} {}
+the {}
+{\f2\b radius} {}
+parameter controls whether a true Van der Waal's surface {}
+is generated by the {}
+{\uldb dots}{\v dots} {}
+command. If the value of {}
+{\f2\b radius} {}
+is anything other than zero, that value is used as the {}
+radius of each atom instead of it true VdW value. When {}
+the value of {}
+{\uldb solvent}{\v setsolvent} {}
+is {}
+{\f2\b true,} {}
+this parameter determines the `probe sphere' (solvent) radius. {}
+The parameter may be given as an integer in rasmol units or {}
+containing a decimal point in Angstroms. The default value of {}
+this parameter is determined by the value of {}
+{\uldb solvent}{\v setsolvent} {}
+and changing {}
+{\uldb solvent}{\v setsolvent} {}
+resets {}
+{\f2\b radius} {}
+to its new default value. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote setshadow}
@@ -1034,9 +1702,46 @@ set slabmode <slabmode>\par
 The RasMol {}
 {\f2\b slabmode} {}
 parameter controls the rendering method of objects cut by the {}
-slabbing (z-clipping) plane. Valid slab modes are {}
+slabbing (z-clipping) plane. Valid slabmode parameters are {}
 "{\f2\b reject}", "{\f2\b half}", "{\f2\b hollow}", {}
 "{\f2\b solid}" and "{\f2\b section}". {}
+\par\page\par
++{\footnote doc}
+#{\footnote setsolvent}
+${\footnote Set Solvent}
+K{\footnote set solvent}
+{\b Set Solvent}\par\par
+K{\footnote solvent}
+\tx1200
+{\f2\b Syntax:\tab
+set solvent <boolean>\par
+}\pard\par
+The RasMol {}
+{\f2\b set solvent} {}
+command is used to control the behaviour of the RasMol {}
+{\uldb dots}{\v dots} {}
+command. Depending upon the value of the {}
+{\f2\b solvent} {}
+parameter, the {}
+{\uldb dots}{\v dots} {}
+command either generates a Van der Waal's or a solvent {}
+acessible surface around the currently selected set of {}
+atoms. Changing this parameter automatically resets the {}
+value of the RasMol {}
+{\uldb radius}{\v setradius} {}
+parameter. {}
+The command {}
+{\f2\b set solvent false,} {}
+the default value, indicates that a Van der Waal's surface {}
+should be generated and resets the value of {}
+{\uldb radius}{\v setradius} {}
+to zero. The command {}
+{\f2\b set solvent true} {}
+indicates that a `Connolly' or `Richards' solvent {}
+accessible surface should be drawn and sets the {}
+{\uldb radius}{\v setradius} {}
+parameter, the solvent radius, to 1.2 Angstroms (or 300 {}
+RasMol units). {}
 \par\page\par
 +{\footnote doc}
 #{\footnote setspecular}
@@ -1096,7 +1801,23 @@ K{\footnote sidechain}
 set ssbonds backbone\line\tab
 set ssbonds sidechain\par
 }\pard\par
-set ssbonds {}
+The RasMol {}
+{\f2\b ssbonds} {}
+parameter determines whether disulphide bridges are drawn between {}
+the sulphur atoms in the sidechain (the default) or between the alpha {}
+carbon atoms in the backbone of the cysteines residues. The actual {}
+display of disulphide bridges is controlled by the {}
+{\uldb ssbonds}{\v ssbonds} {}
+command. Drawing disulphide bridges between alpha carbons is useful {}
+when the rest of the protein is shown in only a schematic {}
+representation such as {}
+{\uldb backbone,}{\v backbone} {}
+{\uldb ribbons}{\v ribbons} {}
+or {}
+{\uldb strands.}{\v strands} {}
+his parameter is similar to the RasMol {}
+{\uldb hbonds}{\v sethbonds} {}
+parameter. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote setstrands}
@@ -1118,6 +1839,56 @@ However, the ribbon width (the separation between strands) may be {}
 controlled on a residue by residue basis using the RasMol {}
 {\uldb ribbons}{\v ribbons} {}
 command. {}
+\par\page\par
++{\footnote doc}
+#{\footnote setunitcell}
+${\footnote Set UnitCell}
+K{\footnote set unitcell}
+{\b Set UnitCell}\par\par
+K{\footnote unitcell}
+\tx1200
+{\f2\b Syntax:\tab
+set unitcell <boolean>\par
+}\pard\par
+The RasMol {}
+{\f2\b unitcell} {}
+parameter controls the display of the crystallographic unit cell on {}
+the current display. The crystal cell is only enabled if the appropriate {}
+crystal symmetry information is contained in the PDB data file. The {}
+RasMol command {}
+{\uldb show symmetry}{\v show} {}
+display details of the crystal's space group and unit cell axes. The {}
+{\f2\b set unitcell} {}
+command is similar the the commands {}
+{\uldb set axes}{\v setaxes} {}
+and {}
+{\uldb set boundbox}{\v setboundbox} {}
+that display orthogonal co-ordinate axes and the bounding box {}
+respectively. {}
+\par\page\par
++{\footnote doc}
+#{\footnote setvectps}
+${\footnote Set VectPS}
+K{\footnote set vectps}
+{\b Set VectPS}\par\par
+K{\footnote vectps}
+\tx1200
+{\f2\b Syntax:\tab
+set vectps <boolean>\par
+}\pard\par
+The RasMol {}
+{\f2\b vectps} {}
+parameter is use to control the way in which the RasMol {}
+{\uldb write}{\v write} {}
+command generates vector PostScript output files. The command {}
+{\f2\b set vectps on} {}
+enables to use of black outlines around spheres and cylinder bonds {}
+producing `cartoon-like' high resolution output. However, the current {}
+implementation of RasMol incorrectly cartoons spheres that are intersected {}
+by more than one other sphere. Hence `ball and stick' models are rendered {}
+correctly by not large spacefilling spheres models. Cartoon outlines {}
+can be disabled, the default, by the command {}
+{\f2\b set vectps off} {}
 \par\page\par
 +{\footnote doc}
 #{\footnote chexprs}
@@ -1148,6 +1919,15 @@ The atom expression is evaluated for each atom, hence {}
 selects protein bacbone atoms, not the protein and [nucleic] acid {}
 backbone atoms! {}
 \par\par
+\cellx1200\cellx4500
+\intbl
+Examples:\cell {\f2\b backbone and not helix}\cell\row\intbl
+         \cell {\f2\b within( 8.0, ser70 )}\cell\row\intbl
+         \cell {\f2\b not (hydrogen or hetero)}\cell\row\intbl
+         \cell {\f2\b not *.FE and hetero}\cell\row\intbl
+         \cell {\f2\b 8, 12, 16, 20-28}\cell\row\intbl
+         \cell {\f2\b arg, his, lys}\cell\row
+\pard\par\trowd
 \tx250\li250\fi-250
 {\f1\'b7}\tab
 {\uldb Primitive Expressions}{\v primitiveexpressions}\par
@@ -1200,7 +1980,7 @@ ${\footnote Primitive Expressions}
 K{\footnote primitive expressions}
 {\b Primitive Expressions}\par\par
 RasMol primitive expressions are the fundamental building blocks {}
-of atom expressions. There a two basic types of primitive expression. {}
+of atom expressions. There are two types of primitive expression. {}
 The first type is used to identify a given residue number or range {}
 of residue numbers. A single residue is identified by its number {}
 (position in the sequence), and a range is specified by lower and {}
@@ -1222,7 +2002,7 @@ which are case insensitive. Hence the primitive expressions {}
 {\f2\b SER} {}
 and {}
 {\f2\b ser} {}
-are equivalent, identifying all cysteine residues. {}
+are equivalent, identifying all serine residues. {}
 Residue names that contain non-alphabetic characters, such as {}
 sulphate groups, may be delimited using square brackets, i.e. {}
 {\f2\b [SO4]} {}
@@ -1262,6 +2042,8 @@ comparison operator and then an integer value. {}
 The atom properties that may be used in RasMol are {}
 {\f2\b atomno} {}
 for the atom serial number, {}
+{\f2\b elemno} {}
+for the atom's atomic number (element), {}
 {\f2\b resno} {}
 for the residue number, {}
 {\f2\b radius} {}
@@ -1306,19 +2088,19 @@ expression takes two parameters separated by a comma and surrounded {}
 by parenthesis. The first argument is an integer value called the {}
 "cut-off" distance of the within expression and the second argument {}
 is any  valid atom expression. The cut-off distance is expressed in {}
-RasMol 0.004 Angstrom units. An atom is selected if it is within {}
-the cut-off distance of any of the atoms defined by the second {}
-argument. This allows complex expressions to be constructed containing {}
-nested {}
+either integer RasMol units or Angstroms containing a decimal point. {}
+An atom is selected if it is within the cut-off distance of any of {}
+the atoms defined by the second argument. This allows complex {}
+expressions to be constructed containing nested {}
 {\f2\b within} {}
 expressions. {}
 \par\par
 For example, the command {}
-{\f2\b select within(800,backbone)} {}
+{\f2\b select within(3.2,backbone)} {}
 selects any atom within a 3.2 Angstrom radius of any atom in a {}
 protein or nucleic acid backbone. {}
 {\f2\b Within} {}
-expressions are particularly usefull for selecting the atoms {}
+expressions are particularly useful for selecting the atoms {}
 around an active site. {}
 \par\page\par
 +{\footnote doc}
@@ -1327,12 +2109,18 @@ ${\footnote Predefined Sets}
 K{\footnote predefined sets}
 {\b Predefined Sets}\par\par
 K{\footnote sets}
-RasMol atom expressions may contain predefined sets. Thsese sets {}
+RasMol atom expressions may contain predefined sets. These sets {}
 are single keywords that represent portions of a molecule of interest. {}
 Predefined sets are often abbreviations primitive atom expressions, {}
 and in some cases of selecting areas of a molecule that could not {}
-otherwise be distinguished. A list of the currently predfined sets {}
+otherwise be distinguished. A list of the currently predefined sets {}
 is given below. {}
+In addition to the sets listed here, RasMol also treats element names {}
+(and their plurals) as predefined sets containing all atoms of that {}
+element type, i.e. the command {}
+{\uldb select oxygen}{\v select} {}
+is equivalent to the command {}
+{\uldb select elemno=8.}{\v select} {}
 \par\par
 \cellx1200\cellx2400\cellx3600\cellx4800
 \intbl
@@ -1347,37 +2135,42 @@ is given below. {}
 {\uldb backbone}{\v backboneset}\cell
 \row\intbl
 {\uldb basic}{\v basicset}\cell
+{\uldb bonded}{\v bondedset}\cell
 {\uldb buried}{\v buriedset}\cell
 {\uldb cg}{\v cgset}\cell
-{\uldb charged}{\v chargedset}\cell
 \row\intbl
+{\uldb charged}{\v chargedset}\cell
 {\uldb cyclic}{\v cyclicset}\cell
 {\uldb cystine}{\v cystineset}\cell
 {\uldb helix}{\v helixset}\cell
-{\uldb hetero}{\v heteroset}\cell
 \row\intbl
+{\uldb hetero}{\v heteroset}\cell
 {\uldb hydrogen}{\v hydrogenset}\cell
 {\uldb hydrophobic}{\v hydrophobicset}\cell
-{\uldb large}{\v largeset}\cell
-{\uldb medium}{\v mediumset}\cell
+{\uldb ions}{\v ionsset}\cell
 \row\intbl
+{\uldb large}{\v largeset}\cell
+{\uldb ligand}{\v ligandset}\cell
+{\uldb medium}{\v mediumset}\cell
 {\uldb neutral}{\v neutralset}\cell
+\row\intbl
 {\uldb nucleic}{\v nucleicset}\cell
 {\uldb polar}{\v polarset}\cell
 {\uldb protein}{\v proteinset}\cell
-\row\intbl
 {\uldb purine}{\v purineset}\cell
+\row\intbl
 {\uldb pyrimidine}{\v pyrimidineset}\cell
 {\uldb selected}{\v selectedset}\cell
 {\uldb sheet}{\v sheetset}\cell
-\row\intbl
 {\uldb sidechain}{\v sidechainset}\cell
+\row\intbl
 {\uldb small}{\v smallset}\cell
+{\uldb solvent}{\v solventset}\cell
 {\uldb surface}{\v surfaceset}\cell
 {\uldb turn}{\v turnset}\cell
 \row\intbl
 {\uldb water}{\v waterset}\cell
-\row\pard\par
+\row\pard\par\trowd
 \par\page\par
 +{\footnote doc}
 #{\footnote atset}
@@ -1403,14 +2196,14 @@ K{\footnote acidic set}
 {\b Acidic Set}\par\par
 K{\footnote acidic}
 The set of acidic amino acids. {}
-These are the residue types Asp, Glu and Tyr. {}
+These are the residue types Asp and Glu. {}
 All amino acids are classified as either {}
 {\f2\b acidic,} {}
 {\uldb basic}{\v basicset} {}
 {\f2\b or} {}
 {\uldb neutral.}{\v neutralset} {}
 This set is equivalent to the RasMol atom expressions {}
-"{\f2\b asp, glu, tyr}" {}
+"{\f2\b asp, glu}" {}
 and {}
 "{\f2\b amino and not (basic or neutral)}" {}
 \par\page\par
@@ -1485,6 +2278,7 @@ ${\footnote Backbone Set}
 K{\footnote backbone set}
 {\b Backbone Set}\par\par
 K{\footnote backbone}
+K{\footnote mainchain}
 This set contains the four atoms of each amino acid that form the {}
 polypeptide N-C-C-O backbone of proteins, and the atoms the sugar {}
 phosphate backbone of nucleic acids. {}
@@ -1498,7 +2292,12 @@ Atoms in nucleic acids and proteins are either {}
 or {}
 {\uldb sidechain.}{\v sidechainset} {}
 This set is equivalent to the RasMol expression {}
-"(protein or nucleic) and not sidechain {}
+"{\f2\b (protein or nucleic) and not sidechain}" {}
+\par\par
+The predefined set {}
+{\f2\b mainchain} {}
+is synonymous with the set {}
+{\f2\b backbone.} {}
 \par\page\par
 +{\footnote doc}
 #{\footnote basicset}
@@ -1507,16 +2306,25 @@ K{\footnote basic set}
 {\b Basic Set}\par\par
 K{\footnote basic}
 The set of basic amino acids. {}
-These are the residue types Asp, Glu and Tyr. {}
+These are the residue types Arg, His and Lys. {}
 All amino acids are classified as either {}
 {\uldb acidic,}{\v acidicset} {}
 {\f2\b basic} {}
 or {}
 {\uldb neutral.}{\v neutralset} {}
 This set is equivalent to the RasMol atom expressions {}
-"{\f2\b asp, glu, tyr}" {}
+"{\f2\b arg, his, lys}" {}
 and {}
 "{\f2\b amino and not (acidic or neutral)}" {}
+\par\page\par
++{\footnote doc}
+#{\footnote bondedset}
+${\footnote Bonded Set}
+K{\footnote bonded set}
+{\b Bonded Set}\par\par
+K{\footnote bonded}
+This set contain all the atoms in the current molecule database that {}
+are bonded to atleast one other atom. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote buriedset}
@@ -1626,7 +2434,7 @@ Otherwise, it uses the DSSP algorithm as used by the RasMol {}
 {\uldb structure}{\v structure} {}
 command. {}
 \par\par
-This command should not be confused with the predefined set {}
+This predefined set should not be confused with the predefined set {}
 {\uldb alpha}{\v alphaset} {}
 which contains the alpha carbon atoms of a protein. {}
 \par\page\par
@@ -1638,10 +2446,18 @@ K{\footnote hetero set}
 K{\footnote hetero}
 This set contains all the heterogenous atoms in the molecule. These {}
 are the atoms described by HETATM entries in the PDB file. These {}
-typically contain water, cofactors and other solvents and ligands. {}
-The RasMol predefined set {}
+typically contain water, cofactors and other solvents and ligands. All {}
+{\f2\b hetero} {}
+atoms are classified as either {}
+{\uldb ligand}{\v ligandset} {}
+or {}
+{\uldb solvent}{\v solventset} {}
+atoms. These heterogenous {}
+{\uldb solvent}{\v solventset} {}
+atoms are further classified as either {}
 {\uldb water}{\v waterset} {}
-is often used to partition this set. {}
+or {}
+{\uldb ions.}{\v ionsset} {}
 \par\page\par
 +{\footnote doc}
 #{\footnote hydrogenset}
@@ -1650,7 +2466,9 @@ K{\footnote hydrogen set}
 {\b Hydrogen Set}\par\par
 K{\footnote hydrogen}
 This predefined set contains all the hydrogen and deuterium atoms {}
-of the current molecule. {}
+of the current molecule. This predefined set is equivalent to the {}
+RasMol atom expression {}
+"{\f2\b elemno=1}" {}
 \par\page\par
 +{\footnote doc}
 #{\footnote hydrophobicset}
@@ -1670,6 +2488,28 @@ and {}
 "{\f2\b amino and not polar}" {}
 \par\page\par
 +{\footnote doc}
+#{\footnote ionsset}
+${\footnote Ions Set}
+K{\footnote ions set}
+{\b Ions Set}\par\par
+K{\footnote ions}
+This set contains all the heterogenous phosphate and sulphate ions in {}
+the current molecule data file. A large number of these ions are {}
+sometimes associated with protein and nucleic acid structures determined {}
+by X-ray crystallography. These atoms tend to clutter an image. All {}
+{\uldb hetero}{\v heteroset} {}
+atoms are classified as either {}
+{\uldb ligand}{\v ligandset} {}
+or {}
+{\uldb solvent}{\v solventset} {}
+atoms. All {}
+{\uldb solvent}{\v solventset} {}
+atoms are classified as either {}
+{\uldb water}{\v waterset} {}
+or {}
+{\f2\b ions.} {}
+\par\page\par
++{\footnote doc}
 #{\footnote largeset}
 ${\footnote Large Set}
 K{\footnote large set}
@@ -1682,6 +2522,21 @@ or {}
 {\f2\b large.} {}
 This set is equivalent to the RasMol atom expression {}
 "{\f2\b amino and not (small or medium)}" {}
+\par\page\par
++{\footnote doc}
+#{\footnote ligandset}
+${\footnote Ligand Set}
+K{\footnote ligand set}
+{\b Ligand Set}\par\par
+K{\footnote ligand}
+This set contains all the heterogenous cofactor and ligand moieties that {}
+are contained in the current molecule data file. At this set is defined {}
+to be all {}
+{\uldb hetero}{\v heteroset} {}
+atoms that are not {}
+{\uldb solvent}{\v solventset} {}
+atoms. Hence this set is equivalent to the RasMol atom expression {}
+"{\f2\b hetero and not solvent}" {}
 \par\page\par
 +{\footnote doc}
 #{\footnote mediumset}
@@ -1707,7 +2562,7 @@ The set of neutral amino acids. {}
 All amino acids are classified as either {}
 {\uldb acidic,}{\v acidicset} {}
 {\f2\b basic} {}
-{\f2\b or} {}
+or {}
 {\uldb neutral.}{\v neutralset} {}
 This set is equivalent to the RasMol atom expression {}
 "{\f2\b amino and not (acidic or basic)}" {}
@@ -1718,7 +2573,16 @@ ${\footnote Nucleic Set}
 K{\footnote nucleic set}
 {\b Nucleic Set}\par\par
 K{\footnote nucleic}
-The set of all atoms in nucleic acids. {}
+The set of all atoms in nucleic acids, which consists of the four {}
+nucleotide bases adenosine, cytidine, guanosine and thymidine (A, {}
+C, G and T respectively). All neucleotides are classified as either {}
+{\uldb purine}{\v purineset} {}
+or {}
+{\uldb pyrimidine.}{\v pyrimidineset} {}
+This set is equivalent to the RasMol atom expressions {}
+"{\f2\b a,c,g,t}" {}
+and {}
+"{\f2\b purine or pyrimidine}" {}
 \par\page\par
 +{\footnote doc}
 #{\footnote polarset}
@@ -1771,7 +2635,7 @@ K{\footnote pyrimidine}
 The set of pyrimidine nucleotides. {}
 These are the bases cytidine and thymidine (C and T respectively). {}
 All nucleotides are either {}
-{\f2\b purineset purines} {}
+{\uldb purines}{\v purineset} {}
 or {}
 {\f2\b pyrimidines.} {}
 This set is equivalent to the RasMol atom expressions {}
@@ -1785,8 +2649,8 @@ ${\footnote Selected Set}
 K{\footnote selected set}
 {\b Selected Set}\par\par
 K{\footnote selected}
-This set contains the set of atoms in the currently active zone. {}
-The currently active zone is defined by the preceding {}
+This set contains the set of atoms in the currently selected {}
+region. The currently selected region is defined by the preceding {}
 {\uldb select}{\v select} {}
 or {}
 {\uldb restrict}{\v restrict} {}
@@ -1828,7 +2692,7 @@ Atoms in nucleic acids and proteins are either {}
 or {}
 {\f2\b sidechain.} {}
 This set is equivalent to the RasMol expression {}
-"(protein or nucleic) and not backbone {}
+"{\f2\b (protein or nucleic) and not backbone}" {}
 \par\page\par
 +{\footnote doc}
 #{\footnote smallset}
@@ -1845,6 +2709,31 @@ This set is equivalent to the RasMol atom expression {}
 "{\f2\b amino and not (medium or large)}" {}
 \par\page\par
 +{\footnote doc}
+#{\footnote solventset}
+${\footnote Solvent Set}
+K{\footnote solvent set}
+{\b Solvent Set}\par\par
+K{\footnote solvent}
+This set contains the solvent atoms in the molecule co-ordinate file. {}
+These are the heterogenous water molecules, phosphate and sulphate {}
+ions. All {}
+{\uldb hetero}{\v heteroset} {}
+atoms are classified as either {}
+{\uldb ligand}{\v ligandset} {}
+or {}
+{\f2\b solvent} {}
+atoms. All {}
+{\f2\b solvent} {}
+atoms are classified as either {}
+{\uldb water}{\v waterset} {}
+or {}
+{\uldb ions.}{\v ionsset} {}
+This set is equivalent to the RasMol atom expressions {}
+"{\f2\b hetero and not ligand}" {}
+and {}
+"{\f2\b water or ions}" {}
+\par\page\par
++{\footnote doc}
 #{\footnote surfaceset}
 ${\footnote Surface Set}
 K{\footnote surface set}
@@ -1853,7 +2742,7 @@ K{\footnote surface}
 This set contains the atoms in those amino acids that tend {}
 (prefer) to be on the surface of proteins, in contact with {}
 solvent molecules. This set refers to the amino acids {}
-preference and not the actual solvent acessibility for {}
+preference and not the actual solvent accessibility for {}
 the current protein. {}
 All amino acids are classified as either {}
 {\f2\b surface} {}
@@ -1886,6 +2775,18 @@ This set contains all the heterogenous water molecules in the current {}
 database. A large number of water molecules are sometimes associated {}
 with protein and nucleic acid structures determined by X-ray {}
 crystallography. These atoms tend to clutter an image. {}
+All {}
+{\uldb hetero}{\v heteroset} {}
+atoms are classified as either {}
+{\uldb ligand}{\v ligandset} {}
+or {}
+{\uldb solvent}{\v solventset} {}
+atoms. The {}
+{\uldb solvent}{\v solventset} {}
+atoms are further classified as either {}
+{\f2\b water} {}
+or {}
+{\uldb ions.}{\v ionsset} {}
 \par\page\par
 +{\footnote doc}
 #{\footnote chcolours}
@@ -1896,18 +2797,47 @@ The RasMol {}
 command allows different objects (such as atoms, bonds and ribbon segments) {}
 to be given a specified colour. Typically this colour is either a RasMol {}
 predefined colour name or an RGB triple. Additionally RasMol also supports {}
+{\uldb cpk,}{\v cpkcolours} {}
 {\uldb amino,}{\v aminocolours} {}
 {\uldb chain,}{\v chaincolours} {}
 {\uldb group,}{\v groupcolours} {}
 {\uldb shapely,}{\v shapelycolours} {}
 {\uldb structure,}{\v structurecolours} {}
 {\uldb temperature,}{\v temperaturecolours} {}
-{\uldb user}{\v usercolours} {}
+{\uldb charge}{\v chargecolours} {}
 and {}
+{\uldb user}{\v usercolours} {}
+colour schemes for atoms, a {}
 {\uldb hbond type}{\v hbondtypecolours} {}
-colour schemes. {}
+colour scheme for hydrogen bonds and {}
+{\uldb electrostatic potential}{\v potentialcolours} {}
+colour scheme for dot surfaces. {}
 The currently predefined colour {}
 names are {}
+listed below with their corresponding RGB triplet. {}
+\par\par
+\cellx1000\cellx2500\cellx3500\cellx5000
+\intbl
+blue\cell [0,0,256]\cell
+black\cell [0,0,0]\cell
+\row\intbl
+cyan\cell [0,255,255]\cell
+green\cell [0,255,0]\cell
+\row\intbl
+greenblue\cell [46,139,87]\cell
+magenta\cell [255,0,255]\cell
+\row\intbl
+orange\cell [255,165,0]\cell
+purple\cell [160,32,240]\cell
+\row\intbl
+red\cell [255,0,0]\cell
+redorange\cell [255,69,0]\cell
+\row\intbl
+violet\cell [238,130,238]\cell
+white\cell [255,255,255]\cell
+\row\intbl
+yellow\cell [255,255,0]\cell
+\row\pard\par\trowd
 \par\page\par
 +{\footnote doc}
 #{\footnote aminocolours}
@@ -1918,11 +2848,27 @@ The RasMol {}
 {\f2\b amino} {}
 colour scheme colours amino acids according to traditional amino acid {}
 properties. The purpose of colouring is to identify amino acids in an {}
-unusual or surprising environment. The outer parts of a protein are {}
+unusual or surprising environment. The outer parts of a protein that are {}
 polar are visible (bright) colours and non-polar residues darker. Most {}
 colours are hallowed by tradition. This colour scheme is similar to the {}
 {\uldb shapely}{\v shapelycolours} {}
 scheme. {}
+\par\par
+\cellx1500\cellx2500\cellx3500
+\intbl
+ASP, GLU\cell bright red\cell [230,10,10]\cell\row\intbl
+LYS, ARG\cell blue\cell [20,90,255]\cell\row\intbl
+CYS, MET\cell yellow\cell [230,230,0]\cell\row\intbl
+SER, THR\cell orange\cell [250,150,0]\cell\row\intbl
+PHE, TYR\cell mid blue\cell [50,50,170]\cell\row\intbl
+ASN, GLN\cell cyan\cell [230,230,0]\cell\row\intbl
+GLY\cell light grey\cell [235,235,235]\cell\row\intbl
+LEU, VAL, ILE\cell green\cell [15,130,15]\cell\row\intbl
+ALA\cell dark grey\cell [200,200,200]\cell\row\intbl
+TRP\cell pink\cell [180,90,180]\cell\row\intbl
+HIS\cell pale blue\cell [130,130,210]\cell\row\intbl
+PRO\cell flesh\cell [220,150,130]\cell\row\pard\par
+\trowd
 \par\page\par
 +{\footnote doc}
 #{\footnote chaincolours}
@@ -1932,7 +2878,7 @@ K{\footnote chain colours}
 The RasMol {}
 {\f2\b chain} {}
 colour scheme assigns each macromolecular chain a unique colour. This {}
-colour scheme is particularly usefull for distinguishing the parts of {}
+colour scheme is particularly useful for distinguishing the parts of {}
 multimeric structure or the individual `strands' of a DNA chain. {}
 \par\page\par
 +{\footnote doc}
@@ -1946,6 +2892,23 @@ colour scheme is based upon the colours of the popular plastic {}
 spacefilling models which were developed by Corey, Pauling and later {}
 improved by Kultun. This colour scheme colour `atom' objects by the {}
 atom (element) type. This is the scheme conventionally used by chemists. {}
+The assignment of element type to colours is given below. {}
+\par\par
+\cellx1500\cellx2500\cellx3500
+\intbl
+Carbon\cell light grey\cell [200,200,200]\cell\row\intbl
+Oxygen\cell red\cell [240,0,0]\cell\row\intbl
+Hydrogen\cell white\cell [255,255,255]\cell\row\intbl
+Nitrogen\cell light blue\cell [143,143,255]\cell\row\intbl
+Sulphur\cell yellow\cell [255,200,50]\cell\row\intbl
+Phosphorous\cell orange\cell [255,165,0]\cell\row\intbl
+Chlorine\cell green\cell [0,255,0]\cell\row\intbl
+Bromine, Zinc\cell brown\cell [165,42,42]\cell\row\intbl
+Sodium\cell blue\cell [0,0,255]\cell\row\intbl
+Iron\cell purple\cell [160,32,240]\cell\row\intbl
+Calcium, Metals\cell dark grey\cell [128,128,144]\cell\row\intbl
+unknown\cell deep pink\cell [255,20,147]\cell\row\pard\par
+\trowd
 \par\page\par
 +{\footnote doc}
 #{\footnote groupcolours}
@@ -1986,10 +2949,8 @@ K{\footnote structure colours}
 The RasMol {}
 {\f2\b structure} {}
 colour scheme colours the molecule by protein secondary structure. {}
-Alpha helices are coloured magenta, {}
-beta sheets are coloured yellow, {}
-turns are coloured pale blue, {}
-[96,128,255] {}
+Alpha helices are coloured magenta, [240,0,128], beta sheets are {}
+coloured yellow, [255,255,0], turns are coloured pale blue, [96,128,255] {}
 and all other residues are coloured white. The secondary structure {}
 is either read from the PDB file (HELIX and SHEET records), if available, {}
 or determined using Kabsch and Sander's DSSP algorithm. The RasMol {}
@@ -2010,6 +2971,42 @@ values are coloured in warmer (red) colours and lower values in colder {}
 (blue) colours. This feature is often used to associate a "scale" value {}
 [such as amino acid variability in viral mutants] with each atom in a {}
 PDB file, and colour the molecule appropriately. {}
+\par\par
+The difference between the {}
+{\f2\b temperature} {}
+and {}
+{\uldb charge}{\v chargecolours} {}
+colour schemes is that increasing temperature values proceed from blue {}
+to red, whereas increasing charge valuse go from red to blue. {}
+\par\page\par
++{\footnote doc}
+#{\footnote chargecolours}
+${\footnote Charge Colours}
+K{\footnote charge colours}
+{\b Charge Colours}\par\par
+The RasMol {}
+{\f2\b charge} {}
+colour scheme colour codes each atom according to the charge value {}
+stored in the input file (or beta factor field of PDB files). High {}
+values are coloured in blue (positive) and lower values coloured in {}
+red (negative). Rather than use a fixed scale this scheme determines {}
+the maximum and minimum values of the charge/temperature field and {}
+interpolates from red to blue appropriately. Hence, green cannot be {}
+assumed to be `no net charge' charge. {}
+\par\par
+The difference between the {}
+{\uldb charge}{\v chargecolours} {}
+and {}
+{\f2\b temperature} {}
+colour schemes is that increasing temperature values proceed from blue {}
+to red, whereas increasing charge valuse go from red to blue. {}
+\par\par
+If the charge/temperature field stores reasonable values it is possible {}
+to use the RasMol {}
+{\uldb colour dots potential}{\v potentialcolours} {}
+command to colour code a dot surface (generated by the {}
+{\uldb dots}{\v dots} {}
+command) by electrostatic potential. {}
 \par\page\par
 +{\footnote doc}
 #{\footnote usercolours}
@@ -2020,7 +3017,7 @@ The RasMol {}
 {\f2\b user} {}
 colour scheme allows RasMol to use the colour scheme stored in the {}
 PDB file. The colours for each atom are stored in COLO records placed {}
-in the PDB data file. This convention was introducted by David Bacon's {}
+in the PDB data file. This convention was introduced by David Bacon's {}
 Raster3D program. {}
 \par\page\par
 +{\footnote doc}
@@ -2032,11 +3029,56 @@ The RasMol {}
 {\f2\b type} {}
 colour scheme applies only to hydrogen bonds, hence is used in the command {}
 "{\f2\b colour hbonds type}" {}
-This colour scheme colour codes each hydrogen bond according to the {}
+This scheme colour codes each hydrogen bond according to the {}
 distance along a protein chain between hydrogen bond donor and acceptor. {}
 This schematic representation was introduced by Belhadj-Mostefa and {}
 Milner-White. This representation gives a good insight into protein {}
 secondary structure (hbonds forming alpha helices appear red, those {}
 forming sheets appear yellow and those forming turns appear magenta). {}
+\par\par
+\cellx1000\cellx2000\cellx3000
+\intbl
+Offset\cell Colour\cell Triple\cell\row\intbl
+  +2\cell white  \cell [255,255,255]\cell\row\intbl
+  +3\cell magenta\cell [255,0,255]\cell\row\intbl
+  +4\cell red    \cell [255,0,0]\cell\row\intbl
+  +5\cell orange \cell [255,165,0]\cell\row\intbl
+  -3\cell cyan   \cell [0,255,255]\cell\row\intbl
+  -4\cell green  \cell [0,255,0]\cell\row\intbl
+default\cell yellow\cell [255,255,0]\cell\row
+\pard\pat\trowd
+\par\page\par
++{\footnote doc}
+#{\footnote potentialcolours}
+${\footnote Potential Colours}
+K{\footnote potential colours}
+{\b Potential Colours}\par\par
+The RasMol {}
+{\f2\b potential} {}
+colour scheme applies only to dot surfaces, hence is used in the command {}
+"{\f2\b colour dots potential}" {}
+This scheme colours each currently displayed dot by the electrostatic {}
+potential at that point in space. This potential is calculated using {}
+Coulomb's law taking the temperature/charge field of the input file to {}
+be the charge assocated with that atom. This is the same interpretation {}
+used by the {}
+{\uldb colour charge}{\v chargecolours} {}
+command. Like the {}
+{\uldb charge}{\v chargecolours} {}
+colour scheme low values are blue/white and high values are red. {}
+The table below shows the static assignment of colours using a {}
+dielectric constant value of 10. {}
+\par\par
+\cellx1500\cellx2200\cellx3500
+\intbl
+{ 25 < V      }\cell red   \cell [255,0,0]\cell\row\intbl
+{ 10 < V <  25}\cell orange\cell [255,165,0]\cell\row\intbl
+{  3 < V <  10}\cell yellow\cell [255,255,0]\cell\row\intbl
+{  0 < V <   3}\cell green \cell [0,255,0]\cell\row\intbl
+{ -3 < V <   0}\cell cyan  \cell [0,255,255]\cell\row\intbl
+{-10 < V <  -3}\cell blue  \cell [0.0.255]\cell\row\intbl
+{-25 < V < -10}\cell purple\cell [160,32,240]\cell\row\intbl
+{        V < -25}\cell white \cell [255,255,255]\cell\row
+\pard\par\trowd
 \par\par
 } {}

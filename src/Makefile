@@ -1,44 +1,57 @@
-CC = gcc
-#CFLAGS_sun4    = -O4
-#CFLAGS_sun3    = -O4 -f68881
-#CFLAGS_hp9000  = -O +bfpa
-#CFLAGS_sequent = -O -f1167
-#CFLAGS_mips    = -O2 -Olimit 800
-#CFLAGS_gcc2.0  = -O2 -funroll-all-loops
-#CFLAGS_esv     = -O2 -Olimit 800 -systype bsd43
-#CFLAGS_hpux9   = -Ae +O2 +Onolimit
-#CFLAGS_gcc = -O -fomit-frame-pointer -fstrength-reduce -finline-functions
+# Makefile.in
+# RasMol2 Molecular Graphics
+# Roger Sayle, March 1995
+# Version 2.6
 
-CFLAGS = -g -O2 -finline-functions
+# Simply edit CC and CFLAGS for your local compiler/system
+# For Sun OpenWindows, add "-I/usr/openwin/include" to CFLAGS
+
+#CC = gcc
+#CFLAGS = -g -O2 -finline-functions
+
+CC = cc
+CFLAGS = -O
 
 
-#LIBS_imp = -lm -lXi -lXext -lX11
-#LIBS_ext = -lm -lXext -lX11
-#LIBS_std = -lm -lX11
+#CFLAGS_sun4     = -O4
+#CFLAGS_sun3     = -O4 -f68881
+#CFLAGS_hp9000   = -O +bfpa
+#CFLAGS_sequent  = -O -f1167
+#CFLAGS_mips     = -O2 -Olimit 800
+#CFLAGS_gcc2.0   = -O2 -funroll-all-loops
+#CFLAGS_esv      = -O2 -Olimit 800 -systype bsd43
+#CFLAGS_hpux9    = -Ae +O2 +Onolimit
+#CFLAGS_hpux9new = -Ae +O4 +Onolimit +Oconservative +ESlit -I/usr/include/X11R5
+#CFLAGS_sgi      = -O2 -xansi -DFUNCPROTO
+#CFLAGS_gcc      = -O -fomit-frame-pointer -fstrength-reduce -finline-functions
 
+# For Debugging use LFLAGS = 
+LFLAGS = -s
+
+# -lXi required if using DIALBOX
 EXTLIBS = -lm -lXi -lXext -lX11
+
+# Library path required for HPUX
+# LIBS = -lm -L/usr/lib/X11R5 -lXext -lX11
+# -lXextSam required by MITSHM on RS600 AIX
+# LIBS = -lm -lXextSam -lXext -lX11
+
+# -lmmioc required for MMIO
+# -L. -lXext -lX11 -lmmioc -lm
+
+# On SUN Solaris systems when compiling RasMol with the SOCKETS option
+# LIBS = -lXext -lX11 -lm -lsocket -lnsl 
+
+# Normal Libraries
 LIBS = -lm -lXext -lX11
 
 
-# LFLAGS = -s
-LFLAGS =
 
+SRCS = rasmol.c molecule.c infile.c transfor.c command.c abstree.c \
+       render.c repres.c x11win.c pixutils.c outfile.c script.c
 
-
-# X Windows Release 5 Libraries
-# CFLAGS = $(CFLAGS) -I/usr/local/share/X11R5/include
-# LFLAGS = $(LFLAGS) -L/usr/local/lib/X11R5
-
-# Sun OpenWindows Include Directory
-# CFLAGS = $(CFLAGS) -I/usr/openwin/include
-
-
-
-SRCS = rasmol.c molecule.c transfor.c command.c abstree.c render.c \
-       x11win.c pixutils.c outfile.c script.c
-
-OBJS = rasmol.o molecule.o transfor.o command.o abstree.o render.o \
-       x11win.o pixutils.o outfile.o script.o
+OBJS = rasmol.o molecule.o infile.o transfor.o command.o abstree.o \
+       render.o repres.o x11win.o pixutils.o outfile.o script.o
 
 
 rasmol:		$(OBJS)
@@ -52,6 +65,9 @@ rasmol.o:	rasmol.c rasmol.h molecule.h transfor.h command.h \
 molecule.o:	molecule.c molecule.h rasmol.h command.h abstree.h \
 		transfor.h render.h
 		$(CC) -c $(CFLAGS) molecule.c
+
+infile.o:	infile.c infile.h
+		$(CC) -c $(CFLAGS) infile.c
 
 transfor.o:	transfor.c transfor.h rasmol.h molecule.h command.h \
 		abstree.h render.h graphics.h
@@ -68,6 +84,9 @@ abstree.o:	abstree.c abstree.h rasmol.h molecule.h
 render.o:	render.c render.h rasmol.h molecule.h transfor.h \
 		command.h abstree.h graphics.h pixutils.h
 		$(CC) -c $(CFLAGS) render.c
+
+repres.o:	repres.c repres.h rasmol.h
+		$(CC) -c $(CFLAGS) repres.c
 
 x11win.o:	x11win.c graphics.h rasmol.h bitmaps.h command.h render.h
 		$(CC) -c $(CFLAGS) x11win.c

@@ -1,7 +1,7 @@
 /* transfor.h
  * RasMol2 Molecular Graphics
- * Roger Sayle, October 1994
- * Version 2.5
+ * Roger Sayle, August 1995
+ * Version 2.6
  */
 
 #define GroupAttr       0x00
@@ -19,14 +19,21 @@
 
 #ifdef EIGHTBIT
 #define DefaultAmbient    0.6
-#define DefaultColDepth   16
+#define ColourDepth       16
+#define ColourMask        15
+#ifdef APPLEMAC
+#define LastShade         14
+#else
+#define LastShade         15
+#endif
 #else
 #define DefaultAmbient    0.05
-#define DefaultColDepth   32
+#define ColourDepth       32
+#define ColourMask        31
+#define LastShade         31
 #endif
 
 
-#define MAXSHADE 32
 typedef struct { 
         Long refcount;
         unsigned char r;
@@ -36,50 +43,51 @@ typedef struct {
 
 
 #ifdef IBMPC
-#define Colour2Shade(x)  ((int)((x)-3)/ColourDepth)
-#define Shade2Colour(x)  ((x)*ColourDepth+3)
 #define BackCol    0
 #define BoxCol     1
 #define LabelCol   2
+#define FirstCol   3
 #endif
 
 #ifdef APPLEMAC
-#define Colour2Shade(x)  ((int)((x)-4)/ColourDepth)
-#define Shade2Colour(x)  ((x)*ColourDepth+4)
 #define BackCol    1
 #define BoxCol     2
 #define LabelCol   3
+#define FirstCol   4
 #endif
 
 #if !defined(IBMPC) && !defined(APPLEMAC)
-#define Colour2Shade(x)  ((int)((x)-8)/ColourDepth)
-#define Shade2Colour(x)  ((x)*ColourDepth+8)
 #define BackCol    5
 #define BoxCol     6
 #define LabelCol   7
+#define FirstCol   8
 #endif
+
+#define Colour2Shade(x)  ((int)((x)-FirstCol)/ColourDepth)
+#define Shade2Colour(x)  ((x)*ColourDepth+FirstCol)
 
 
 #ifdef TRANSFORM
-ShadeDesc Shade[MAXSHADE];
+ShadeDesc Shade[LastShade];
 Real RotX[3],RotY[3],RotZ[3];
 Real MatX[3],MatY[3],MatZ[3];
 Real InvX[3],InvY[3],InvZ[3];
 Long OrigCX,OrigCY,OrigCZ;
 Long CenX, CenY, CenZ;
 
+int FakeSpecular,SpecPower;
+int BackR,BackG,BackB;
+int LabR,LabG,LabB;
+int BoxR,BoxG,BoxB;
+int UseLabelCol;
+int UseBackFade;
 Real Ambient;
+
 Real Scale,MaxZoom;
 Real DScale,IScale;
 Long SideLen,Offset;
 Card WorldRadius,WorldSize;
 int XOffset,YOffset,ZOffset;
-int FakeSpecular,SpecPower;
-int ColourDepth,ColourMask;
-int BackR,BackG,BackB;
-int LabR,LabG,LabB;
-int BoxR,BoxG,BoxB;
-int UseLabelCol;
 int UseScreenClip;
 int ZoomRange;
 
@@ -90,25 +98,26 @@ int DrawRibbon;
 int ZoneBoth;
 
 #else
-extern ShadeDesc Shade[MAXSHADE];
+extern ShadeDesc Shade[LastShade];
 extern Real RotX[3],RotY[3],RotZ[3];
 extern Real MatX[3],MatY[3],MatZ[3];
 extern Real InvX[3],InvY[3],InvZ[3];
 extern Long OrigCX, OrigCY, OrigCZ;
 extern Long CenX, CenY, CenZ;
 
-extern Real Ambient;
-extern Real Scale,MaxZoom;
-extern Real DScale,IScale;
-extern Long SideLen,Offset;
-extern Card WorldRadius,WorldSize;
-extern int XOffset,YOffset,ZOffset;
-extern int ColourDepth,ColourMask;
 extern int FakeSpecular,SpecPower;
 extern int BackR,BackG,BackB;
 extern int LabR,LabG,LabB;
 extern int BoxR,BoxG,BoxB;
 extern int UseLabelCol;
+extern int UseBackFade;
+extern Real Ambient;
+
+extern Real Scale,MaxZoom;
+extern Real DScale,IScale;
+extern Long SideLen,Offset;
+extern Card WorldRadius,WorldSize;
+extern int XOffset,YOffset,ZOffset;
 extern int UseScreenClip;
 extern int ZoomRange;
 
@@ -123,12 +132,17 @@ void SetRadiusValue( int );
 void SetRadiusTemperature();
 void SetVanWaalRadius();
 void DisableSpacefill();
-void EnableWireFrame( int, int );
-void EnableBackBone( int, int );
 void SetHBondStatus( int, int, int );
 void SetRibbonStatus( int, int, int );
-void DisableWireFrame();
-void DisableBackBone();
+void SetRibbonCartoons();
+void SetTraceTemperature();
+void EnableWireframe( int, int );
+void EnableBackbone( int, int );
+void DisableWireframe();
+void DisableBackbone();
+
+void SelectZoneExpr( Expr* );
+void RestrictZoneExpr( Expr* );
 void RestrictZone( int );
 void SelectZone( int );
 
@@ -137,15 +151,18 @@ int IsVDWRadius( Atom __far * );
 
 void DefineColourMap();
 void ResetColourMap();
+
 void ColourBackNone();
 void ColourBondNone();
-void ColourHBondNone( int );
 void ColourHBondType();
+void ColourHBondNone( int );
 void ColourRibbonNone( int );
+void ColourMonitNone();
 void ColourBackAttrib( int, int, int );
 void ColourBondAttrib( int, int, int );
 void ColourHBondAttrib( int, int, int, int );
 void ColourRibbonAttrib( int, int, int, int );
+void ColourMonitAttrib( int, int, int );
 void ColourDotsAttrib( int, int, int );
 void ColourDotsPotential();
 void MonoColourAttrib( int, int, int );
@@ -155,6 +172,8 @@ void AminoColourAttrib();
 void ShapelyColourAttrib();
 void StructColourAttrib();
 void UserMaskAttrib( int );
+
+void DefaultRepresentation();
 
 void DetermineClipping();
 void InitialiseTransform();
@@ -169,12 +188,17 @@ void SetRadiusValue();
 void SetRadiusTemperature();
 void SetVanWaalRadius();
 void DisableSpacefill();
-void EnableWireFrame();
-void EnableBackBone();
 void SetHBondStatus();
 void SetRibbonStatus();
-void DisableWireFrame();
-void DisableBackBone();
+void SetRibbonCartoons();
+void SetTraceTemperature();
+void EnableWireframe();
+void EnableBackbone();
+void DisableWireframe();
+void DisableBackbone();
+
+void SelectZoneExpr();
+void RestrictZoneExpr();
 void RestrictZone();
 void SelectZone();
 
@@ -183,15 +207,18 @@ int IsVDWRadius();
 
 void DefineColourMap();
 void ResetColourMap();
+
 void ColourBackNone();
 void ColourBondNone();
-void ColourHBondNone();
 void ColourHBondType();
+void ColourHBondNone();
 void ColourRibbonNone();
+void ColourMonitNone();
 void ColourBackAttrib();
 void ColourBondAttrib();
 void ColourHBondAttrib();
 void ColourRibbonAttrib();
+void ColourMonitAttrib();
 void ColourDotsAttrib();
 void ColourDotsPotential();
 void MonoColourAttrib();
@@ -201,6 +228,8 @@ void AminoColourAttrib();
 void ShapelyColourAttrib();
 void StructColourAttrib();
 void UserMaskAttrib();
+
+void DefaultRepresentation();
 
 void DetermineClipping();
 void InitialiseTransform();

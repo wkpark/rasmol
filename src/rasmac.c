@@ -1,11 +1,12 @@
 /* rasmac.c
  * RasMol Molecular Graphics
- * Roger Sayle, October 1994
- * Version 2.5
+ * Roger Sayle, August 1995
+ * Version 2.6
  */
 #include <string.h>
 #include <stdio.h>
 
+#include <Errors.h>
 #ifdef __CONDITIONALMACROS__
 #include <Printing.h>
 #else
@@ -42,12 +43,13 @@
 #define RASMOL
 #include "rasmol.h"
 #include "molecule.h"
+#include "abstree.h"
 #include "graphics.h"
 #include "pixutils.h"
 #include "transfor.h"
 #include "command.h"
-#include "abstree.h"
 #include "render.h"
+#include "repres.h"
 #include "outfile.h"
 
 
@@ -79,6 +81,7 @@ static char Filename[256];
 static Point MousePrev;
 static int PointX,PointY;
 static int InitX,InitY;
+static int LabelOptFlag;
 static int HeldButton;
 
 
@@ -229,8 +232,8 @@ void SetFileInfo( ptr, appl, type, icon )
     FSMakeFSSpec(0,0,buffer,&fss);
     
     if( icon )
-    {   FSpCreateResFile(&fss,appl,type,
-                         smSystemScript);
+    {   /* smSystemScript not always defined! */
+        FSpCreateResFile(&fss,appl,type,0);
         file = FSpOpenResFile(&fss,fsRdWrPerm);
         CopyResource('icl4',file,icon);
         CopyResource('icl8',file,icon);
@@ -355,12 +358,16 @@ void WriteChar( ch )
                      }
                      break;
                      
+#ifdef ORIG
         case(0x0D):  if( TermXPos )
                      {   if( TermCursor )
                              SetCaretPos(0,TermYPos*CharSkip);
                          TermXPos = 0;
                      }
                      break;
+#else
+        case(0x0D):
+#endif
                      
         case(0x0A):  if( TermYPos==TermRows-1 )
                      {   CmndStart++;
@@ -369,7 +376,7 @@ void WriteChar( ch )
                              
                          i = TermYPos + CmndStart;
                          if( i >= CmndRows ) i -= CmndRows;
-                         memset(TermScreen+i*CmndCols,' ',CmndCols);
+                         memset(TermScreen+i*CmndCols,32,CmndCols);
                          
                          GetPort(&savePort);
                          SetPort(CmndWin);
@@ -402,7 +409,7 @@ void WriteChar( ch )
                              
                             i = TermYPos + CmndStart;
                             if( i >= CmndRows ) i-= CmndRows;
-                            memset(TermScreen+i*CmndCols,' ',CmndCols);
+                            memset(TermScreen+i*CmndCols,32,CmndCols);
                             
                             GetPort(&savePort);
                             SetPort(CmndWin);
@@ -427,6 +434,11 @@ void WriteString( ptr )
     while( *ptr )
         WriteChar( *ptr++ );
 }
+
+
+#ifndef topLeft
+#define topLeft(r) (*((Point*)(&(r))))
+#endif
 
 
 static void InitTerminal()
@@ -465,13 +477,13 @@ static void InitTerminal()
     /* Set Initial Terminal Size */
     x = TermCols*CharWide;
     y = TermRows*CharSkip;
-    SizeWindow(CmndWin,x+16,y,TRUE);
+    SizeWindow(CmndWin,x+16,y,true);
     ShowWindow(CmndWin);
 
     /* Create Scroll Bar */
     rect.left = x+1;   rect.right = x+17;
     rect.top = -1;     rect.bottom = y-14;
-    CmndScroll = NewControl(CmndWin,&rect,"\p",FALSE,ScrlMax,
+    CmndScroll = NewControl(CmndWin,&rect,"\p",false,ScrlMax,
                             0,ScrlMax,scrollBarProc,0L);
     
     wpeek = (WindowPeek)CmndWin;
@@ -502,7 +514,7 @@ static void InitTerminal()
     wsdp->stdState.left = 4;
     wsdp->stdState.top = mb;
     
-    memset(TermScreen,' ',CmndSize);
+    memset(TermScreen,32,CmndSize);
 }
 
 
@@ -841,7 +853,10 @@ pascal short OpenDlgHook( item, dialog, data )
     Handle hand;
     short type;
     Rect rect;
-    
+
+    if( ((DialogPeek)dialog)->window.refCon != sfMainDialogRefCon )
+        return( item );
+ 
     if( item == sfHookFirstCall )
     {   GetDItem(dialog,10,&type,&hand,&rect);
         SetCtlValue((ControlHandle)hand,DialogFormat);
@@ -860,13 +875,16 @@ pascal short SaveDlgHook( item, dialog, data )
     Handle hand;
     short type;
     Rect rect;
+
+    if( ((DialogPeek)dialog)->window.refCon != sfMainDialogRefCon )
+        return( item );
     
     if( item == sfHookFirstCall )
-    {   GetDItem(dialog,12,&type,&hand,&rect);
+    {   GetDItem(dialog,13,&type,&hand,&rect);
         SetCtlValue((ControlHandle)hand,DialogFormat);
         item = sfHookNullEvent;
-    } else if( item == 12 )
-    {   GetDItem(dialog,12,&type,&hand,&rect);
+    } else if( item == 13 )
+    {   GetDItem(dialog,13,&type,&hand,&rect);
         DialogFormat = GetCtlValue((ControlHandle)hand);
         item = sfHookNullEvent;
     }
@@ -906,16 +924,11 @@ static void HandleFileOpen()
             case(4):  format = FormatMDL;      break;
             case(5):  format = FormatXYZ;      break;
             case(6):  format = FormatCharmm;   break;
+            case(7):  format = FormatMOPAC;    break;
         }
         
         FetchFile(format,True,Filename);
-        if( Database )
-        {   ReDrawFlag |= RFRefresh | RFColour;
-            if( InfoBondCount < 1 )
-            {   EnableBackBone(False,80);
-            } else EnableWireFrame(True,0);
-            CPKColourAttrib();
-        }
+        DefaultRepresentation();
     }
 }
 
@@ -936,10 +949,12 @@ static void HandleFileSave()
     
     if( reply.sfGood )
     {   ConvertFilename( &reply.sfFile );
-        if( DialogFormat==1 )
-        {   SavePDBMolecule(Filename);
-        } else /* DialogFormat==2 */
-            SaveAlchemyMolecule(Filename);
+        switch( DialogFormat )
+        {   default:
+            case(1): SavePDBMolecule(Filename);      break;
+            case(2): SaveAlchemyMolecule(Filename);  break;
+            case(3): SaveMDLMolecule(Filename);      break;
+        }
     }
 }
 
@@ -1013,7 +1028,8 @@ static void HandleMenu( hand )
     register int menu;
     register int item;
     
-    if( (menu = HiWord(hand)) )
+    menu = HiWord(hand);
+    if( menu )
     {   item = LoWord(hand);
         switch( menu )
         {   case(140):  /* Apple Menu */
@@ -1076,7 +1092,10 @@ static void HandleMenu( hand )
                                       break;
                                       
                             case(7):  /* Select All */
-                                      SelectZone(AllAtomFlag);
+                                      mask = NormAtomFlag;
+                                      if( HetaGroups ) mask |= HeteroFlag;
+                                      if( Hydrogens )  mask |= HydrogenFlag;
+                                      SelectZone(mask);
                                       break;
                         }
                         break;
@@ -1085,59 +1104,67 @@ static void HandleMenu( hand )
                         switch( item )
                         {   case(1):  /* Wireframe */
                                       DisableSpacefill();
-                                      EnableWireFrame(True,0);
+                                      EnableWireframe(WireFlag,0);
                                       SetRibbonStatus(False,0,0);
-                                      DisableBackBone();
+                                      DisableBackbone();
                                       ReDrawFlag |= RFRefresh;
                                       break;
                                       
                             case(2):  /* Backbone */
                                       DisableSpacefill();
-                                      DisableWireFrame();
+                                      DisableWireframe();
                                       SetRibbonStatus(False,0,0);
-                                      EnableBackBone(False,80);
+                                      EnableBackbone(CylinderFlag,80);
                                       ReDrawFlag |= RFRefresh;
                                       break;
                                       
                             case(3):  /* Sticks */
                                       DisableSpacefill();
                                       if( MainAtomCount<256 )
-                                      {   EnableWireFrame(False,40);
-                                      } else EnableWireFrame(False,80);
+                                      {   EnableWireframe(CylinderFlag,40);
+                                      } else EnableWireframe(CylinderFlag,80);
                                       SetRibbonStatus(False,0,0);
-                                      DisableBackBone();
+                                      DisableBackbone();
                                       ReDrawFlag |= RFRefresh;
                                       break;
                                       
                             case(4):  /* Spheres */
                                       SetVanWaalRadius();
-                                      DisableWireFrame();
+                                      DisableWireframe();
                                       SetRibbonStatus(False,0,0);
-                                      DisableBackBone();
+                                      DisableBackbone();
                                       ReDrawFlag |= RFRefresh;
                                       break;
                                       
                             case(5):  /* Ball & Stick */
                                       SetRadiusValue(120);
-                                      EnableWireFrame(False,40);
+                                      EnableWireframe(CylinderFlag,40);
                                       SetRibbonStatus(False,0,0);
-                                      DisableBackBone();
+                                      DisableBackbone();
                                       ReDrawFlag |= RFRefresh;
                                       break;
                                       
                             case(6):  /* Ribbons */
                                       DisableSpacefill();
-                                      DisableWireFrame();
+                                      DisableWireframe();
                                       SetRibbonStatus(True,RibbonFlag,0);
-                                      DisableBackBone();
+                                      DisableBackbone();
                                       ReDrawFlag |= RFRefresh;
                                       break;
                                       
                             case(7):  /* Strands */
                                       DisableSpacefill();
-                                      DisableWireFrame();
+                                      DisableWireframe();
                                       SetRibbonStatus(True,StrandFlag,0);
-                                      DisableBackBone();
+                                      DisableBackbone();
+                                      ReDrawFlag |= RFRefresh;
+                                      break;
+
+                            case(8):  /* Cartoons */
+                                      DisableSpacefill();
+                                      DisableWireframe();
+                                      SetRibbonCartoons();
+                                      DisableBackbone();
                                       ReDrawFlag |= RFRefresh;
                                       break;
                         }
@@ -1220,6 +1247,19 @@ static void HandleMenu( hand )
                                           ReAllocBuffers();
                                       }
                                       break;
+
+                            case(6):  /* Stereo */
+                                      if( UseStereo )
+                                      {   SetStereoMode(False);
+                                      } else SetStereoMode(True);
+                                      ReDrawFlag |= RFRefresh;
+                                      break;
+
+                            case(7):  /* Labels */
+                                      LabelOptFlag = !LabelOptFlag;
+                                      DefaultLabels(LabelOptFlag);
+                                      ReDrawFlag |= RFRefresh;
+                                      break;
                         }
                         break;
                         
@@ -1258,6 +1298,8 @@ static void AdjustMenus()
     CheckItem(menu,3,HetaGroups);
     CheckItem(menu,4,FakeSpecular);
     CheckItem(menu,5,UseShadow);
+    CheckItem(menu,6,UseStereo);
+    CheckItem(menu,7,LabelOptFlag);
 
     /* Windows Menu */
     win = FrontWindow();
@@ -1324,8 +1366,10 @@ static void GrowCanvWin( pos )
     y = HiWord(size);
     
     /* Ensure Long Aligned */
-    if( dx = x%4 ) x += 4-dx;
-    SizeWindow(CanvWin,x+15,y,FALSE);
+    dx = x%4;
+    if( dx ) x += 4-dx;
+
+    SizeWindow(CanvWin,x+15,y,false);
     ReSizeCanvWin();
     SetPort(savePort);
 }
@@ -1368,7 +1412,7 @@ static void ReSizeCmndWin()
             er -= CmndRows;
             
         do {
-            memset(TermScreen+sr*CmndCols,' ',CmndCols);
+            memset(TermScreen+sr*CmndCols,32,CmndCols);
             sr++; if( sr == CmndRows ) sr = 0;
         } while( sr != er );
     }
@@ -1391,7 +1435,7 @@ static void GrowCmndWin( pos )
     
     GetPort(&savePort);
     SetPort(CmndWin);
-    SizeWindow(CmndWin,LoWord(size),HiWord(size),FALSE);
+    SizeWindow(CmndWin,LoWord(size),HiWord(size),false);
     ReSizeCmndWin();
     SetPort(savePort);
 }
@@ -1589,7 +1633,6 @@ static void ClickCanvWin( ptr )
 
     ControlHandle hand;
     GrafPtr savePort;
-    Point pnt;
     
     if( CanvWin == FrontWindow() )
     {   GetPort(&savePort);
@@ -1693,7 +1736,7 @@ static void ZoomCanvWin( pos, code )
     {   GetPort(&savePort);
         SetPort(CanvWin);
         /* EraseRect(&CanvWin->portRect); */
-        ZoomWindow(CanvWin,code,TRUE);
+        ZoomWindow(CanvWin,code,true);
         ReSizeCanvWin();
         SetPort(savePort);
     }   
@@ -1709,7 +1752,7 @@ static void ZoomCmndWin( pos, code )
     {   GetPort(&savePort);
         SetPort(CmndWin);
         EraseRect(&CmndWin->portRect);
-        ZoomWindow(CmndWin,code,TRUE);
+        ZoomWindow(CmndWin,code,true);
         ReSizeCmndWin();
         SetPort(savePort);
      }
@@ -1719,13 +1762,16 @@ static void ZoomCmndWin( pos, code )
 static void HandleMouseDownEvent( ptr )
     EventRecord *ptr;
 {
+    register long hand;
     register int code;
     WindowPtr win;
     
     code = FindWindow(ptr->where,&win);
     switch( code )
     {   case(inMenuBar):    AdjustMenus();
-                            HandleMenu( MenuSelect(ptr->where) );
+                            hand = MenuSelect(ptr->where);
+                            if( !IsPaused )
+                                HandleMenu( hand );
                             break;
                             
         case(inSysWindow):  SystemClick(ptr,win);
@@ -1832,11 +1878,11 @@ static int MacKeyMap[32] = { 0x00, 0x01, 0x00, 0x0d, 0x05, 0x00, 0x00, 0x00,
 static void HandleEvents()
 {
     register int key,row;
-    
+    register long hand;
+
     EventRecord event;
     GrafPtr savePort;
     WindowPtr win;
-    Point pnt;
 
     SystemTask();
     if( GetNextEvent(everyEvent,&event) )
@@ -1856,9 +1902,12 @@ static void HandleEvents()
                                     
                                     if( IsClose(PointX,InitX) &&
                                         IsClose(PointY,InitY) )
-                                    {   IdentifyAtom(PointX,PointY);
-                                        AdviseUpdate(AdvPickNumber);
-                                        AdviseUpdate(AdvPickAtom);
+                                    {   if( event.modifiers & 
+                                            (ShiftModifier|CntrlModifier) )
+                                        {      PickAtom(True,PointX,PointY);
+                                        } else PickAtom(False,PointX,PointY);
+                                        /* AdviseUpdate(AdvPickNumber); */
+                                        /* AdviseUpdate(AdvPickAtom);   */
                                     }
                                 }
                                 HeldButton = False;
@@ -1868,7 +1917,9 @@ static void HandleEvents()
             case(keyDown):      key = (char)(event.message & charCodeMask);
                                 if( event.modifiers & cmdKey )
                                 {   AdjustMenus();
-                                    HandleMenu(MenuKey(key));
+                                    hand = MenuKey(key);
+                                    if( !IsPaused )
+                                        HandleMenu(hand);
                                 } else if( key<32 )
                                 {   if( !(event.modifiers & controlKey) )
                                         key = MacKeyMap[key];
@@ -1983,31 +2034,31 @@ static int HandleFileSpec( fss )
     register FILE *fp;
     FInfo info;
     
-    if( Database )
-        ZapDatabase();
-
     FSpGetFInfo(fss,&info);
     if( info.fdType == 'RSML' )
-    {   if( (fp=fopen(Filename,"r")) )
+    {   fp = fopen(Filename,"r");
+        if( fp )
         {   LoadScriptFile(fp,Filename);
-            fclose(fp);
             return( True );
         } else return( False );
     }
     
+    if( Database )
+        ZapDatabase();
+
     if( info.fdType == 'mMOL' )
     {      format = FormatMDL;
+#ifdef CEXIOLIB
+    } else if( info.fdType == 'CEX0' )
+    {      format = FormatCEX;
+#endif
     } else format = FormatPDB;
         
     FetchFile(format,True,Filename);
     if( Database )
-    {   ReDrawFlag |= RFRefresh | RFColour;
-        if( InfoBondCount < 1 )
-        {   EnableBackBone(False,80);
-        } else EnableWireFrame(True,0);
-        CPKColourAttrib();
+    {   DefaultRepresentation();
         return( True );
-    }        
+    }
     return( False );
 }
 
@@ -2030,7 +2081,10 @@ pascal OSErr HandleAEOpenDoc( event, reply, ref )
     FSSpec fss;
     long count;
     Size size;
-    
+
+    /* Disable event while paused! */
+    if( IsPaused ) return( noErr );
+
     stat = AEGetParamDesc(event,keyDirectObject,
                           typeAEList,&list);
     if( stat ) return( stat );
@@ -2111,31 +2165,41 @@ static void InitialiseApplication()
     HandleAEOpenDocPtr = NewAEEventHandlerProc(HandleAEOpenDoc);
     HandleAEQuitAppPtr = NewAEEventHandlerProc(HandleAEQuitApp);
     CanvScrollProcPtr = NewControlActionProc(CanvScrollProc);
-    CmndScrollProcPtr = NewControlActionProc(CanvScrollProc);
+    CmndScrollProcPtr = NewControlActionProc(CmndScrollProc);
     OpenDlgHookPtr = NewDlgHookYDProc(OpenDlgHook);
     SaveDlgHookPtr = NewDlgHookYDProc(SaveDlgHook);
 
     /* Install Required Event Handlers */
     AEInstallEventHandler(kCoreEventClass,kAEOpenApplication,
-                          HandleAEIgnorePtr, 0, FALSE);
+                          HandleAEIgnorePtr, 0, false);
     AEInstallEventHandler(kCoreEventClass,kAEOpenDocuments,
-                          HandleAEOpenDocPtr, 0, FALSE);
+                          HandleAEOpenDocPtr, 0, false);
     AEInstallEventHandler(kCoreEventClass,kAEPrintDocuments,
-                          HandleAEOpenDocPtr, 1, FALSE);
+                          HandleAEOpenDocPtr, 1, false);
     AEInstallEventHandler(kCoreEventClass,kAEQuitApplication,
-                          HandleAEQuitAppPtr, 0, FALSE);
+                          HandleAEQuitAppPtr, 0, false);
 
 #else
     /* Install Required Event Handlers */
     AEInstallEventHandler(kCoreEventClass,kAEOpenApplication,
-                          HandleAEIgnore, 0, FALSE);
+                          HandleAEIgnore, 0, false);
     AEInstallEventHandler(kCoreEventClass,kAEOpenDocuments,
-                          HandleAEOpenDoc, 0, FALSE);
+                          HandleAEOpenDoc, 0, false);
     AEInstallEventHandler(kCoreEventClass,kAEPrintDocuments,
-                          HandleAEOpenDoc, 1, FALSE);
+                          HandleAEOpenDoc, 1, false);
     AEInstallEventHandler(kCoreEventClass,kAEQuitApplication,
-                          HandleAEQuitApp, 0, FALSE);
+                          HandleAEQuitApp, 0, false);
 #endif
+}
+
+
+static void InitDefaultValues()
+{
+    Interactive = True;
+
+    ReDrawFlag = RFInitial;
+    LabelOptFlag = False;
+    CalcBondsFlag = True;
 }
 
 
@@ -2144,16 +2208,14 @@ int main()
     GrafPtr savePort;
     
     InitialiseApplication();
+    InitDefaultDefaultValues();
 
-    Interactive = True;
-    ReDrawFlag = RFInitial;
-    
-    OpenDisplay(InitialWide,InitialHigh);
+    OpenDisplay(DefaultWide,DefaultHigh);
     InitTerminal();
     
     WriteString("RasMol Molecular Renderer\n");
-    WriteString("Roger Sayle, October 1994\n");
-    WriteString("Version 2.5\n");
+    WriteString("Roger Sayle, August 1995\n");
+    WriteString("Version 2.6\n");
 
 #ifdef __powerc
     WriteString("[PowerPC Native]\n");
@@ -2172,6 +2234,8 @@ int main()
     InitialisePixUtils();
     InitialiseAbstree();
     InitialiseOutFile();
+    InitialiseRepres();
+
     /* LoadInitFile(); */
     
     ResetCommandLine(1);

@@ -1,7 +1,7 @@
 /* x11win.c
  * RasMol2 Molecular Graphics
- * Roger Sayle, October 1994
- * Version 2.5
+ * Roger Sayle, August 1995
+ * Version 2.6
  */
 #ifndef sun386
 #include <stdlib.h>
@@ -10,6 +10,10 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <math.h>
+
+#ifdef VMS
+#include <in.h>
+#endif
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -22,7 +26,6 @@
 #include "graphics.h"
 #include "bitmaps.h"
 #include "command.h"
-#include "render.h"
 
 
 /* Menu Definitions */
@@ -47,14 +50,15 @@ static MenuItem FilMenu[5] = {
     { "",           0x08, 0,  0 },
     { "Exit",       0x11, 0,  4 } };
 
-static MenuItem DisMenu[7] = {
+static MenuItem DisMenu[8] = {
     { "Wireframe",    0x11, 0,  9 },
     { "Backbone",     0x11, 0,  8 },
     { "Sticks",       0x11, 1,  6 },
     { "Spacefill",    0x11, 0,  9 },
     { "Ball & Stick", 0x11, 0, 12 },
     { "Ribbons",      0x11, 0,  7 },
-    { "Strands",      0x01, 0,  7 } };
+    { "Strands",      0x01, 0,  7 },
+    { "Cartoons",     0x11, 0,  8 } };
 
 static MenuItem ColMenu[8] = {
     { "Monochrome",  0x11, 0, 10 },
@@ -66,17 +70,20 @@ static MenuItem ColMenu[8] = {
     { "Structure",   0x11, 2,  9 },
     { "User",        0x11, 0,  4 } };
 
-static MenuItem OptMenu[5] = {
+static MenuItem OptMenu[7] = {
     { "Slab Mode",    0x13, 0,  9 },
     { "Hydrogens",    0x17, 1,  9 },
     { "Hetero Atoms", 0x17, 2, 12 },
     { "Specular",     0x13, 1,  8 },
-    { "Shadows",      0x13, 1,  7 } };
+    { "Shadows",      0x13, 1,  7 },
+    { "Stereo",       0x13, 1,  6 },
+    { "Labels",       0x13, 0,  6 } };
 
-static MenuItem ExpMenu[6] = {
+static MenuItem ExpMenu[7] = {
     { "GIF...",        0x11, 0,  6 },
     { "PostScript...", 0x11, 0, 13 },
     { "PPM...",        0x11, 2,  6 },
+    { "IRIS RGB...",   0x11, 5, 11 },
     { "Sun Raster...", 0x11, 0, 13 },
     { "BMP...",        0x11, 0,  6 },
     { "PICT...",       0x11, 1,  7 } };
@@ -97,10 +104,10 @@ typedef struct _BarItem {
 #define MenuBarMax 6
 static BarItem MenuBar[MenuBarMax] = { 
     { FilMenu, "File",    5, 0x01, 4 },
-    { DisMenu, "Display", 7, 0x01, 7 },
+    { DisMenu, "Display", 8, 0x01, 7 },
     { ColMenu, "Colours", 8, 0x01, 7 },
-    { OptMenu, "Options", 5, 0x01, 7 },
-    { ExpMenu, "Export",  6, 0x01, 6 },
+    { OptMenu, "Options", 7, 0x01, 7 },
+    { ExpMenu, "Export",  7, 0x01, 6 },
     { HelMenu, "Help",    2, 0x01, 4 } };
 
 static int MenuFocus;
@@ -169,7 +176,6 @@ static Pixmap Scrl;
 static Pixmap tilepix;
 static Pixmap uppix, dnpix;
 static Pixmap lfpix, rgpix;
-static Pixmap ButUp, ButDn;
 static XFontStruct *MenuFont;
 static XSetWindowAttributes attr;
 static Window XScrlWin, YScrlWin;
@@ -196,18 +202,27 @@ static int InitX, InitY;
 static int HeldButton;
 static int HeldStep;
 
-static int MinWidth,MaxWidth;
-static int MinHeight,MaxHeight;
+static Byte Intensity[LutSize];
+static Pixel WhiteCol;
+static Pixel BlackCol;
+static int Monochrome;
+
+#ifdef THIRTYTWOBIT
+static int SwapBytes;
+#endif
+
+static int MaxWidth, MaxHeight;
+static int MinWidth, MinHeight;
 static int MainWide, MainHigh;
 static int ScrlX,NewScrlX;
 static int ScrlY,NewScrlY;
-static int SwapBytes;
 static int PixDepth;
 static int LocalMap;
 
 
 /* WM_PROTOCOLS */
 static char TkInterp[10];
+static Atom AppNameAtom;
 static Atom DelWinXAtom;
 static Atom ProtoXAtom;
 static Atom InterpAtom;
@@ -237,6 +252,12 @@ void AllocateColourMap()
     static XColor Col;
     register int i,j;
 
+    if( Monochrome )
+    {   for( i=0; i<LutSize; i++ )
+            Intensity[i] = (Byte)((int)(20*RLut[i]+32*GLut[i]+12*BLut[i])>>6);
+        return;
+    }
+
     if( LocalMap )
     {   XSetWindowColormap(dpy,MainWin,cmap);
         XSetWindowColormap(dpy,CanvWin,cmap);
@@ -248,7 +269,7 @@ void AllocateColourMap()
     IdentCount = 0;
 
 
-    for( i=0; i<256; i++ )
+    for( i=0; i<LutSize; i++ )
         if( ULut[i] )
         {   Col.red   = RLut[i]<<8 | RLut[i];
             Col.green = GLut[i]<<8 | GLut[i];
@@ -260,7 +281,7 @@ void AllocateColourMap()
             Lut[i] = Col.pixel;
         }
 
-    if( i<256 )
+    if( i<LutSize )
     {   lmap = XCopyColormapAndFree(dpy,cmap);
         LocalMap = True;
 
@@ -272,7 +293,7 @@ void AllocateColourMap()
             Lut[i] = Col.pixel;
         }
 
-        for( j=i; j<256; j++ )
+        for( j=i; j<LutSize; j++ )
             if( ULut[j] )
             {   Col.red   = RLut[j]<<8 | RLut[j];
                 Col.green = GLut[j]<<8 | GLut[j];
@@ -290,12 +311,13 @@ void AllocateColourMap()
     register Byte temp;
     register int i;
 
-    for( i=0; i<256; i++ )
+    for( i=0; i<LutSize; i++ )
         if( ULut[i] )
         {   Col.red   = RLut[i]<<8 | RLut[i];
             Col.green = GLut[i]<<8 | GLut[i];
             Col.blue  = BLut[i]<<8 | BLut[i];
             XAllocColor(dpy,cmap,&Col);
+#ifdef THIRTYTWOBIT
             if( SwapBytes )
             {   buf.longword = (Long)Col.pixel;
                 temp = buf.bytes[0];
@@ -307,6 +329,9 @@ void AllocateColourMap()
                 buf.bytes[2] = temp;
                 Lut[i] = buf.longword;
             } else Lut[i] = (Long)Col.pixel;
+#else
+            Lut[i] = Col.pixel;
+#endif
        }
 #endif
     XSetWindowBackground(dpy,CanvWin,(unsigned long)Lut[5]);
@@ -331,13 +356,15 @@ static void OpenCanvas( x, y )
 
 static void OpenFonts()
 {
-    static char *fontname[] = { "-*-helvetica-bold-o-normal-*-14-*" };
+    static char *fontname[] = { "-*-helvetica-bold-o-normal-*-14-*",
+                                     "-*-serf-bold-o-normal-*-14-*",
+                                        "-*-*-bold-o-normal-*-14-*" };
     register int i;
 
     cross = XCreateFontCursor(dpy,XC_tcross);
     arrow = XCreateFontCursor(dpy,XC_top_left_arrow);
 
-    for( i=0; i<1; i++ )
+    for( i=0; i<3; i++ )
         if( (MenuFont=XLoadQueryFont(dpy,fontname[i])) ) 
             break;
 
@@ -369,26 +396,48 @@ static void OpenCursors()
 
 static void OpenColourMap()
 {
-#ifdef EIGHTBIT
     static XColor Col;
     register int i;
 
+#ifdef EIGHTBIT
+    if( !Monochrome )
+    {   Col.flags = DoRed | DoGreen | DoBlue;
+
+        for( i=0; i<5; i++ )
+        {   Col.red   = RLut[i]<<8 | RLut[i];
+            Col.green = GLut[i]<<8 | GLut[i];
+            Col.blue  = BLut[i]<<8 | BLut[i];
+            if( !XAllocColor(dpy,cmap,&Col) )
+            {   cmap = XCopyColormapAndFree(dpy,cmap);
+                XAllocColor(dpy,cmap,&Col);
+            } 
+            Lut[i] = Col.pixel;
+        }
+        Lut[5] = Lut[0];
+    } else /* Black & White */
+    {   Lut[0] = BlackCol;
+        Lut[1] = BlackCol;
+        Lut[2] = WhiteCol;
+        Lut[3] = BlackCol;
+        Lut[4] = WhiteCol;
+
+        Intensity[5] = 0;
+        Lut[5] = 5;         
+    }
+
+    LocalMap = False;
+    IdentCount = 0;
+#else
     Col.flags = DoRed | DoGreen | DoBlue;
 
     for( i=0; i<5; i++ )
     {   Col.red   = RLut[i]<<8 | RLut[i];
         Col.green = GLut[i]<<8 | GLut[i];
         Col.blue  = BLut[i]<<8 | BLut[i];
-        if( !XAllocColor(dpy,cmap,&Col) )
-        {   cmap = XCopyColormapAndFree(dpy,cmap);
-            XAllocColor(dpy,cmap,&Col);
-        } 
+        XAllocColor(dpy,cmap,&Col);
         Lut[i] = Col.pixel;
     }
-
-    LocalMap = False;
-    IdentCount = 0;
-    Lut[5]=Lut[0];
+    Lut[5] = Lut[0];
 #endif
 }
 
@@ -413,7 +462,7 @@ static int RegisterInterpName( name )
     if( (result!=Success) || (format!=8) || (type!=XA_STRING) )
     {   if( (type!=None) && registry ) XFree( (char*)registry );
 
-        sprintf(buffer,"%x %s",MainWin,name);
+        sprintf(buffer,"%x %s",(int)MainWin,name);
         XChangeProperty( dpy, RootWindow(dpy,0), InterpAtom, XA_STRING, 
                          8, PropModeReplace, (unsigned char*)buffer, 
                          strlen(buffer)+1 );
@@ -436,7 +485,7 @@ static int RegisterInterpName( name )
     }
 
     XFree( (char*)registry );
-    sprintf(buffer,"%x %s",MainWin,name);
+    sprintf(buffer,"%x %s",(int)MainWin,name);
     XChangeProperty( dpy, RootWindow(dpy,0), InterpAtom, XA_STRING, 
                      8, PropModeAppend, (unsigned char*)buffer, 
                      strlen(buffer)+1 );
@@ -499,17 +548,19 @@ static void DeRegisterInterpName( name )
 
 static void OpenIPCComms()
 {
+    auto char buffer[16];
     register int i;
 
     CommAtom = XInternAtom( dpy, "Comm", False );
+    InterpAtom = XInternAtom( dpy, "InterpRegistry", False );
+    AppNameAtom = XInternAtom(dpy, "TK_APPLICATION", False );
     DelWinXAtom = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
     /* XSetWMProtocols(dpy,MainWin,&DelWinXAtom,True); */
     if( (ProtoXAtom = XInternAtom(dpy,"WM_PROTOCOLS",False)) )
         XChangeProperty( dpy, MainWin, ProtoXAtom, XA_ATOM, 32, 
                         PropModeReplace, (Byte*)&DelWinXAtom, True );
 
-    InterpAtom = XInternAtom( dpy, "InterpRegistry", False );
-
+    i = 0;
     XGrabServer( dpy );
     if( !RegisterInterpName("rasmol") )
     {   strcpy(TkInterp,"rasmol #0");
@@ -519,8 +570,17 @@ static void OpenIPCComms()
                  break;
         }
 
-        if( i==10 ) *TkInterp = 0;
-    } else strcpy(TkInterp,"rasmol");
+        if( i < 10 ) 
+        {   /* Tk4.0 and later! */
+            strcpy(buffer,"{rasmol #0}");  buffer[9] = i+'0';
+            XChangeProperty( dpy, MainWin, AppNameAtom, XA_STRING, 
+                             8, PropModeReplace, (Byte*)buffer, 12 );
+        } else *TkInterp = 0;
+    } else 
+    {   XChangeProperty( dpy, MainWin, AppNameAtom, XA_STRING,
+                         8, PropModeReplace, (Byte*)"rasmol", 7 );
+        strcpy(TkInterp,"rasmol");
+    }
     XUngrabServer( dpy );
 }
 
@@ -639,8 +699,8 @@ static void OpenScrollBars()
                     | ButtonReleaseMask;
     attr.background_pixmap = tilepix;              mask |= CWBackPixmap;
 
-    XScrlWin = XCreateWindow( dpy, MainWin, 14, YRange+MenuHigh+24, XRange, 16, 
-                              0, CopyFromParent, InputOutput, vis, mask, &attr );
+    XScrlWin = XCreateWindow(dpy,MainWin,14,YRange+MenuHigh+24,XRange,16, 
+                             0,CopyFromParent,InputOutput,vis,mask,&attr);
     lfpix = XCreatePixmapFromBitmapData( dpy, MainWin, (char*)LfArrow, 16, 16,
                                          (unsigned long)Lut[0], 
                                          (unsigned long)Lut[2], PixDepth );
@@ -649,8 +709,8 @@ static void OpenScrollBars()
                                          (unsigned long)Lut[2], PixDepth );
 
 
-    YScrlWin = XCreateWindow( dpy, MainWin, XRange+24, MenuHigh+14, 16, YRange, 
-                              0, CopyFromParent, InputOutput, vis, mask, &attr );
+    YScrlWin = XCreateWindow(dpy,MainWin,XRange+24,MenuHigh+14,16,YRange, 
+                             0,CopyFromParent,InputOutput,vis,mask,&attr);
     uppix = XCreatePixmapFromBitmapData( dpy, MainWin, (char*)UpArrow, 16, 16,
                                          (unsigned long)Lut[0], 
                                          (unsigned long)Lut[2], PixDepth );
@@ -941,7 +1001,8 @@ static void DrawMenuBar()
         x += wide+24;
     }
     MenuBarCount = i;
-    XSync(dpy,False);
+    /* XSync(dpy,False); */
+    XFlush(dpy);
 }
 
 
@@ -982,7 +1043,6 @@ static void DisplayPopUpText( ptr, x, y )
 
 static void DrawPopUpMenu()
 {
-    register unsigned long col;
     register MenuItem *ptr;
     register int count;
     register int x,y;
@@ -1011,14 +1071,14 @@ static void DrawPopUpMenu()
         }
         ptr++;
     }
-    XSync(dpy,False);
+    /* XSync(dpy,False); */
+    XFlush(dpy);
 }
 
 
 static void DisplayPopUpMenu( i, x )
     int i, x;
 {
-    register unsigned long mask;
     register int wide, count;
     register MenuItem *ptr;
     register int flag;
@@ -1070,7 +1130,7 @@ static void DisplayPopUpMenu( i, x )
 /******************************/
 
 
-static int HandleItemClick( x, y )
+static void HandleItemClick( x, y )
     int x, y;
 {
     register MenuItem *ptr;
@@ -1117,7 +1177,7 @@ static int HandleItemClick( x, y )
 }
 
 
-static int HandleItemMove( x, y )
+static void HandleItemMove( x, y )
     int x, y;
 {
     register MenuItem *ptr;
@@ -1380,7 +1440,7 @@ static void ReSizeWindow( wide, high )
     YRange = high-(MenuHigh+53);
     XRange = wide-53;
 
-    if( dx = XRange%4 )
+    if( (dx = XRange%4) )
         XRange += 4-dx;
 
     MainHigh = YRange+(MenuHigh+53);  HRange = YRange>>1;
@@ -1425,7 +1485,9 @@ int OpenDisplay( x, y )
     register int i,num;
     register char *ptr;
  
+#ifdef THIRTYTWOBIT
     static ByteTest test;
+#endif
     static XVisualInfo visinfo;
     static XClassHint xclass;
     static XSizeHints size;
@@ -1438,24 +1500,17 @@ int OpenDisplay( x, y )
     MouseMode = MMRasMol;
     UseHourGlass = True;
     DisableMenu = False;
+    Monochrome = False;
     HeldButton = -1;
 
     for( i=0; i<8; i++ )
          DialValue[i] = 0.0;
 
-#ifdef EIGHTBIT
     RLut[0]=0;   GLut[0]=0;   BLut[0]=0;    ULut[0]=True;
     RLut[1]=100; GLut[1]=100; BLut[1]=100;  ULut[1]=True;
     RLut[2]=150; GLut[2]=150; BLut[2]=150;  ULut[2]=True;
     RLut[3]=200; GLut[3]=200; BLut[3]=200;  ULut[3]=True;
     RLut[4]=255; GLut[4]=255; BLut[4]=255;  ULut[4]=True;
-#else
-    Lut[0] = 65793*0;
-    Lut[1] = 65793*64;
-    Lut[2] = 65793*128;
-    Lut[3] = 65793*196;
-    Lut[4] = 65793*255;
-#endif
 
     XRange = x;  WRange = XRange>>1;
     YRange = y;  HRange = YRange>>1;
@@ -1472,10 +1527,17 @@ int OpenDisplay( x, y )
 #ifdef EIGHTBIT
     if( !(XMatchVisualInfo(dpy,num,8,PseudoColor,&visinfo) ||
           XMatchVisualInfo(dpy,num,8,GrayScale,&visinfo)) )
-    {   XCloseDisplay(dpy);
-        return(0);
+    {   /* Attempt to use Monochrome Mode! */
+        if( !(XMatchVisualInfo(dpy,num,1,StaticColor,&visinfo) ||
+              XMatchVisualInfo(dpy,num,1,StaticGray,&visinfo)) )
+        {   XCloseDisplay(dpy);
+            return( 0 );
+        }
+        Monochrome = True;
+        PixDepth = 1;
     } else PixDepth = 8;
 #else
+#ifdef THIRTYTWOBIT
     if( XMatchVisualInfo(dpy,num,32,TrueColor,&visinfo) ||
         XMatchVisualInfo(dpy,num,32,DirectColor,&visinfo) )
     {   PixDepth = 32;
@@ -1486,12 +1548,28 @@ int OpenDisplay( x, y )
     {   XCloseDisplay(dpy);
         return(0);
     }
+#else /* SIXTEENBIT */
+    if( !XMatchVisualInfo(dpy,num,16,TrueColor,&visinfo) &&
+        !XMatchVisualInfo(dpy,num,16,DirectColor,&visinfo) )
+    {   XCloseDisplay(dpy);
+        return(0);
+    } else PixDepth = 16;
+#endif
 #endif
 
-    vis = visinfo.visual;
-    if( vis != DefaultVisual(dpy,num) )
-    {   cmap = XCreateColormap(dpy,RootWin,vis,AllocNone);
-    } else cmap = DefaultColormap(dpy,num);
+    if( !Monochrome )
+    {   vis = visinfo.visual;
+        if( vis != DefaultVisual(dpy,num) )
+        {   cmap = XCreateColormap(dpy,RootWin,vis,AllocNone);
+        } else cmap = DefaultColormap(dpy,num);
+    } else /* Black & White */
+    {   /* PixDepth = DefaultDepth(dpy,num); */
+        /* vis = DefaultVisual(dpy,num);     */
+        cmap = DefaultColormap(dpy,num);
+
+        BlackCol = BlackPixel(dpy,num) & 1;
+        WhiteCol = WhitePixel(dpy,num) & 1;
+    }
 
     OpenFonts();
     OpenColourMap();
@@ -1523,7 +1601,7 @@ int OpenDisplay( x, y )
     size.flags = PMinSize | PMaxSize;
     size.min_width = MinWidth;    size.max_width = MaxWidth;
     size.min_height = MinHeight;  size.max_height = MaxHeight;
-    XSetStandardProperties(dpy, MainWin, "RasMol Version 2.5",
+    XSetStandardProperties(dpy, MainWin, "RasMol Version 2.6",
                            "RasMol", icon, NULL, 0, &size );
 
     xclass.res_name = "rasmol";
@@ -1549,11 +1627,12 @@ int OpenDisplay( x, y )
     if( !ptr || (*ptr==':') || !strncmp(ptr,"localhost:",10) || 
         !strncmp(ptr,"unix:",5) || !strncmp(ptr,"local:",6) )
     {   SharedMemOption = XQueryExtension(dpy,"MIT-SHM",&temp,&temp,&temp);
+        if( Monochrome && (PixDepth!=1) ) SharedMemOption = False;
     } else SharedMemOption = False;
     SharedMemFlag = False;
 #endif
 
-#ifndef EIGHTBIT
+#ifdef THIRTYTWOBIT
     /* Determine Byte Ordering */
     test.longword = (Long)0x000000ff;
     if( ImageByteOrder(dpy) == MSBFirst )
@@ -1568,15 +1647,20 @@ int OpenDisplay( x, y )
     DrawYScroll();
     DrawMainWin();
     DrawMenuBar();
+
+    XClearWindow( dpy, CanvWin );
     XSync(dpy,False);
 
-    return( ConnectionNumber(dpy) );
+    num = 1<<ConnectionNumber(dpy);
+    return( num );
 }
 
 
 int CreateImage()
 {
+    register int format,depth;
     register Long size, temp;
+    register Pixel *ptr;
 
     if( !Interactive )
     {   if( FBuffer ) free(FBuffer);
@@ -1585,8 +1669,19 @@ int CreateImage()
         return( (int)FBuffer );
     }
 
+    if( Monochrome )
+    {   format = XYPixmap;
+        depth = 1;
+    } else /* Colour */
+    {   format = ZPixmap;
+        depth = PixDepth;
+    }
+
+
     if( image ) 
-    {
+    {   /* Monochrome Mode Frame Buffer! */
+        if( FBuffer && (FBuffer!=(Pixel*)image->data) )
+            free(FBuffer);
 #ifdef MITSHM
         if( SharedMemFlag )
         {   XShmDetach( dpy, &xshminfo );
@@ -1598,13 +1693,25 @@ int CreateImage()
         image = (XImage*)NULL;
     }
 
-    size = (Long)XRange*YRange*sizeof(Pixel) + 32;
+
+    if( Monochrome )
+    {   /* Monochrome Mode Frame Buffer! */
+        size = (Long)XRange*YRange*sizeof(Pixel);
+        FBuffer = (Pixel*)malloc( size+32 );
+        if( !FBuffer ) return( False );
+
+        /* Bit per Pixel ScanLines! */
+        temp = ((XRange+31)>>5)<<2;
+        size = (Long)temp*YRange + 32;
+    } else 
+        size = (Long)XRange*YRange*sizeof(Pixel) + 32;
 
 #ifdef MITSHM
     if( SharedMemOption )
     {   SharedMemFlag = False;
-        image = XShmCreateImage( dpy, vis, PixDepth, ZPixmap, 
+        image = XShmCreateImage( dpy, vis, depth, format,
                                  NULL, &xshminfo, XRange, YRange );
+
         if( image )
         {   temp = (Long)image->bytes_per_line * image->height;
             if( temp > size ) size = temp;
@@ -1613,7 +1720,8 @@ int CreateImage()
             {   xshminfo.shmaddr = (char*)shmat(xshminfo.shmid,0,0);
                 if( xshminfo.shmaddr != (char*)-1 )
                 {   image->data = xshminfo.shmaddr;
-                    FBuffer = (Pixel*)xshminfo.shmaddr;
+                    if( !Monochrome )
+                        FBuffer = (Pixel*)image->data;
                     xshminfo.readOnly = True;
 
                     SharedMemFlag = XShmAttach( dpy, &xshminfo );
@@ -1623,33 +1731,145 @@ int CreateImage()
                 shmctl( xshminfo.shmid, IPC_RMID, 0 );
             }
 
-            if( !SharedMemFlag )
+            if( SharedMemFlag )
+            {   if( Monochrome )
+                {   if( BlackCol )
+                    {      memset((void*)image->data,255,size);
+                    } else memset((void*)image->data,255,size);
+                }
+                return( True );
+            } else 
             {   XDestroyImage( image );
                 image = (XImage*)NULL;
-            } else return( True );
+            }
         }
     }
-
 #endif
-    /* Allocate Frame Buffer! */
-    FBuffer = (Pixel*)malloc( size );
-    if( !FBuffer ) return( False );
 
-    image = XCreateImage( dpy, vis, PixDepth, ZPixmap, 0, (char*)FBuffer, 
+    /* Allocate Frame Buffer! */
+    ptr = (Pixel*)malloc( size );
+    if( !ptr ) return( False );
+
+    if( !Monochrome ) FBuffer = ptr;
+    image = XCreateImage( dpy, vis, depth, format, 0, (char*)ptr, 
                           XRange, YRange, ((PixDepth>8)?32: 8) , 0 );
     return( (int)image );
 }
 
 
+static void DitherImage()
+{
+    register Card bits;
+    register Card *dst;
+    register Pixel *src;
+    register int xmax,ymax;
+    register int count,x,y;
+    register int error;
+
+    register Card bmask,wmask;
+    register Card bhigh,whigh;
+    register int wlen;
+    register int blen;
+    register int len;
+
+    src = (Pixel*)FBuffer;
+    dst = (Card*)image->data;
+
+    wlen = XRange>>5;
+    blen = XRange&31;
+    if( blen )
+    {   wmask = WhiteCol << (blen-1);
+        bmask = BlackCol << (blen-1);
+        len = wlen+1;
+    } else len = wlen;
+
+    whigh = WhiteCol << 31;
+    bhigh = BlackCol << 31;
+
+    /* Allow Compiler Optimisation */
+    xmax = XRange;  ymax = YRange;
+
+    error = 0;
+    for( y=0; y<ymax; y++ )
+    {    for( x=0; x<wlen; x++ )
+         {   for( count=0; count<32; count++ )
+             {   error += Intensity[*src++];
+                 bits <<= 1;
+                 if( error >= 128  )
+                 {   error -= 255;
+                        bits |= WhiteCol;
+                 } else bits |= BlackCol;
+             }
+             *dst++ = bits;
+         }
+
+         if( blen )
+         {   for( count=0; count<blen; count++ )
+             {   error += Intensity[*src++];
+                 bits <<= 1;
+                 if( error >= 128  )
+                 {   error -= 255;
+                        bits |= WhiteCol;
+                 } else bits |= BlackCol;
+             }
+             *dst++ = bits;
+           
+             /* Asymmetric Loop Unrolling! */
+             if( ++y == ymax ) break;
+             src += xmax;
+             dst += wlen;
+
+             bits = 0;
+             for( count=0; count<blen; count++ )
+             {   error += Intensity[*(--src)];
+                 bits >>= 1;
+                 if( error >= 128  )
+                 {   error -= 255;
+                        bits |= wmask;
+                 } else bits |= bmask;
+             }
+             *(--dst) = bits;
+         } else
+         {   /* Asymmetric Loop Unrolling! */
+             if( ++y == ymax ) break;
+             src += xmax;
+             dst += len;
+         }
+
+         for( x=wlen-1; x>=0; x-- )
+         {   for( count=0; count<32; count++ )
+             {   error += Intensity[*(--src)];
+                 bits >>= 1;
+                 if( error >= 128  )
+                 {   error -= 255;
+                        bits |= whigh;
+                 } else bits |= bhigh;
+             }
+             *(--dst) = bits;
+         }
+         src += xmax;
+         dst += len;
+    }
+}
+
+
 void TransferImage()
-{   
+{
+    if( Monochrome )
+        DitherImage();
+
 #ifdef MITSHM
     if( SharedMemFlag )
     {   XShmPutImage(dpy,CanvWin,gcon,image,0,0,0,0,XRange,YRange,False);
+        XSync(dpy,False);
     } else
-#endif
+    {   XPutImage( dpy, CanvWin, gcon,image,0,0,0,0,XRange,YRange);
+        XFlush(dpy);
+    }
+#else
     XPutImage( dpy, CanvWin, gcon, image, 0, 0, 0, 0, XRange, YRange );
     XFlush(dpy);
+#endif
 }
 
 
@@ -1689,7 +1909,9 @@ static void HandleIPCCommand()
     char buffer[32];
     int (*handler)();
 
+    register int rlen;
     register int result;
+    register char *cmnd;
     register char *ptr;
 
     command = NULL;
@@ -1703,9 +1925,55 @@ static void HandleIPCCommand()
 
     result = 0;
     ptr = (char*)command;
-    while( *ptr )
-    {   if( *ptr=='C' )
-        {   sscanf(ptr+1,"%x %x\n",&source,&serial);
+    if( !*ptr )
+    {   /* Tcl/Tk4.0 and later */
+
+        ptr++;
+        while( ptr < (char*)command+len )
+        {    if( (ptr[0]=='c') && (ptr[1]=='\0') )
+             {   ptr += 2;
+                 cmnd = (char*)NULL;
+                 source = serial = 0;
+                 while( (ptr<(char*)command+len) && (*ptr=='-') )
+                 {   if( (ptr[1]=='r') && (ptr[2]==' ') )
+                     {   sscanf(ptr+3,"%x %d\n",(int*)&source,&serial);
+                     } else if( (ptr[1]=='s') && (ptr[2]==' ') )
+                         cmnd = ptr+3;
+                     while( *ptr ) ptr++;
+                     ptr++;
+                 }
+
+                 if( !cmnd ) continue;
+                 result = ExecuteIPCCommand(cmnd);
+                 if( !source || !serial ) continue;
+
+                 buffer[0]='\0';
+                 buffer[1]='r';
+                 buffer[2]='\0';
+                 buffer[3]='-';
+                 buffer[4]='r';
+                 buffer[5]=' ';
+                 buffer[6]= result? '1' : '0';
+                 buffer[7]='\0';
+                 sprintf(buffer+8,"-s %d",serial);
+                 rlen = strlen(buffer+8)+9;
+
+                 /* Return Tcl/Tk v4.0 result! */
+                 handler = XSetErrorHandler( HandleIPCError );
+                 XChangeProperty(dpy,source,CommAtom, XA_STRING, 8,
+                                 PropModeAppend,(unsigned char*)buffer,rlen);
+                 XSync(dpy,False);
+                 XSetErrorHandler(handler);
+             } else /* Unrecognised command! */
+             {   while( *ptr ) ptr++;
+                 ptr++;
+             }
+        }
+
+    } else while( *ptr )
+    {   /* Tcl/Tk3.0 and later */
+        if( *ptr=='C' )
+        {   sscanf(ptr+1,"%x %x\n",(int*)&source,&serial);
             while( *ptr && (*ptr!='|') ) ptr++;
             if( *ptr=='|' )
             {   result = ExecuteIPCCommand(ptr+1);
@@ -1725,7 +1993,7 @@ static void HandleIPCCommand()
     }
     XFree( (char*)command );
 
-    if( result==2 )
+    if( (result==IPC_Quit) || (result==IPC_Exit) )
         RasMolExit();
 }
 
@@ -1923,6 +2191,57 @@ static void MouseMove( status, dx, dy )
 }
 
 
+static void DoneEvents()
+{
+    register Real temp;
+    register int index;
+
+    if( HeldButton == YScrlDial )
+    {   index = NewScrlY+HeldStep;
+        if( YScrlDial<3 )
+        {   if( index<16 )             
+            {   index += YRange-48;
+            } else if( index>YRange-32 ) 
+                index -= YRange-48;
+            NewScrlY = index;
+        } else NewScrlY = CropRange(index,16,YRange-32);
+    }
+
+    if( NewScrlY != ScrlY )
+    {   XClearArea(dpy,YScrlWin,0,ScrlY,16,16,False);
+        XCopyArea(dpy,Scrl,YScrlWin,gcon,0,0,16,16,0,NewScrlY);
+
+        temp = ((Real)(NewScrlY-16))/(YRange-48);
+        DialValue[YScrlDial] = 2.0*temp - 1.0;
+        ReDrawFlag |= (1<<YScrlDial);
+        ScrlY = NewScrlY;
+    }
+
+    if( HeldButton == XScrlDial )
+    {   index = NewScrlX+HeldStep;
+        if( XScrlDial<3 )
+        {   if( index<16 ) 
+            {   index += XRange-48;
+            } else if( index>XRange-32 ) 
+                index -= XRange-48;
+            NewScrlX = index;
+        } else NewScrlX = CropRange(index,16,XRange-32);
+    }
+
+    if( NewScrlX != ScrlX )
+    {   XClearArea(dpy,XScrlWin,ScrlX,0,16,16,False);
+        XCopyArea(dpy,Scrl,XScrlWin,gcon,0,0,16,16,NewScrlX,0);
+
+        temp = ((Real)(NewScrlX-16))/(XRange-48);
+        DialValue[XScrlDial] = 2.0*temp - 1.0;
+        ReDrawFlag |= (1<<XScrlDial);
+        ScrlX = NewScrlX;
+    }
+    /* XSync(dpy,False); */
+    XFlush(dpy);
+}
+
+
 static int ProcessEvent( event )
     XEvent *event;
 {
@@ -2008,12 +2327,18 @@ static int ProcessEvent( event )
         case(ButtonRelease):
             {   XButtonReleasedEvent *ptr;
 
-                HeldButton = -1;
+                if( HeldButton != -1 )
+                {   /* Three button emulation fix! */
+                    DoneEvents();  HeldButton = -1;
+                }
+
                 ptr = (XButtonReleasedEvent*)event;
                 if( ptr->window==CanvWin )
                 {   PointX = ptr->x;  PointY = ptr->y;
                     if( IsClose(PointX,InitX) && IsClose(PointY,InitY) )
-                        ReDrawFlag |= RFPoint;
+                        if( ptr->state & (ShiftMask|ControlMask) )
+                        {      ReDrawFlag |= RFPoint1;
+                        } else ReDrawFlag |= RFPoint2;
                 }
             } break;
 
@@ -2021,8 +2346,8 @@ static int ProcessEvent( event )
             {   XKeyPressedEvent *ptr;
                 static KeySym symbol;
                 static char keychar;
-                register int i;
 
+                keychar = '\0';
                 ptr = (XKeyPressedEvent*)event;
                 index = XLookupString(ptr,&keychar,1,&symbol,NULL);
                 switch( symbol )
@@ -2043,7 +2368,7 @@ static int ProcessEvent( event )
                                     break;
 
                     default:        if( index == 1 )
-                                        if( !(ptr->state&(Mod1Mask|Mod2Mask)) )
+                                        if( !(ptr->state&Mod1Mask) )
                                         {   if( ProcessCharacter(keychar) )
                                             {   if( ProcessCommand() )
                                                     RasMolExit();
@@ -2069,12 +2394,14 @@ static int ProcessEvent( event )
                         {   XShmPutImage( dpy, CanvWin, gcon, image,
                                           ptr->x, ptr->y, ptr->x, ptr->y,
                                           ptr->width, ptr->height, False);
+                            XSync(dpy,False);
                         } else
 #endif 
                         XPutImage( dpy, CanvWin, gcon, image,
                                    ptr->x, ptr->y, ptr->x, ptr->y,
                                    ptr->width, ptr->height );
-                    }
+                    } else XClearWindow( dpy, CanvWin );
+		    
                 } else if( ptr->window==MainWin )
                 {   DrawMainWin();
                     DrawMenuBar();
@@ -2082,7 +2409,7 @@ static int ProcessEvent( event )
                 {   DrawXScroll();
                 } else if( ptr->window==YScrlWin )
                     DrawYScroll();
-                XSync(dpy,False);
+                XFlush(dpy);
             } break;
 
         case(EnterNotify):
@@ -2115,10 +2442,11 @@ static int ProcessEvent( event )
                 register int wide,high;
 
                 ptr = (XConfigureEvent*)event;
-                wide = CropRange(ptr->width, MinWidth, MaxWidth );
                 high = CropRange(ptr->height,MinHeight,MaxHeight);
+                wide = CropRange(ptr->width, MinWidth, MaxWidth );
+
                 if( (wide!=MainWide) || (high!=MainHigh) )
-                        ReSizeWindow(wide,high);
+                    ReSizeWindow(wide,high);
             } break;
 
         case(ClientMessage):
@@ -2280,7 +2608,7 @@ static int HandleMenuLoop()
                                            break;
 
                         default:    if( (index==1) && (keychar>=' ') ) 
-                                    {   if( !(ptr->state&(Mod1Mask|Mod2Mask)) )
+                                    {   if( !(ptr->state&Mod1Mask) )
                                         {   if( PopUpFlag )
                                             {   result = HandleItemKey(keychar);
                                                 if( result ) done = True;
@@ -2305,56 +2633,6 @@ static int HandleMenuLoop()
     MenuFocus = False;
     DrawMenuBar();
     return( result );
-}
-
-
-static void DoneEvents()
-{
-    register Real temp;
-    register int index;
-
-    if( HeldButton == YScrlDial )
-    {   index = NewScrlY+HeldStep;
-        if( YScrlDial<3 )
-        {   if( index<16 )             
-            {   index += YRange-48;
-            } else if( index>YRange-32 ) 
-                index -= YRange-48;
-            NewScrlY = index;
-        } else NewScrlY = CropRange(index,16,YRange-32);
-    }
-
-    if( NewScrlY != ScrlY )
-    {   XClearArea(dpy,YScrlWin,0,ScrlY,16,16,False);
-        XCopyArea(dpy,Scrl,YScrlWin,gcon,0,0,16,16,0,NewScrlY);
-
-        temp = ((Real)(NewScrlY-16))/(YRange-48);
-        DialValue[YScrlDial] = 2.0*temp - 1.0;
-        ReDrawFlag |= (1<<YScrlDial);
-        ScrlY = NewScrlY;
-    }
-
-    if( HeldButton == XScrlDial )
-    {   index = NewScrlX+HeldStep;
-        if( XScrlDial<3 )
-        {   if( index<16 ) 
-            {   index += XRange-48;
-            } else if( index>XRange-32 ) 
-                index -= XRange-48;
-            NewScrlX = index;
-        } else NewScrlX = CropRange(index,16,XRange-32);
-    }
-
-    if( NewScrlX != ScrlX )
-    {   XClearArea(dpy,XScrlWin,ScrlX,0,16,16,False);
-        XCopyArea(dpy,Scrl,XScrlWin,gcon,0,0,16,16,NewScrlX,0);
-
-        temp = ((Real)(NewScrlX-16))/(XRange-48);
-        DialValue[XScrlDial] = 2.0*temp - 1.0;
-        ReDrawFlag |= (1<<XScrlDial);
-        ScrlX = NewScrlX;
-    }
-    XSync(dpy,False);
 }
 
 
@@ -2444,9 +2722,12 @@ void CloseDisplay()
     }
 
 #ifdef DIALBOX
-    if( UseDials && UseDialLEDs )
-        for( num=0; num<8; num++ )
-            SetDialLabel(num,"");
+    if( UseDials )
+    {   if( UseDialLEDs )
+            for( num=0; num<8; num++ )
+                SetDialLabel(num,"");
+        XCloseDevice(dpy,Dials);
+    }
 #endif
     XCloseDisplay( dpy );
 }

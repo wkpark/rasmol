@@ -1,7 +1,7 @@
 /* abstree.h
  * RasMol2 Molecular Graphics
- * Roger Sayle, October 1994
- * Version 2.5
+ * Roger Sayle, August 1995
+ * Version 2.6
  */
 
 #define OpCode(x) (((x)->type)&0x0f)
@@ -38,6 +38,7 @@
 #define PropResName      10
 #define PropSelect       11
 #define PropElemNo       12
+#define PropModel        13
 
 #define PredAbsOrd(x)    ((x)-20)
 #define PredAbsChr(x)    ((x)+20)
@@ -129,24 +130,24 @@ typedef struct {
 
 #ifdef ABSTREE
 ElemStruct Element[MAXELEMNO] =  {
-    { { ' ', ' ' }, 170, 360, 12, ""             },  /*   0 */
+    { { ' ', ' ' }, 180, 360, 12, ""             },  /*   0 */
     { { 'H', ' ' },  80, 275,  4, "HYDROGEN"     },  /*   1 */
     { { 'H', 'e' }, 400, 550,  5, "HELIUM"       },  /*   2 */
     { { 'L', 'i' }, 170, 305, 14, "LITHIUM"      },  /*   3 */
     { { 'B', 'e' },  88, 157, 12, "BERYLLIUM"    },  /*   4 */
-    { { 'B', ' ' }, 205, 387, 13, "BORON"        },  /*   5 */
-    { { 'C', ' ' }, 170, 387,  0, "CARBON"       },  /*   6 */
-    { { 'N', ' ' }, 188, 350,  1, "NITROGEN"     },  /*   7 */
-    { { 'O', ' ' }, 182, 337,  2, "OXYGEN"       },  /*   8 */
-    { { 'F', ' ' }, 180, 325,  6, "FLUORINE"     },  /*   9 */
+    { { 'B', ' ' }, 208, 387, 13, "BORON"        },  /*   5 */
+    { { 'C', ' ' }, 180, 387,  0, "CARBON"       },  /*   6 */
+    { { 'N', ' ' }, 170, 350,  1, "NITROGEN"     },  /*   7 */
+    { { 'O', ' ' }, 170, 337,  2, "OXYGEN"       },  /*   8 */
+    { { 'F', ' ' }, 160, 325,  6, "FLUORINE"     },  /*   9 */
     { { 'N', 'e' }, 280, 505, 12, "NEON"         },  /*  10 */
     { { 'N', 'a' }, 243, 550,  7, "SODIUM"       },  /*  11 */
     { { 'M', 'g' }, 275, 375, 15, "MAGNESIUM"    },  /*  12 */
     { { 'A', 'l' }, 338, 375,  9, "ALUMINIUM"    },  /*  13 */
     { { 'S', 'i' }, 300, 550,  6, "SILICON"      },  /*  14 */
-    { { 'P', ' ' }, 262, 470,  8, "PHOSPHORUS"   },  /*  15 */
+    { { 'P', ' ' }, 259, 470,  8, "PHOSPHORUS"   },  /*  15 */  /* 262? */
     { { 'S', ' ' }, 255, 452,  3, "SULPHUR"      },  /*  16 */
-    { { 'C', 'l' }, 248, 437, 13, "CHLORINE"     },  /*  17 */
+    { { 'C', 'l' }, 250, 437, 13, "CHLORINE"     },  /*  17 */
     { { 'A', 'r' }, 392, 692, 12, "ARGON"        },  /*  18 */
     { { 'K', ' ' }, 332, 597, 12, "POTASSIUM"    },  /*  19 */
     { { 'C', 'a' }, 248, 487,  9, "CALCIUM"      },  /*  20 */
@@ -157,7 +158,7 @@ ElemStruct Element[MAXELEMNO] =  {
     { { 'M', 'n' }, 338, 297,  9, "MANGANESE"    },  /*  25 */
     { { 'F', 'e' }, 335, 487,  8, "IRON"         },  /*  26 */
     { { 'C', 'o' }, 332, 282, 12, "COBALT"       },  /*  27 */
-    { { 'N', 'i' }, 375, 310, 10, "NICKEL"       },  /*  28 */
+    { { 'N', 'i' }, 405, 310, 10, "NICKEL"       },  /*  28 */  /* >375! */
     { { 'C', 'u' }, 380, 287, 10, "COPPER"       },  /*  29 */
     { { 'Z', 'n' }, 362, 287, 10, "ZINC"         },  /*  30 */
     { { 'G', 'a' }, 305, 387, 12, "GALLIUM"      },  /*  31 */
@@ -178,43 +179,43 @@ ElemStruct Element[MAXELEMNO] =  {
     { { 'P', 'd' }, 375, 360, 12, "PALLADIUM"    },  /*  46 */
     { { 'A', 'g' }, 398, 387,  9, "SILVER"       },  /*  47 */
     { { 'C', 'd' }, 422, 437, 12, "CADMIUM"      },  /*  48 */
-    { { 'I', 'n' }, 407, 362, 12, "INDIUM"       },  /*  49 */
+    { { 'I', 'n' }, 408, 362, 12, "INDIUM"       },  /*  49 */
     { { 'S', 'n' }, 365, 417, 12, "TIN",         },  /*  50 */
-    { { 'S', 'b' }, 155, 280, 12, "ANTIMONY"     },  /*  51 */
-    { { 'T', 'e' }, 175, 315, 12, "TELLURIUM"    },  /*  52 */
+    { { 'S', 'b' }, 365, 280, 12, "ANTIMONY"     },  /*  51 */
+    { { 'T', 'e' }, 368, 315, 12, "TELLURIUM"    },  /*  52 */
     { { 'I', ' ' }, 350, 437, 11, "IODINE"       },  /*  53 */
     { { 'X', 'e' }, 425, 525, 12, "XENON"        },  /*  54 */
     { { 'C', 's' }, 418, 752, 12, "CAESIUM"      },  /*  55 */
     { { 'B', 'a' }, 335, 602,  8, "BARIUM"       },  /*  56 */
-    { { 'L', 'a' }, 255, 457, 12, "LANTHANUM"    },  /*  57 */
-    { { 'C', 'e' }, 258, 465, 12, "CERIUM"       },  /*  58 */
-    { { 'P', 'r' }, 225, 405, 12, "PRASEODYMIUM" },  /*  59 */
-    { { 'N', 'd' }, 248, 447, 12, "NEODYMIUM"    },  /*  60 */
-    { { 'P', 'm' }, 245, 440, 12, "PROMETHIUM"   },  /*  61 */
-    { { 'S', 'm' }, 240, 435, 12, "SAMARIUM"     },  /*  62 */
-    { { 'E', 'u' }, 273, 490, 12, "EUROPIUM"     },  /*  63 */
-    { { 'G', 'd' }, 235, 422, 12, "GADOLINIUM"   },  /*  64 */
-    { { 'T', 'b' }, 230, 415, 12, "TERBIUM"      },  /*  65 */
-    { { 'D', 'y' }, 228, 407, 12, "DYSPROSIUM"   },  /*  66 */
-    { { 'H', 'o' }, 222, 402, 12, "HOLMIUM"      },  /*  67 */
-    { { 'E', 'r' }, 220, 397, 12, "ERBIUM"       },  /*  68 */
-    { { 'T', 'm' }, 218, 392, 12, "THULIUM"      },  /*  69 */
-    { { 'Y', 'b' }, 215, 385, 12, "YTTERBIUM"    },  /*  70 */
-    { { 'L', 'u' }, 212, 382, 12, "LUTETIUM"     },  /*  71 */
-    { { 'H', 'f' }, 195, 350, 12, "HAFNIUM"      },  /*  72 */
-    { { 'T', 'a' }, 170, 305, 12, "TANTALUM"     },  /*  73 */
-    { { 'W', ' ' }, 175, 315, 12, "TUNGSTEN"     },  /*  74 */
-    { { 'R', 'e' }, 180, 325, 12, "RHENIUM"      },  /*  75 */
-    { { 'O', 's' }, 220, 395, 12, "OSMIUM"       },  /*  76 */
-    { { 'I', 'r' }, 170, 305, 12, "IRIDIUM"      },  /*  77 */
-    { { 'P', 't' }, 325, 387, 12, "PLATINUM"     },  /*  78 */
-    { { 'A', 'u' }, 335, 362,  6, "GOLD"         },  /*  79 */
-    { { 'H', 'g' }, 275, 495, 12, "MERCURY"      },  /*  80 */
-    { { 'T', 'l' }, 238, 427, 12, "THALLIUM"     },  /*  81 */
-    { { 'P', 'b' }, 300, 540, 12, "LEAD"         },  /*  82 */
-    { { 'B', 'i' }, 240, 432, 12, "BISMUTH"      },  /*  83 */
-    { { 'P', 'o' }, 168, 302, 12, "POLONIUM"     },  /*  84 */
-    { { 'A', 't' }, 155, 280, 12, "ASTATINE"     },  /*  85 */
+    { { 'L', 'a' }, 468, 457, 12, "LANTHANUM"    },  /*  57 */
+    { { 'C', 'e' }, 458, 465, 12, "CERIUM"       },  /*  58 */
+    { { 'P', 'r' }, 455, 405, 12, "PRASEODYMIUM" },  /*  59 */
+    { { 'N', 'd' }, 452, 447, 12, "NEODYMIUM"    },  /*  60 */
+    { { 'P', 'm' }, 450, 440, 12, "PROMETHIUM"   },  /*  61 */
+    { { 'S', 'm' }, 450, 435, 12, "SAMARIUM"     },  /*  62 */
+    { { 'E', 'u' }, 498, 490, 12, "EUROPIUM"     },  /*  63 */
+    { { 'G', 'd' }, 448, 422, 12, "GADOLINIUM"   },  /*  64 */
+    { { 'T', 'b' }, 440, 415, 12, "TERBIUM"      },  /*  65 */
+    { { 'D', 'y' }, 438, 407, 12, "DYSPROSIUM"   },  /*  66 */
+    { { 'H', 'o' }, 435, 402, 12, "HOLMIUM"      },  /*  67 */
+    { { 'E', 'r' }, 432, 397, 12, "ERBIUM"       },  /*  68 */
+    { { 'T', 'm' }, 430, 392, 12, "THULIUM"      },  /*  69 */
+    { { 'Y', 'b' }, 485, 385, 12, "YTTERBIUM"    },  /*  70 */
+    { { 'L', 'u' }, 430, 382, 12, "LUTETIUM"     },  /*  71 */
+    { { 'H', 'f' }, 392, 350, 12, "HAFNIUM"      },  /*  72 */
+    { { 'T', 'a' }, 358, 305, 12, "TANTALUM"     },  /*  73 */
+    { { 'W', ' ' }, 342, 315, 12, "TUNGSTEN"     },  /*  74 */
+    { { 'R', 'e' }, 338, 325, 12, "RHENIUM"      },  /*  75 */
+    { { 'O', 's' }, 342, 395, 12, "OSMIUM"       },  /*  76 */
+    { { 'I', 'r' }, 330, 305, 12, "IRIDIUM"      },  /*  77 */
+    { { 'P', 't' }, 375, 387, 12, "PLATINUM"     },  /*  78 */
+    { { 'A', 'u' }, 375, 362,  6, "GOLD"         },  /*  79 */
+    { { 'H', 'g' }, 425, 495, 12, "MERCURY"      },  /*  80 */
+    { { 'T', 'l' }, 388, 427, 12, "THALLIUM"     },  /*  81 */
+    { { 'P', 'b' }, 385, 540, 12, "LEAD"         },  /*  82 */
+    { { 'B', 'i' }, 385, 432, 12, "BISMUTH"      },  /*  83 */
+    { { 'P', 'o' }, 420, 302, 12, "POLONIUM"     },  /*  84 */
+    { { 'A', 't' }, 302, 280, 12, "ASTATINE"     },  /*  85 */
     { { 'R', 'n' }, 475, 575, 12, "RADON"        },  /*  86 */
     { { 'F', 'r' }, 450, 810, 12, "FRANCIUM"     },  /*  87 */
     { { 'R', 'a' }, 358, 642, 12, "RADIUM"       },  /*  88 */
@@ -260,11 +261,15 @@ void DeleteAtomSet( AtomSet __far* );
 Expr *LookUpElement( char* );
 
 int ElemVDWRadius( int );
-int GetElemNumber( Atom __far* );
 int ParsePrimitiveExpr( char** );
+int GetElemNumber( Group __far*, Atom __far* );
 void FormatLabel( Chain __far*, Group __far*, Atom __far*, char*, char* );
 void InitialiseAbstree();
 void ResetSymbolTable();
+
+double CalcTorsion( Atom __far*, Atom __far*, Atom __far*, Atom __far* );
+double CalcAngle( Atom __far*, Atom __far*, Atom __far* );
+double CalcDistance( Atom __far*, Atom __far* );
 
 #else /* non-ANSI C compiler */
 Expr *AllocateNode();
@@ -277,12 +282,15 @@ void DeleteAtomSet();
 Expr *LookUpElement();
 
 int ElemVDWRadius();
-int GetElemNumber();
 int ParsePrimitiveExpr();
+int GetElemNumber();
 void FormatLabel();
 void InitialiseAbstree();
 void ResetSymbolTable();
 
+double CalcTorsion();
+double CalcAngle();
+double CalcDistance();
 #endif
 #endif
 

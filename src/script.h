@@ -1,7 +1,7 @@
 /* script.h
  * RasMol2 Molecular Graphics
- * Roger Sayle, October 1994
- * Version 2.5
+ * Roger Sayle, August 1995
+ * Version 2.6
  */
 
 #ifdef SCRIPT
@@ -15,12 +15,14 @@ int WriteMolScriptFile( char* );
 int WriteKinemageFile( char* );
 int WriteScriptFile( char* );
 int WritePOVRayFile( char* );
+int WriteVRMLFile( char* );
 
 #else /* non-ANSI C compiler */
 int WriteMolScriptFile();
 int WriteKinemageFile();
 int WriteScriptFile();
 int WritePOVRayFile();
+int WriteVRMLFile();
 
 #endif
 #endif

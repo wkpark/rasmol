@@ -1,7 +1,7 @@
 /* script.c
  * RasMol2 Molecular Graphics
- * Roger Sayle, October 1994
- * Version 2.5
+ * Roger Sayle, August 1995
+ * Version 2.6
  */
 #define SCRIPT
 #include "rasmol.h"
@@ -11,12 +11,13 @@
 #include <malloc.h>
 #endif
 #ifdef APPLEMAC
+#include <Types.h>
+#include <Errors.h>
 #ifdef __CONDITIONALMACROS__
 #include <Printing.h>
 #else
 #include <PrintTraps.h>
 #endif
-#include <Types.h>
 #endif
 #ifndef sun386
 #include <stdlib.h>
@@ -33,6 +34,7 @@
 #include "abstree.h"
 #include "transfor.h"
 #include "render.h"
+#include "repres.h"
 #include "graphics.h"
 #include "pixutils.h"
 
@@ -44,7 +46,8 @@
 
 #define Round(x)       ((int)(x))
 #define DatWirFlag  (Long)0x10000
-#define DatCylFlag  (Long)0x20000
+#define DatDasFlag  (Long)0x20000
+#define DatCylFlag  (Long)0x40000
 
 /* Special thanks to Profs Jane and David Richardson
  * for the following Kinemage colour lookup table */
@@ -159,6 +162,8 @@ static Long GetBondDatum( bptr )
     {   return( DatCylFlag | bptr->radius );
     } else if( bptr->flag & WireFlag )
     {   return( DatWirFlag );
+    } else if( bptr->flag & DashFlag )
+    {   return( DatDasFlag );
     } else return( (Long)0 );
 }
 
@@ -281,7 +286,7 @@ int WriteMolScriptFile( name )
         return(False);
     }
     fprintf(OutFile,"! File: %s\n",name);
-    fputs("! Creator: RasMol Version 2.5\n",OutFile);
+    fputs("! Creator: RasMol Version 2.6\n",OutFile);
     fputs("! Version: MolScript v1.3\n\n",OutFile);
 
     fputs("plot\n",OutFile);
@@ -297,7 +302,7 @@ int WriteMolScriptFile( name )
         fprintf(OutFile,"  slab %g;\n",SideLen/250.0);
     fputc('\n',OutFile);
 
-    fprintf(OutFile,"  read mol \"%s\";\n",InfoFileName);
+    fprintf(OutFile,"  read mol \"%s\";\n",Info.filename);
     fputs("  transform atom *\n",OutFile);
     fputs("    by centre position atom *\n",OutFile);
     fputs("    by rotation x 180.0",OutFile);
@@ -332,8 +337,8 @@ int WriteMolScriptFile( name )
     /* fputs("  trace amino-acids;\n",OutFile); */
 
     if( Database->clist )
-    {   if( InfoHelixCount<0 )
-            DetermineStructure();
+    {   if( Info.helixcount < 0 )
+            DetermineStructure( False );
 
         for( chain=Database->clist; chain; chain=chain->cnext )
         {   prev = (Group __far*)0;
@@ -373,12 +378,12 @@ int WriteMolScriptFile( name )
                 }
 
                 if( len>2 )
-                {   if( prev ) /* MolScript coil or turn? */
+                {   if( prev && prev!=group ) /* MolScript coil or turn? */
                        MolScriptSegment("coil",prev->serno,group->serno,
                                               chain->ident);
                     MolScriptSegment(ptr,group->serno,next->serno,
                                          chain->ident);
-	            prev = next;
+                    prev = next;
                 } 
             }
 
@@ -404,8 +409,10 @@ int WriteMolScriptFile( name )
 
 #ifdef FUNCPROTO
 static void WriteScriptDatum( char*, Long );
+static void WriteScriptSelectBond( Atom __far*, Atom __far* );
 static void WriteScriptHBonds( char*, HBond __far* );
 #endif
+
 
 static void WriteScriptAll()
 {
@@ -437,12 +444,21 @@ static void WriteScriptBetween( lo, hi )
     SelectAll = False;
 }
 
+static void WriteScriptSelectBond( src, dst )
+    Atom __far *src, __far *dst;
+{
+    fprintf(OutFile,"select (atomno=%d) or (atomno==%d)\n",
+                    src->serno, dst->serno);
+    SelectAll = False;
+}
+
+
 static void WriteScriptAtoms()
 {
     register Chain __far *chain;
     register Group __far *group;
     register Atom __far *aptr;
-    register int first,last;
+    register Long first,last;
     register int same,init;
     register int cpk,vdw;
     register int col,rad;
@@ -544,6 +560,8 @@ static void WriteScriptDatum( ptr, datum )
     {   fprintf(OutFile,"%s %d\n",ptr,(int)(datum-DatCylFlag));
     } else if( datum & DatWirFlag )
     {   fprintf(OutFile,"%s on\n",ptr);
+    } else if( datum & DatDasFlag )
+    {   fprintf(OutFile,"%s dash\n",ptr);
     } else fprintf(OutFile,"%s off\n",ptr);
 }
 
@@ -569,10 +587,8 @@ static void WriteScriptBonds()
     {   ForEachBond
         {   datum = GetBondDatum(bptr);
             if( datum != defdat )
-            {    fprintf(OutFile,"select (atomno=%d) or (atomno=%d)\n",
-                         bptr->srcatom->serno, bptr->dstatom->serno );
+            {    WriteScriptSelectBond(bptr->srcatom,bptr->dstatom);
                  WriteScriptDatum("wireframe",datum);
-                 SelectAll = False;
             }
         }
     } else if( !defdat )
@@ -582,17 +598,17 @@ static void WriteScriptBonds()
     ForEachBond
         IncFreqTable(bptr->col);
 
-    WriteScriptAll();
-    if( (col=(int)Freq[0].datum) )
+    col = (int)Freq[0].datum;
+    if( col )
+    {   WriteScriptAll();
         WriteScriptColour("bonds",col);
+    }
 
     if( Freq[1].count )
         ForEachBond
             if( bptr->col != col )
-            {   fprintf(OutFile,"select (atomno=%d) or (atomno=%d)\n",
-                    bptr->srcatom->serno, bptr->dstatom->serno );
+            {   WriteScriptSelectBond(bptr->srcatom,bptr->dstatom);
                 WriteScriptColour("bonds",bptr->col);
-                SelectAll = False;
             }
 }
 
@@ -619,10 +635,8 @@ static void WriteScriptBackbone()
     {   ForEachBack
         {   datum = GetBondDatum(bptr);
             if( datum != defdat )
-            {    fprintf(OutFile,"select (atomno=%d) or (atomno=%d)\n",
-                         bptr->srcatom->serno, bptr->dstatom->serno );
+            {    WriteScriptSelectBond(bptr->srcatom,bptr->dstatom);
                  WriteScriptDatum("backbone",datum);
-                 SelectAll = False;
             }
         }
     } else if( !defdat )
@@ -632,17 +646,17 @@ static void WriteScriptBackbone()
     ForEachBack
         IncFreqTable(bptr->col);
 
-    WriteScriptAll();
-    if( (col=(int)Freq[0].datum) )
+    col = (int)Freq[0].datum;
+    if( col )
+    {   WriteScriptAll();
         WriteScriptColour("backbone",col);
+    }
 
     if( Freq[1].count )
         ForEachBack
             if( bptr->col != col )
-            {   fprintf(OutFile,"select (atomno=%d) or (atomno=%d)\n",
-                    bptr->srcatom->serno, bptr->dstatom->serno );
+            {   WriteScriptSelectBond(bptr->srcatom,bptr->dstatom);
                 WriteScriptColour("backbone",bptr->col);
-                SelectAll = False;
             }
 }
 
@@ -656,6 +670,8 @@ static void WriteScriptRibbons()
 
     if( DrawRibbon )
     {   fprintf(OutFile,"set strands %d\n",SplineCount);
+        fprintf(OutFile,"set cartoon %s\n",DrawBetaArrows?"on":"off");
+        fprintf(OutFile,"set cartoon %d\n",CartoonHeight);
 
         for( chain=Database->clist; chain; chain=chain->cnext )
             for( group=chain->glist; group; group=group->gnext )
@@ -669,14 +685,23 @@ static void WriteScriptRibbons()
 
                  if( group->flag & RibbonFlag )
                  {   fprintf(OutFile,"ribbons %d\n",group->width);
+                 } else if( group->flag & CartoonFlag )
+                 {   fprintf(OutFile,"cartoon %d\n",group->width);
                  } else if( group->flag & StrandFlag )
                  {   fprintf(OutFile,"strands %d\n",group->width);
+                 } else if( group->flag & DashStrandFlag )
+                 {   fprintf(OutFile,"strands dash %d\n",group->width);
+                 } else if( group->flag & TraceFlag )
+                 {   fprintf(OutFile,"trace %d\n",group->width);
                  } else fputs("ribbons off\n",OutFile);
 
                  if( group->col1 != group->col2 )
-                 {   WriteScriptColour("ribbon1",group->col1);
-                     WriteScriptColour("ribbon2",group->col2);
-                 } else WriteScriptColour("ribbons",group->col1);
+                 {   if( group->col1 )
+                         WriteScriptColour("ribbon1",group->col1);
+                     if( group->col2 )
+                         WriteScriptColour("ribbon2",group->col2);
+                 } else if( group->col1 )
+                     WriteScriptColour("ribbons",group->col1);
             }
     } else
     {   WriteScriptAll();
@@ -705,10 +730,8 @@ static void WriteScriptHBonds( obj, list )
     {   for( ptr=list; ptr; ptr=ptr->hnext )
         {   datum = GetHBondDatum(ptr);
             if( datum != defdat )
-            {    fprintf(OutFile,"select (atomno=%d) or (atomno=%d)\n",
-                         ptr->src->serno, ptr->dst->serno );
+            {    WriteScriptSelectBond(ptr->src,ptr->dst);
                  WriteScriptDatum(obj,datum);
-                 SelectAll = False;
             }
         }
     } else if( !defdat )
@@ -718,17 +741,17 @@ static void WriteScriptHBonds( obj, list )
     for( ptr=list; ptr; ptr=ptr->hnext )
         IncFreqTable(ptr->col);
 
-    WriteScriptAll();
-    if( (col=(int)Freq[0].datum) )
+    col = (int)Freq[0].datum;
+    if( col )
+    {   WriteScriptAll();
         WriteScriptColour(obj,col);
+    }
 
     if( Freq[1].count )
         for( ptr=list; ptr; ptr=ptr->hnext )
             if( ptr->col != col )
-            {   fprintf(OutFile,"select (atomno=%d) or (atomno=%d)\n",
-                    ptr->src->serno, ptr->dst->serno );
+            {   WriteScriptSelectBond(ptr->src,ptr->dst);
                 WriteScriptColour(obj,ptr->col);
-                SelectAll = False;
             }
 }
 
@@ -737,7 +760,7 @@ static void WriteScriptLabels()
     register Chain __far *chain;
     register Group __far *group;
     register Atom __far *aptr;
-    register int first,last;
+    register Long first,last;
     register Label *label;
 
     fputs("\n# Labels\n",OutFile);
@@ -768,6 +791,40 @@ static void WriteScriptLabels()
 }
 
 
+static void WriteScriptMonitors()
+{
+    register Monitor *ptr;
+    register int col;
+
+    fputs("\n# Monitors\n",OutFile);
+    if( !MonitList )
+    {   fputs("monitors off\n",OutFile);
+        return;
+    }
+
+    fprintf(OutFile,"set monitors %s\n",DrawMonitDistance?"on":"off");
+
+    ResetFreqTable();
+    for( ptr=MonitList; ptr; ptr=ptr->next )
+    {   fprintf(OutFile,"monitor %d %d\n",ptr->src->serno,ptr->dst->serno);
+        IncFreqTable(ptr->col);
+    }
+
+    col = (int)Freq[0].datum;
+    if( col )
+    {   WriteScriptAll();
+        WriteScriptColour("monitors",col);
+    }
+
+    if( Freq[1].count )
+        for( ptr=MonitList; ptr; ptr=ptr->next )
+            if( ptr->col != col )
+            {   WriteScriptSelectBond(ptr->src,ptr->dst);
+                WriteScriptColour("monitor",ptr->col);
+            }
+}
+
+
 int WriteScriptFile( name )
     char *name;
 {
@@ -782,11 +839,12 @@ int WriteScriptFile( name )
     }
 
     fprintf(OutFile,"#!rasmol -script\n# File: %s\n",name);
-    fputs("# Creator: RasMol Version 2.5\n\n",OutFile);
+    fputs("# Creator: RasMol Version 2.6\n\n",OutFile);
+    fputs("zap\n",OutFile);
     fprintf(OutFile,"background [%d,%d,%d]\n",BackR,BackG,BackB);
+
     if( !Database )
     {   /* No Molecule! */
-        fputs("zap\n",OutFile);
         fclose(OutFile);
 #ifdef APPLEMAC
         SetFileInfo(name,'RSML','RSML',133);
@@ -804,7 +862,7 @@ int WriteScriptFile( name )
         case(FormatMDL):      ptr = "mdl";      break;
         case(FormatXYZ):      ptr = "xyz";      break;
     }
-    fprintf(OutFile,"load %s \"%s\"\n",ptr,InfoFileName);
+    fprintf(OutFile,"load %s \"%s\"\n",ptr,Info.filename);
 
     /* Colour Details */
     fprintf(OutFile,"set ambient %d\n", (int)(100*Ambient) );
@@ -817,7 +875,8 @@ int WriteScriptFile( name )
     /* Transformation */
     fputs("reset\n",OutFile);
     if( UseSlabPlane )
-    {   if( (temp = (int)(50.0*DialValue[7])) )
+    {   temp = (int)(50.0*DialValue[7]);
+        if( temp )
         {   fprintf(OutFile,"slab %d\n",temp+50);
         } else fputs("slab on\n",OutFile);
 
@@ -850,10 +909,10 @@ int WriteScriptFile( name )
     if( phi )   fprintf(OutFile,"rotate y %d\n",phi);
     if( theta ) fprintf(OutFile,"rotate x %d\n",InvertY(-theta));
 
-    if( (temp = (int)(100.0*DialValue[4])) )
-        fprintf(OutFile,"translate x %d\n",temp);
-    if( (temp = (int)(100.0*DialValue[5])) )
-        fprintf(OutFile,"translate y %d\n",InvertY(-temp));
+    temp = (int)(100.0*DialValue[4]);
+    if( temp ) fprintf(OutFile,"translate x %d\n",temp);
+    temp = (int)(100.0*DialValue[5]);
+    if( temp ) fprintf(OutFile,"translate y %d\n",InvertY(-temp));
 
     if( DialValue[3] != 0.0 )
     {   if( DialValue[3]<0.0 )
@@ -865,7 +924,10 @@ int WriteScriptFile( name )
 
     /* Rendering */
     if( DrawAxes || DrawBoundBox || DrawUnitCell )
-        fprintf(OutFile,"colour axes [%d %d %d]\n",BoxR,BoxG,BoxB);
+        fprintf(OutFile,"colour axes [%d,%d,%d]\n",BoxR,BoxG,BoxB);
+    if( DrawBonds )
+        fprintf(OutFile,"set bonds %s\n", DrawDoubleBonds? "on":"off" );
+
     fprintf(OutFile,"set axes %s\n", DrawAxes? "on":"off" );
     fprintf(OutFile,"set boundingbox %s\n", DrawBoundBox? "on":"off" );
     fprintf(OutFile,"set unitcell %s\n", DrawUnitCell? "on":"off" );
@@ -903,6 +965,7 @@ int WriteScriptFile( name )
     WriteScriptRibbons();
     WriteScriptBackbone();
     WriteScriptLabels();
+    WriteScriptMonitors();
     fputc('\n',OutFile);
     
     WriteScriptHBonds("ssbonds",Database->slist);
@@ -919,7 +982,8 @@ int WriteScriptFile( name )
 
 
 #ifdef FUNCPROTO
-static void OutputKinemageVector(Atom __far*,Atom __far*,Chain __far*,int);
+static int CheckKinemageChain( Atom __far*, Atom __far*, Chain __far* );
+static void OutputKinemageVector( Atom __far*, Atom __far*, int );
 static void WriteKinemageBonds( Chain __far* );
 static void WriteKinemageSpheres( Chain __far* );
 static void WriteKinemageRibbons( Chain __far* );
@@ -965,21 +1029,16 @@ static char *GetKinemageCol( col )
 }
 
 
+/* Used by CheckKinemageChain! */
+static Group __far *sgrp;
+static Group __far *dgrp;
 
-
-static void OutputKinemageVector( src, dst, chain, col )
+static int CheckKinemageChain( src, dst, chain )
     Atom __far *src, __far *dst;  
     Chain __far *chain;
-    int col;
 {
     register Group __far *group;
-    register Group __far *sgrp;
-    register Group __far *dgrp;
     register Atom __far *aptr;
-    register Real x, y, z;
-    register char *col1;
-    register char *col2;
-
 
     /* Determine Chain and Groups */
     sgrp = dgrp = (Group __far*)0;
@@ -990,7 +1049,8 @@ static void OutputKinemageVector( src, dst, chain, col )
             {   if( aptr == src ) sgrp = group;
                 if( aptr == dst ) dgrp = group;
             }
-            if( sgrp && dgrp ) break;
+            if( sgrp && dgrp ) 
+                return( True );
         }
     } else for( chain=Database->clist; chain; chain=chain->cnext )
     {   for( group=chain->glist; group; group=group->gnext )
@@ -998,14 +1058,21 @@ static void OutputKinemageVector( src, dst, chain, col )
             {   if( aptr == src ) sgrp = group;
                 if( aptr == dst ) dgrp = group;
             }
-            if( sgrp && dgrp ) break;
+            if( sgrp && dgrp ) 
+                return( True );
         }
-        if( group ) break;
     }
+    return( False );
+}
 
-
-    if( !sgrp || !dgrp ) 
-        return;
+static void OutputKinemageVector( src, dst, col )
+    Atom __far *src, __far *dst;  
+    int col;
+{
+    register Atom __far *aptr;
+    register Real x, y, z;
+    register char *col1;
+    register char *col2;
 
     if( !col )
     {   col1 = GetKinemageCol(src->col);
@@ -1065,10 +1132,11 @@ static void WriteKinemageBonds( chain )
 
     ForEachBond
         if( KinemageFlag || (bptr->flag&DrawBondFlag) )
-        {   if( !MagePrev ) 
-                fputs("@subgroup {wireframe} dominant\n",OutFile);
-            OutputKinemageVector(bptr->srcatom, bptr->dstatom, 
-                                 chain, bptr->col);
+        {   if( CheckKinemageChain(bptr->srcatom,bptr->dstatom,chain) )
+            {   if( !MagePrev ) 
+                    fputs("@subgroup {wireframe} dominant\n",OutFile);
+                OutputKinemageVector(bptr->srcatom,bptr->dstatom,bptr->col);
+            }
         }
 
     if( !chain->blist ) 
@@ -1084,12 +1152,13 @@ static void WriteKinemageBonds( chain )
 
     for( bptr=chain->blist; bptr; bptr=bptr->bnext )
         if( KinemageFlag || (bptr->flag&DrawBondFlag) )
-        {   if( !MagePrev )
-            {   fputs("@subgroup {alpha trace} dominant",OutFile);
-                fputs( (KinemageFlag && !flag)? " off\n":"\n",OutFile);
+        {   if( CheckKinemageChain(bptr->srcatom,bptr->dstatom,chain) )
+            {   if( !MagePrev )
+                {   fputs("@subgroup {alpha trace} dominant",OutFile);
+                    fputs( (KinemageFlag && !flag)? " off\n":"\n",OutFile);
+                }
+                OutputKinemageVector(bptr->srcatom,bptr->dstatom,bptr->col);
             }
-            OutputKinemageVector(bptr->srcatom,bptr->dstatom,
-                                 chain,bptr->col);
         }
 }
 
@@ -1166,18 +1235,65 @@ static void WriteKinemageLabels( chain )
 }
 
 
-static void OutputKinemageUnitCell()
+static void WriteKinemageUnitCell()
 {
+}
+
+
+static void WriteKinemageDots()
+{
+    auto int status[LastShade];
+    register DotStruct __far *ptr;
+    register ShadeDesc *shade;
+    register int flag;
+    register int i,j;
+
+    fputs("@group {dot surface} dominant\n",OutFile);
+    MageCol = (char*)0;
+
+    for( i=0; i<LastShade; i++ )
+        if( Shade[i].refcount )
+        {      status[i] = 0;
+        } else status[i] = 2;
+
+    for( i=0; i<LastShade; i++ )
+        if( status[i] == 0 )
+        {   shade = &Shade[i];
+            MageCol = FindKinemageCol(shade->r,shade->g,shade->b);
+            shade++;
+
+            status[i] = 1;
+            for( j=i+1; j<LastShade; j++ )
+            {   if( MageCol == FindKinemageCol(shade->r,shade->g,shade->b) )
+                    status[j] = 1;
+                shade++;
+            }
+
+            flag = False;
+            for( ptr=DotPtr; ptr; ptr=ptr->next )
+                for( j=0; j<ptr->count; j++ )
+                    if( status[Colour2Shade(ptr->col[j])] == 1 )
+                    {   if( !flag )
+                        {   fprintf(OutFile,"@dotlist {} color= %s\n",MageCol);
+                            flag = True;
+                        }
+                        fprintf(OutFile, "{} %g %g %g\n", ptr->xpos[j]/250.0,
+                             InvertY(ptr->ypos[j])/250.0, ptr->zpos[j]/250.0 );
+                    }
+
+            for( j=i; j<LastShade; j++ )
+                if( status[j] == 1 )
+                    status[j] = 2;
+        }
 }
 
 
 static void WriteKinemageData()
 {
-    register DotStruct __far *ptr;
     register HBond __far *hptr;
+    register Atom __far *src;
+    register Atom __far *dst;
     register Real dx, dy, dz;
-    register char *col;
-    register int i;
 
     /* Hydrogen Bonds */
     for( hptr=Database->hlist; hptr; hptr=hptr->hnext )
@@ -1190,21 +1306,29 @@ static void WriteKinemageData()
         fputs("@subgroup {sidechain} dominant",OutFile);
         fputs( HBondMode? " off\n" : "\n", OutFile);
         for( hptr=Database->hlist; hptr; hptr=hptr->hnext )
-            OutputKinemageVector(hptr->src,hptr->dst,
-                                 (Chain __far*)0, hptr->col);
+        {   CheckKinemageChain( hptr->src, hptr->dst, (Chain __far*)0 );
+            OutputKinemageVector( hptr->src, hptr->dst, hptr->col);
+        }
 
         fputs("@subgroup {mainchain} dominant",OutFile);
         fputs( HBondMode? "\n" : " off\n", OutFile);
         for( hptr=Database->hlist; hptr; hptr=hptr->hnext )
-            OutputKinemageVector(hptr->srcCA,hptr->dstCA,
-                                 (Chain __far*)0, hptr->col);
+            if( hptr->srcCA && hptr->dstCA )
+            {   CheckKinemageChain(hptr->srcCA,hptr->dstCA,(Chain __far*)0);
+                OutputKinemageVector( hptr->srcCA, hptr->dstCA, hptr->col);
+            }
     } else if( hptr )
     {   fputs("@group {h-bonds} dominant\n",OutFile);
         for( hptr=Database->hlist; hptr; hptr=hptr->hnext )
             if( hptr->flag&DrawBondFlag )
-                OutputKinemageVector( HBondMode?hptr->srcCA:hptr->src,
-                                      HBondMode?hptr->dstCA:hptr->dst,
-                                     (Chain __far*)0, hptr->col);
+            {   src = HBondMode? hptr->srcCA : hptr->src;
+                dst = HBondMode? hptr->dstCA : hptr->dst;
+
+                if( src && dst )
+                {   CheckKinemageChain( src, dst, (Chain __far*)0 );
+                    OutputKinemageVector( src, dst, hptr->col);
+                }
+            }
     }
 
 
@@ -1219,40 +1343,31 @@ static void WriteKinemageData()
         fputs("@subgroup {sidechain} dominant",OutFile);
         fputs( SSBondMode? " off\n" : "\n", OutFile);
         for( hptr=Database->slist; hptr; hptr=hptr->hnext )
-            OutputKinemageVector(hptr->src,hptr->dst,
-                                 (Chain __far*)0, hptr->col);
+        {   CheckKinemageChain( hptr->src, hptr->dst, (Chain __far*)0 );
+            OutputKinemageVector(hptr->src,hptr->dst,hptr->col);
+        }
 
         fputs("@subgroup {mainchain} dominant",OutFile);
         fputs( SSBondMode? "\n" : " off\n", OutFile);
         for( hptr=Database->slist; hptr; hptr=hptr->hnext )
-            OutputKinemageVector(hptr->srcCA,hptr->dstCA,
-                                 (Chain __far*)0, hptr->col);
+        {   CheckKinemageChain( hptr->srcCA, hptr->dstCA, (Chain __far*)0 );
+            OutputKinemageVector( hptr->srcCA, hptr->dstCA, hptr->col );
+        }
     } else if( hptr )
     {   fputs("@group {S-S bridges} dominant\n",OutFile);
         for( hptr=Database->slist; hptr; hptr=hptr->hnext )
             if( hptr->flag&DrawBondFlag )
+            {   CheckKinemageChain( hptr->src, hptr->dst, (Chain __far*)0 );
                 OutputKinemageVector( SSBondMode?hptr->srcCA:hptr->src,
                                       SSBondMode?hptr->dstCA:hptr->dst,
-                                     (Chain __far*)0, hptr->col);
+                                      hptr->col );
+            }
     }
 
 
     /* Dot Surfaces */
     if( DrawDots )
-    {   fputs("@group {dot surface} dominant\n",OutFile);
-        MageCol = (char*)0;
-
-        for( ptr=DotPtr; ptr; ptr=ptr->next )
-            for( i=0; i<ptr->count; i++ )
-            {   col = GetKinemageCol(ptr->col[i]);
-                if( col != MageCol )
-                {   fprintf(OutFile,"@dotlist {} color= %s\n",col);
-                    MageCol = col;
-                }
-                fprintf(OutFile, "{} %g %g %g\n", ptr->xpos[i]/250.0,
-                        InvertY(ptr->ypos[i])/250.0, ptr->zpos[i]/250.0 );
-            }
-    }
+        WriteKinemageDots();
 
     /* Draw `Background' Objects */
     if( !KinemageFlag && !DrawAxes && 
@@ -1296,11 +1411,11 @@ static void WriteKinemageData()
         fprintf(OutFile,"{} L %g %g %g\n",-dx, dy, dz);
     }
 
-    if( DrawUnitCell || KinemageFlag )
+    if( *Info.spacegroup && (DrawUnitCell || KinemageFlag) )
     {   fputs("@group {unit cell} dominant",OutFile);
         fputs( (DrawAxes?"\n":" off\n"), OutFile );
         fprintf(OutFile,"@vectorlist {} color= %s\n",MageCol);
-        OutputKinemageUnitCell();
+        WriteKinemageUnitCell();
     }
 }
 
@@ -1320,15 +1435,15 @@ int WriteKinemageFile( name )
         return(False);
     }
 
-    fputs("@text\nRasMol v2.5 generated Kinemage\n \n",OutFile);
-    if( *InfoMoleculeName )
-        fprintf(OutFile,"Molecule name ....... %s\n",InfoMoleculeName);
-    if( *InfoClassification )
-        fprintf(OutFile,"Classification ...... %s\n",InfoClassification);
-    if( *InfoIdentCode )
-        fprintf(OutFile,"Brookhaven Code ..... %s\n",InfoIdentCode);
+    fputs("@text\nRasMol v2.6 generated Kinemage\n \n",OutFile);
+    if( *Info.moleculename )
+        fprintf(OutFile,"Molecule name ....... %s\n",Info.moleculename);
+    if( *Info.classification )
+        fprintf(OutFile,"Classification ...... %s\n",Info.classification);
+    if( *Info.identcode )
+        fprintf(OutFile,"Brookhaven Code ..... %s\n",Info.identcode);
 
-    fputs("@kinemage 1\n@caption RasMol v2.5 generated Kinemage\n",OutFile);
+    fputs("@kinemage 1\n@caption RasMol v2.6 generated Kinemage\n",OutFile);
     fputs("@onewidth\n",OutFile);
 
     if( DialValue[3] != 0.0 )
@@ -1338,7 +1453,7 @@ int WriteKinemageFile( name )
         fprintf(OutFile,"zoom %g\n",zoom+1.0);
     }
 
-    if( InfoChainCount>1 )
+    if( Info.chaincount > 1 )
     {   for( chain=Database->clist; chain; chain=chain->cnext )
         {   fprintf(OutFile,"@group {chain %c}\n",chain->ident);
             WriteKinemageSpheres( chain );
@@ -1363,9 +1478,416 @@ int WriteKinemageFile( name )
     return( True );
 }
 
- int WritePOVRayFile( name )
+int WritePOVRayFile( name )
     char *name;
 {
+    register ShadeDesc *shade;
+    register Chain __far *chain;
+    register Group __far *group;
+    register Atom __far *aptr;
+    register double x,y,z;
+
+    if( !Database )
+        return(True);
+
+    OutFile = fopen(name,"w");
+    if( !OutFile )
+    {   FatalScriptError(name);
+        return(False);
+    }
+
+    fprintf(OutFile,"// File: %s\n",name);
+    fputs("// Creator: RasMol Version 2.6\n",OutFile);
+    fputs("// Version: POV-Ray Version 2.2\n\n",OutFile);
+
+    fputs("#include \"shapes.inc\"\n",OutFile);
+    fputs("#include \"colors.inc\"\n",OutFile);
+    fputs("#include \"textures.inc\"\n\n",OutFile);
+
+    fputs("// Camera\ncamera {",OutFile);
+#ifdef __STDC__
+    fprintf(OutFile,"    location <0, 0, %g>\n",-Offset/250.0);
+#else
+    fprintf(OutFile,"    location <0, 0, %lg>\n",(double)(-Offset/250.0));
+#endif
+    fputs("    look_at <0, 0, 0>\n}\n\n",OutFile);
+
+    fputs("// Light\nlight_source {<0, 20, -100>",OutFile);
+    fputs(" color rgb <1, 1, 1>}\n\n",OutFile);
+
+    fputs("// Objects\n",OutFile);
+
+    ForEachAtom
+        if( aptr->flag & SphereFlag )
+        {   x = (double)aptr->xorg/250.0;
+            y = (double)aptr->yorg/250.0;
+            z = (double)aptr->zorg/250.0;
+#ifdef __STDC__
+            fprintf(OutFile,"object {sphere {<%g, %g, %g> %g}\n",
+#else
+            fprintf(OutFile,"object {sphere {<%lg, %lg, %lg> %lg}\n",
+#endif
+#ifdef INVERT
+                             x, -y, -z, (double)aptr->radius/250.0 );
+#else
+                             x,  y, -z, (double)aptr->radius/250.0 );
+#endif
+
+            fputs("  texture {\n",OutFile);
+            shade = Shade+Colour2Shade(aptr->col);
+#ifdef __STDC__
+            fprintf(OutFile,"    pigment {color rgb <%g, %g, %g>}\n",
+#else
+            fprintf(OutFile,"    pigment {color rgb <%lg, %lg, %lg>}\n",
+#endif
+                    (double)shade->r/255.0, 
+                    (double)shade->g/255.0, 
+                    (double)shade->b/255.0 );
+            if( FakeSpecular )
+                fputs("    finish {phong 1}\n",OutFile);
+            fputs("  }\n}\n",OutFile);
+        }
+
+    fclose(OutFile);
+#ifdef APPLEMAC
+    SetFileInfo(name,'ttxt','TEXT',133);
+#endif
     return( True );
 }
+
+
+static void WriteVRMLTriple( x, y, z )
+    double x, y, z;
+{
+#ifdef __STDC__
+    fprintf(OutFile,"%.3f %.3f %.3f",x,y,z);
+#else
+    fprintf(OutFile,"%.3lf %.3lf %.3lf",x,y,z);
+#endif
+}
+
+
+static void WriteVRMLColour( indent, shade )
+    int indent, shade;
+{
+    register int i;
+
+    for( i=0; i<indent; i++ )
+        fputc(' ',OutFile);
+    fputs("Material { diffuseColor ",OutFile);
+    WriteVRMLTriple(Shade[shade].r/255.0,
+                    Shade[shade].g/255.0,
+                    Shade[shade].b/255.0);
+    fputs(" }\n",OutFile);
+}
+
+static void WriteVRMLAtoms()
+{
+    register Chain __far *chain;
+    register Group __far *group;
+    register Atom __far *aptr;
+    register double ox,oy,oz;
+    register double x,y,z;
+    register int i,flag;
+
+    for( i=0; i<LastShade; i++ )
+        if( Shade[i].refcount )
+        {   flag = False;
+            ox = 0.0;  oy = 0.0;  oz = 0.0;
+            ForEachAtom
+                if( (aptr->flag&SphereFlag)&&(i==Colour2Shade(aptr->col)) )
+                {   if( !flag )
+                    {   WriteVRMLColour(2,i);
+                        fputs("  Separator {\n",OutFile);
+                        flag = True;
+                    }
+
+                    x = (double)aptr->xorg/250.0;
+                    y = (double)aptr->yorg/250.0;
+                    z = (double)aptr->zorg/250.0;
+
+                    fputs("    Translation { translation ",OutFile);
+                    WriteVRMLTriple(x-ox,InvertY(y-oy),z-oz);
+                    ox = x;  oy = y;  oz = z;
+                    fputs(" }\n",OutFile);
+
+                    fputs("    Sphere { radius ",OutFile);
+#ifdef __STDC__
+                    fprintf(OutFile,"%.3f }\n",(double)aptr->radius/250.0);
+#else
+                    fprintf(OutFile,"%.3f }\n",(double)aptr->radius/250.0);
+#endif
+                }
+
+            if( flag )
+                fputs("  }\n",OutFile);
+        }
+}
+                            
+
+static int HaveCommonAtom( bnd1, bnd2 )
+    Bond __far *bnd1;  Bond __far *bnd2;
+{
+    return( (bnd1->srcatom==bnd2->srcatom) || 
+            (bnd1->srcatom==bnd2->dstatom) ||
+            (bnd1->dstatom==bnd2->srcatom) ||
+            (bnd1->dstatom==bnd2->dstatom) );
+}
+
+static void BondPlane( bnd, dx, dy, dz )
+    Bond __far *bnd;  double *dx, *dy, *dz;
+{
+    register Bond __far *bptr;
+    register double fx,fy,fz;
+    register double sx,sy,sz;
+    register double rx,ry,rz;
+    register double flen,slen;
+    register double dot,len;
+
+    fx = (double)(bnd->srcatom->xorg-bnd->dstatom->xorg);
+    fy = (double)(bnd->srcatom->yorg-bnd->dstatom->yorg);
+    fz = (double)(bnd->srcatom->zorg-bnd->dstatom->zorg);
+    flen = sqrt(fx*fx + fy*fy + fz*fz);
+
+    ForEachBond
+        if( (bptr!=bnd) && HaveCommonAtom(bptr,bnd) )
+        {   sx = (double)(bptr->srcatom->xorg-bptr->dstatom->xorg);
+            sy = (double)(bptr->srcatom->yorg-bptr->dstatom->yorg);
+            sz = (double)(bptr->srcatom->zorg-bptr->dstatom->zorg);
+            slen = sqrt(sx*sx + sy*sy + sz*sz);
+
+            dot = (fx*sx + fy*sy + fz*sz)/(flen*slen);
+            if( fabs(dot) < 0.95 )
+            {   rx = flen*sx - dot*slen*fx;
+                ry = flen*sy - dot*slen*fy;
+                rz = flen*sz - dot*slen*fz;
+                len = sqrt(rx*rx + ry*ry + rz*rz);
+                *dx = rx/len;  *dy = ry/len;  *dz = rz/len;
+                return;
+            }
+        }
+
+    if( fabs(fx) >= fabs(fz) )
+    {   len = sqrt(fx*fx+fy*fy);
+        *dx = fy/len; *dy = -fx/len; *dz = 0.0;
+    } else
+    {   flen = sqrt(fy*fy+fz*fz);
+        *dx = 0.0; *dy = -fz/len; *dz = fy/len;
+    }
+}
+
+
+static void WriteVRMLLine( src, dst, shade, flag )
+    int src, dst, shade;  int *flag;
+{
+    if( !*flag )
+    {   WriteVRMLColour(4,shade);
+        fputs("    IndexedLineSet {\n",OutFile);
+        fputs("      coordIndex [\n",OutFile);
+        *flag = True;
+    }
+    fprintf(OutFile,"        %5d, %5d, -1,\n",src-1,dst-1);
+}
+
+static void WriteVRMLWireframe()
+{
+    register Chain __far *chain;
+    register Group __far *group;
+    register Atom __far *aptr;
+    register Bond __far *bptr;
+    register Atom __far *src;
+    register Atom __far *dst;
+    register double x,y,z;
+    register int i,j;
+    static int flag;
+
+    ForEachAtom
+        aptr->mbox = 0;
+
+    i = 0;
+    ForEachBond
+        if( bptr->flag & WireFlag )
+        {   src = bptr->srcatom;
+            dst = bptr->dstatom;
+            if( i == 0 )
+            {   fputs("  Separator {\n",OutFile);
+                fputs("    Coordinate3 {\n",OutFile);
+                fputs("      point [\n",OutFile);
+            }
+
+            if( !src->mbox )
+            {   x = (double)src->xorg/250.0;
+                y = (double)src->yorg/250.0;
+                z = (double)src->zorg/250.0;
+
+                fputs("        ",OutFile);
+                WriteVRMLTriple(x,InvertY(y),z);
+                fputs(",\n",OutFile);
+                src->mbox = ++i;
+            }
+            
+            if( !dst->mbox )
+            {   x = (double)dst->xorg/250.0;
+                y = (double)dst->yorg/250.0;
+                z = (double)dst->zorg/250.0;
+
+                fputs("        ",OutFile);
+                WriteVRMLTriple(x,InvertY(y),z);
+                fputs(",\n",OutFile);
+                dst->mbox = ++i;
+            }
+
+            if( !bptr->col && (src->col!=dst->col) )
+            {   x = (double)(src->xorg+dst->xorg)/500.0;
+                y = (double)(src->yorg+dst->yorg)/500.0;
+                z = (double)(src->zorg+dst->zorg)/500.0;
+                
+                fputs("        ",OutFile);
+                WriteVRMLTriple(x,InvertY(y),z);
+                fputs(",\n",OutFile);
+                i++;
+            }
+        }
+
+    /* No wireframe! */
+    if( !i )  return;
+
+    fputs("      ]\n",OutFile);
+    fputs("    }\n",OutFile);
+    
+    for( j=0; j<LastShade; j++ )
+        if( Shade[j].refcount )
+        {   i = 1;
+            flag = False;
+            ForEachBond
+                if( bptr->flag & WireFlag )
+                {   src = bptr->srcatom;   
+                    dst = bptr->dstatom;
+
+                    if( src->mbox == i ) i++;
+                    if( dst->mbox == i ) i++;
+
+                    if( bptr->col )
+                    {   if( Colour2Shade(bptr->col) == j )
+                            WriteVRMLLine(src->mbox,dst->mbox,j,&flag);
+                    } else if( src->col == dst->col )
+                    {   if( Colour2Shade(src->col) == j )
+                            WriteVRMLLine(src->mbox,dst->mbox,j,&flag);
+                    } else /* Two Colour Bond */
+                    {   if( Colour2Shade(src->col) == j )
+                        {   WriteVRMLLine(src->mbox,i,j,&flag);
+                        } else if( Colour2Shade(dst->col) == j )
+                            WriteVRMLLine(dst->mbox,i,j,&flag);
+                        i++;
+                    }
+                }
+
+            if( flag )
+            {   fputs("      ]\n",OutFile);
+                fputs("    }\n",OutFile);
+            }
+        }
+    fputs("  }\n",OutFile);
+}
+
+
+static void WriteVRMLDots()
+{
+    auto int hist[LastShade];
+    register DotStruct __far *ptr;
+    register double x,y,z;
+    register int count;
+    register int flag;
+    register int i,j;
+
+    flag = False;
+    for( i=0; i<LastShade; i++ )
+        if( Shade[i].refcount )
+        {   count = 0;
+
+            for( ptr=DotPtr; ptr; ptr=ptr->next )
+                for( j=0; j<ptr->count; j++ )
+                    if( Colour2Shade(ptr->col[j]) == i )
+                    {   if( !flag )
+                        {   fputs("  Separator {\n",OutFile);
+                            fputs("    Coordinate3 {\n",OutFile);
+                            fputs("      point [\n",OutFile);
+                            flag = True;
+                        }
+
+                        x = (double)ptr->xpos[j]/250.0;
+                        y = (double)ptr->ypos[j]/250.0;
+                        z = (double)ptr->zpos[j]/250.0;
+
+                        fputs("        ",OutFile);
+                        WriteVRMLTriple(x,InvertY(y),z);
+                        fputs(",\n",OutFile);
+                        count++;
+                    }
+
+            hist[i] = count;
+        } else hist[i] = 0;
+
+    if( flag )
+    {   fputs("      ]\n",OutFile);
+        fputs("    }\n",OutFile);
+
+        count = 0;
+        for( i=0; i<LastShade; i++ )
+            if( hist[i] )
+            {   WriteVRMLColour(4,i);
+                fputs("    PointSet {\n      ",OutFile);
+                fprintf(OutFile,"startIndex %d numPoints %d\n",count,hist[i]);
+                fputs("    }\n",OutFile);
+                count += hist[i];
+            }
+
+        fputs("  }\n",OutFile);
+    }
+}
+
+
+int WriteVRMLFile( name )
+    char *name;
+{
+    if( !Database )
+        return(True);
+
+    OutFile = fopen(name,"w");
+    if( !OutFile )
+    {   FatalScriptError(name);
+        return(False);
+    }
+
+    fputs("#VRML V1.0 ascii\n",OutFile);
+    fputs("#Created by RasMol v2.6\n\n",OutFile);
+
+    fputs("DEF Viewer Info { string \"examiner\" }\n",OutFile);
+    fprintf(OutFile,"DEF Title Info { string \"%s\" }\n",Info.moleculename);
+    fputs("DEF Creator Info { string \"Created by RasMol v2.6\" }\n",OutFile);
+    fputs("DEF Background Info { string \"",OutFile);
+    WriteVRMLTriple(BackR/255.0,BackG/255.0,BackB/255.0);
+    fputs("\" }\n\n",OutFile);
+    
+    fputs("Separator {\n",OutFile);
+
+#ifdef ORIG
+    fputs("  DirectionalLight {\n",OutFile);
+    fputs("    direction -1 -1 -2\n",OutFile);
+    fputs("  }\n\n",OutFile);
+#endif
+
+    WriteVRMLAtoms();
+    WriteVRMLWireframe();
+    if( DrawDots )
+        WriteVRMLDots();
+
+    fputs("}\n",OutFile);
+    fclose(OutFile);
+#ifdef APPLEMAC
+    SetFileInfo(name,'ttxt','TEXT',133);
+#endif
+    return( True );
+}
+
 

@@ -1,12 +1,13 @@
 /* applemac.c
  * RasMol2 Molecular Graphics
- * Roger Sayle, October 1994
- * Version 2.5
+ * Roger Sayle, August 1995
+ * Version 2.6
  */
 #include <QuickDraw.h>
 #include <Controls.h>
 #include <Palettes.h>
 #include <Windows.h>
+#include <Errors.h>
 #include <Menus.h>
 #include <Fonts.h>
 
@@ -27,6 +28,7 @@
 #include "rasmol.h"
 #include "graphics.h"
 #include "molecule.h"
+#include "abstree.h"
 #include "transfor.h"
 #include "render.h"
 
@@ -408,7 +410,7 @@ int OpenDisplay( x, y )
     CanvWin = GetNewCWindow(150,0,(WindowPtr)-1);
     SetPort(CanvWin);
     
-    SizeWindow(CanvWin,x+15,y+15,TRUE);
+    SizeWindow(CanvWin,x+15,y+15,true);
     ShowWindow(CanvWin);
     
     /* Load Cursors */
@@ -419,12 +421,12 @@ int OpenDisplay( x, y )
     /* Create Scroll Bars */
     rect.left = -1;  rect.right = x+1;  
     rect.top = y;    rect.bottom = y+16;
-    HScroll = NewControl(CanvWin,&rect,"\p",TRUE,
+    HScroll = NewControl(CanvWin,&rect,"\p",true,
                          50,0,100,scrollBarProc,0L);
     
     rect.left = x;   rect.right = x+16;
     rect.top = -1;   rect.bottom = y+1;
-    VScroll = NewControl(CanvWin,&rect,"\p",TRUE,
+    VScroll = NewControl(CanvWin,&rect,"\p",true,
                          50,0,100,scrollBarProc,0L);
     
     DrawGrowIcon(CanvWin);

@@ -1,34 +1,42 @@
 /* rasmol.h
  * RasMol2 Molecular Graphics
- * Roger Sayle, October 1994
- * Version 2.5
+ * Roger Sayle, August 1995
+ * Version 2.6
  */
 
 
-/*****************************/
+/*===========================*/
 /*  User Definable Options!  */
-/*****************************/
+/*===========================*/
 
 /* #define IBMPC        */
 /* #define APPLEMAC     */
 /* #define DIALBOX      */
 #define TERMIOS
+#define SOCKETS
 #define MITSHM
 
-/* Use Default Depth!   */
+/* #define MMIOLIB      */
+/* #define OMLCOMMS     */
+/* #define CEXIOLIB     */
+
+#if !defined(EIGHTBIT) && !defined(THIRTYTWOBIT) && !defined(SIXTEENBIT)
 /* #define THIRTYTWOBIT */
+/* #define SIXTEENBIT   */
 /* #define EIGHTBIT     */
+#endif
 
 
-/**************************/
+/*========================*/
 /*  Default User Options! */
-/**************************/
+/*========================*/
 
 #ifdef IBMPC
 #undef THIRTYTWOBIT
+#undef SIXTEENBIT
 #endif
 
-#if !defined(EIGHTBIT) && !defined(THIRTYTWOBIT)
+#if !defined(EIGHTBIT) && !defined(THIRTYTWOBIT) && !defined(SIXTEENBIT)
 #define EIGHTBIT
 #endif
 
@@ -52,9 +60,9 @@
 #endif
 #endif
 
-/********************************/
+/*==============================*/
 /*  Application-wide Constants  */
-/********************************/
+/*==============================*/
 
 #ifndef True
 #define True  1
@@ -86,9 +94,13 @@ typedef long Long;
 #endif
 
 #ifdef EIGHTBIT
-typedef Byte Pixel;
+typedef unsigned char Pixel;
 #else
+#ifdef THIRTYTWOBIT
 typedef Long Pixel;
+#else
+typedef short Pixel;
+#endif
 #endif
 
 
@@ -114,6 +126,7 @@ typedef Long Pixel;
 #define _fmalloc   malloc
 #define _ffree     free
 #endif
+#define _fstrnicmp strnicmp
 #define _fstrcmp   strcmp
 #define _fmemset   memset
 #define __huge

@@ -1,7 +1,7 @@
 /* font.h
  * RasMol2 Molecular Graphics
- * Roger Sayle, October 1994
- * Version 2.5
+ * Roger Sayle, August 1995
+ * Version 2.6
  */
 
 static char *VectFont[95] = {

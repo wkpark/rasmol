@@ -1,11 +1,6 @@
-NAME	     RasWin	   ; application's module name
+NAME	     RasWin32	   ; application's module name
 
 DESCRIPTION  'RasWin Molecular Graphics Renderer'
-
-EXETYPE      WINDOWS	   ; required for all Windows applications
-
-STUB	     'WINSTUB.EXE' ; Generates error message if application
-			   ; is run without Windows
 
 ;CODE can be moved in memory and discarded/reloaded
 CODE  PRELOAD MOVEABLE DISCARDABLE

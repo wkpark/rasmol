@@ -1,22 +1,22 @@
 /* graphics.h
  * RasMol2 Molecular Graphics
- * Roger Sayle, October 1994
- * Version 2.5
+ * Roger Sayle, August 1995
+ * Version 2.6
  */
 
 #ifdef APPLEMAC      
-#define InitialWide  400
-#define InitialHigh  400
+#define DefaultWide  400
+#define DefaultHigh  400
 #endif
 
 #ifdef IBMPC
-#define InitialWide  480
-#define InitialHigh  480
+#define DefaultWide  480
+#define DefaultHigh  480
 #endif
 
-#ifndef InitialWide
-#define InitialWide  576
-#define InitialHigh  576
+#ifndef DefaultWide
+#define DefaultWide  576
+#define DefaultHigh  576
 #endif
 
 
@@ -36,9 +36,10 @@
 #define RFTransZ   0x0040
 #define RFSlab     0x0080
 #define RFReSize   0x0100
-#define RFPoint    0x0200
-#define RFColour   0x0400
-#define RFRefresh  0x0800
+#define RFColour   0x0200
+#define RFRefresh  0x0400
+#define RFPoint1   0x1000
+#define RFPoint2   0x2000
 
 #define RFTrans    0x0070
 #define RFRotate   0x0007
@@ -46,6 +47,7 @@
 #define RFDials    0x00FF
 #define RFMagnify  0x0108
 #define RFInitial  0x01FF
+#define RFPoint    0x3000
 
 
 #define MMRasMol   0x00
@@ -68,6 +70,9 @@ int ReDrawFlag;
 int MouseMode;
 int Range;
 
+Pixel __huge *FBuffer;
+short __huge *DBuffer;
+
 Pixel Lut[LutSize];
 Byte RLut[LutSize];
 Byte GLut[LutSize];
@@ -76,10 +81,12 @@ Byte ULut[LutSize];
 
 
 #ifdef IBMPC
-HWND CanvWin;
-HBITMAP PixMap;
-HPALETTE ColourMap;
 LOGPALETTE __far *Palette;
+HPALETTE ColourMap;
+HGLOBAL FBufHandle;
+HGLOBAL DBufHandle;
+HBITMAP PixMap;
+HWND CanvWin;
 #endif /* IBMPC */
 
 #ifdef APPLEMAC
@@ -91,6 +98,8 @@ CursHandle WaitCursor;
 WindowPtr CanvWin;
 WindowPtr CmndWin;
 THPrint PrintHand;
+Handle FBufHandle;
+Handle DBufHandle;
 #endif /* APPLEMAC */
 
 #else /* GRAPHICS */
@@ -105,6 +114,9 @@ extern int ReDrawFlag;
 extern int MouseMode;
 extern int Range;
 
+extern Pixel __huge *FBuffer;
+extern short __huge *DBuffer;
+
 extern Pixel Lut[LutSize];
 extern Byte RLut[LutSize];
 extern Byte GLut[LutSize];
@@ -113,10 +125,12 @@ extern Byte ULut[LutSize];
 
 
 #ifdef IBMPC
-extern HWND CanvWin;
-extern HBITMAP PixMap;
-extern HPALETTE ColourMap;
 extern LOGPALETTE __far *Palette;
+extern HPALETTE ColourMap;
+extern HGLOBAL FBufHandle;
+extern HGLOBAL DBufHandle;
+extern HBITMAP PixMap;
+extern HWND CanvWin;
 #endif /* IBMPC */
 
 #ifdef APPLEMAC
@@ -128,6 +142,8 @@ extern CursHandle WaitCursor;
 extern WindowPtr CanvWin;
 extern WindowPtr CmndWin;
 extern THPrint PrintHand;
+extern Handle FBufHandle;
+extern Handle DBufHandle;
 #endif /* APPLEMAC */
 
 

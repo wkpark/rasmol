@@ -1,8 +1,8 @@
 #!/bin/sh
 # rasmol.sh
 # RasMol Molecular Graphics
-# Roger Sayle, October 1994
-# Version 2.5
+# Roger Sayle, August 1995
+# Version 2.6
 
 #
 # Example Environment Variables

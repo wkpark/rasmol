@@ -1,7 +1,7 @@
 /* raswin.c
  * RasWin Molecular Graphics
- * Roger Sayle, October 1994
- * Version 2.5
+ * Roger Sayle, August 1995
+ * Version 2.6
  */
 
 #include <windows.h>
@@ -20,14 +20,20 @@
 #include "rasmol.h"
 #include "raswin.idm"
 #include "molecule.h"
+#include "abstree.h"
 #include "graphics.h"
 #include "pixutils.h"
 #include "transfor.h"
 #include "command.h"
-#include "abstree.h"
 #include "render.h"
+#include "repres.h"
 #include "outfile.h"
 
+/* Microsoft C vs Borland Turbo C */
+#ifndef __TURBOC__
+#define stricmp _stricmp
+#define getcwd  _getcwd
+#endif
 
 /* Determine Mouse Sensitivity! */
 #define IsClose(u,v) (((u)>=(v)-1) && ((u)<=(v)+1))
@@ -95,14 +101,15 @@ static HFONT TermFont;
 static HWND CmndWin;
 
 static int PointX,PointY;
+static int LabelOptFlag;
 static int InitX,InitY;
 static int HeldButton;
 static int FileFormat;
 
 static char snamebuf[128];
 static char fnamebuf[128];
-static char ifilters[256];
-static char ofilters[256];
+static char ifilters[512];
+static char ofilters[512];
 static OPENFILENAME ofn1;
 static OPENFILENAME ofn2;
 static HANDLE hInstance;
@@ -303,7 +310,7 @@ static int InitTerminal( instance )
 
     
     LogFont.lfHeight     = 12;
-    LogFont.lfWidth      = 0;
+    LogFont.lfWidth      = 8;
     LogFont.lfEscapement = 0;
     LogFont.lfWeight     = 0;
     LogFont.lfItalic     = 0;
@@ -317,6 +324,8 @@ static int InitTerminal( instance )
     LogFont.lfPitchAndFamily = FIXED_PITCH | FF_MODERN;
     LogFont.lfFaceName[0]    = '\0';
     TermFont = CreateFontIndirect(&LogFont);
+
+    /* TermFont = GetStockObject(ANSI_FIXED_FONT); */
 
     /* Default Window Size */
     TermCols = 80;  TermRows = 24;
@@ -344,10 +353,18 @@ static int InitTerminal( instance )
 	    WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_VSCROLL;
     
     AdjustWindowRect(&rect,style,False);
+#ifdef _WIN32
+    CmndWin = CreateWindowEx(WS_EX_CLIENTEDGE,
+                           "RasCliClass", "RasMol Command Line",
+			   style, CW_USEDEFAULT, CW_USEDEFAULT,
+			   rect.right-rect.left, rect.bottom-rect.top,
+			   NULL, NULL, instance, NULL );
+#else
     CmndWin = CreateWindow("RasCliClass", "RasMol Command Line",
 			   style, CW_USEDEFAULT, CW_USEDEFAULT,
 			   rect.right-rect.left, rect.bottom-rect.top,
 			   NULL, NULL, instance, NULL );
+#endif
 			   
     if( !CmndWin ) return( False );
    
@@ -520,36 +537,36 @@ static void DisplayMoleculeInfo( hWin )
 
     line = IDD_INFOTEXT;
     
-    if( *InfoMoleculeName )
-    {   sprintf(Text,"Molecule name ...... %s",InfoMoleculeName);
+    if( *Info.moleculename )
+    {   sprintf(Text," Molecule name ...... %s",Info.moleculename);
 	SetDlgItemText(hWin,line++,Text);
     }
     
-    if( *InfoClassification )
-    {   sprintf(Text,"Classification ......... %s",InfoClassification);
+    if( *Info.classification )
+    {   sprintf(Text," Classification ......... %s",Info.classification);
 	SetDlgItemText(hWin,line++,Text);
     }
     
-    if( *InfoIdentCode )
-    {   sprintf(Text,"Brookhaven code .. %s",InfoIdentCode);
+    if( *Info.identcode )
+    {   sprintf(Text," Brookhaven code .. %s",Info.identcode);
 	SetDlgItemText(hWin,line++,Text);
     }
     
-    if( InfoChainCount>1 )
-    {   sprintf(Text,"Number of chains .. %d",InfoChainCount);
+    if( Info.chaincount>1 )
+    {   sprintf(Text," Number of chains .. %d",Info.chaincount);
 	SetDlgItemText(hWin,line++,Text);
     }
     
-    len = sprintf(Text,"Number of groups .. %d",MainGroupCount);
+    len = sprintf(Text," Number of groups .. %d",MainGroupCount);
     if( HetaGroupCount ) sprintf(Text+len," (%d)",HetaGroupCount);
     SetDlgItemText(hWin,line++,Text);
 
-    len = sprintf(Text,"Number of atoms ... %ld",MainAtomCount);
+    len = sprintf(Text," Number of atoms ... %ld",MainAtomCount);
     if( HetaAtomCount ) sprintf(Text+len," (%d)",HetaAtomCount);
     SetDlgItemText(hWin,line++,Text);
 
 
-    sprintf(Text,"Number of bonds ... %ld",InfoBondCount);
+    sprintf(Text," Number of bonds ... %ld",Info.bondcount);
     SetDlgItemText(hWin,line++,Text);
 }
 
@@ -730,7 +747,7 @@ static void SendItemData( hSrc, hDst, mode, item, advise )
 		  break;
 		  
 	case(AdvName):
-		  src = InfoMoleculeName;
+		  src = Info.moleculename;
 		  while( *dst++ = *src++ );
 		  break;
 
@@ -798,11 +815,11 @@ static int GetItemNumber( atom )
     GlobalGetAtomName(atom,Text,240);
 
     for( i=1; i<6; i++ )
-	if( !_stricmp(Text,GetItemName(-i)) )
+	if( !stricmp(Text,GetItemName(-i)) )
 	    return( -i );
 
     for( i=0; i<ItemCount; i++ )
-	if( !_stricmp(Text,ItemName[i]) )
+	if( !stricmp(Text,ItemName[i]) )
 	    return( i+1 );
     return( 0 );
 }
@@ -865,12 +882,14 @@ long FAR PASCAL DDECallB(hWin,uMsg,wArg,lArg)
     DDEADVISE FAR *options;
     HWND hDest;
 
-    register char __huge *cmnd;
     register DDEConv *ptr;
-    register int item, done;
+    register char __huge *cmnd;
+    register int item, stat;
     register int format,i;
+    register int flag;
     
-    done = False;
+    stat = IPC_Ok;
+    flag = False;
 
     switch( uMsg )
     {   case( WM_TIMER ):    
@@ -921,7 +940,7 @@ long FAR PASCAL DDECallB(hWin,uMsg,wArg,lArg)
 			    }
 			    AdviseData[i].server = NULL;
 			    AdviseCount--;
-			    done = True;
+			    flag = True;
 			}
 		    break;
 
@@ -973,9 +992,8 @@ long FAR PASCAL DDECallB(hWin,uMsg,wArg,lArg)
 
 	case( WM_DDE_EXECUTE ):  
 		    if( cmnd=(char __huge*)GlobalLock((HANDLE)HIWORD(lArg)) )
-		    {   done = ExecuteIPCCommand( cmnd );
+		    {   flag = stat = ExecuteIPCCommand( cmnd );
 			GlobalUnlock((HANDLE)HIWORD(lArg));
-			/* if( !done ) done = True; */
 		    }
 		    break;
 
@@ -1011,10 +1029,10 @@ long FAR PASCAL DDECallB(hWin,uMsg,wArg,lArg)
 
     /* Return a DDE acknowledgement */
     PostMessage( (HWND)wArg, WM_DDE_ACK, (WPARAM)hWin,
-		 MAKELONG( (done?0x8000:0), HIWORD(lArg)) ); 
+		 MAKELONG( (flag?0x8000:0), HIWORD(lArg)) ); 
 
-    if( done == 2 ) 
-	RasMolExit();
+    if( (stat==IPC_Quit) || (stat==IPC_Exit) )
+        RasMolExit();
 
     if( ReDrawFlag ) 
 	RefreshScreen();
@@ -1207,6 +1225,7 @@ static void LoadInputFile( format )
 	case(FormatMDL):      ext = "MOL";  num = 4;  break;
 	case(FormatXYZ):      ext = "XYZ";  num = 5;  break;
 	case(FormatCharmm):   ext = "CHM";  num = 6;  break;
+        case(FormatMOPAC):    ext = "MOP";  num = 7;  break;
     }
 
     ofn1.nFilterIndex = num;
@@ -1221,15 +1240,9 @@ static void LoadInputFile( format )
 	    case(4): FetchFile(FormatMDL,False,fnamebuf);     break;
 	    case(5): FetchFile(FormatXYZ,False,fnamebuf);     break;
 	    case(6): FetchFile(FormatCharmm,False,fnamebuf);  break;
+            case(7): FetchFile(FormatMOPAC,False,fnamebuf);   break;
 	}
-
-	if( Database )
-	{   ReDrawFlag |= RFRefresh | RFColour;
-	    if( InfoBondCount < 1 )
-	    {   EnableBackBone(False,80);
-	    } else EnableWireFrame(True,0);
-	    CPKColourAttrib();
-	}
+        DefaultRepresentation();
     }
 }
 
@@ -1241,11 +1254,11 @@ static void SaveOutputFile( format )
     register int num;
 
     switch( format )
-    {   case(IDM_BMP):   ext="BMP";  num=1;  break;
-	case(IDM_GIF):   ext="GIF";  num=2;  break;
-	case(IDM_EPSF):  ext="PS";   num=3;  break;
-	case(IDM_PPM):   ext="PPM";  num=5;  break;
-	case(IDM_RAST):  ext="RAS";  num=7;  break;
+    {   case(IDM_BMP):   ext="BMP";  num=1;   break;
+	case(IDM_GIF):   ext="GIF";  num=2;   break;
+	case(IDM_EPSF):  ext="PS";   num=3;   break;
+	case(IDM_PPM):   ext="PPM";  num=6;   break;
+	case(IDM_RAST):  ext="RAS";  num=10;  break;
     }
 
     ofn2.nFilterIndex = num;
@@ -1265,21 +1278,38 @@ static void SaveOutputFile( format )
 	    case(2):  WriteGIFFile(fnamebuf);             break;
 	    case(3):  WriteEPSFFile(fnamebuf,True,True);  break;
 	    case(4):  WriteEPSFFile(fnamebuf,False,True); break;
-	    case(5):  WritePPMFile(fnamebuf,True);        break;
-	    case(6):  WritePPMFile(fnamebuf,False);       break;
-	    case(7):  WriteRastFile(fnamebuf,True);       break;
-	    case(8):  WriteRastFile(fnamebuf,False);      break;
+            case(5):  WriteVectPSFile(fnamebuf);          break;
+	    case(6):  WritePPMFile(fnamebuf,True);        break;
+	    case(7):  WritePPMFile(fnamebuf,False);       break;
+            case(8):  WritePICTFile(fnamebuf);            break;
+            case(9):  WriteIRISFile(fnamebuf);            break;
+	    case(10): WriteRastFile(fnamebuf,True);       break;
+	    case(11): WriteRastFile(fnamebuf,False);      break;
 	}
 }
 
-    
+static void HandlePrintSetUp()
+{
+    PRINTDLG pd;
+
+    memset(&pd,0,sizeof(PRINTDLG));
+    pd.lStructSize = sizeof(PRINTDLG);
+    pd.hwndOwner = CanvWin;
+    pd.Flags = PD_PRINTSETUP;
+
+    PrintDlg(&pd);
+
+    if( pd.hDevNames ) GlobalFree(pd.hDevNames);
+    if( pd.hDevMode )  GlobalFree(pd.hDevMode);
+}
+
+
 static BOOL HandleMenu( option )
     WPARAM option;
 {
     register char *src, *dst;
     register FARPROC lpProc;
     register int mask;
-    
    
     switch(option)
     {   /* File Menu */
@@ -1292,14 +1322,9 @@ static BOOL HandleMenu( option )
 			  FreeProcInstance(lpProc);
 			  break;
 			  
-	case(IDM_CUT):    if( !ClipboardImage() )
-			  {   if( CommandActive )
-				  WriteChar('\n');
-			      WriteString("Unable to copy to clipboard!\n");
-			      CommandActive = False;
-			  }
+	case(IDM_CLOSE):  ZapDatabase();
 			  break;
-	
+
 	case(IDM_PRINT):  if( !PrintImage() )
 			  {   if( CommandActive )
 				  WriteChar('\n');
@@ -1308,20 +1333,35 @@ static BOOL HandleMenu( option )
 			  }
 			  break;
 	
-	case(IDM_CLOSE):  ZapDatabase();
-			  break;
-			  
+	case(IDM_SETUP):  HandlePrintSetUp();
+                          break;
+
 	case(IDM_EXIT):   PostMessage(CanvWin,WM_CLOSE,0,0L);
 			  break;
 			  
 
+        /* Edit Menu */
+        case(IDM_SELECT): mask = NormAtomFlag;
+                          if( HetaGroups ) mask |= HeteroFlag;
+                          if( Hydrogens )  mask |= HydrogenFlag;
+                          SelectZone(mask);
+                          break;
+
+	case(IDM_COPY):   if( !ClipboardImage() )
+			  {   if( CommandActive )
+				  WriteChar('\n');
+			      WriteString("Unable to copy to clipboard!\n");
+			      CommandActive = False;
+			  }
+			  break;
+	
 	/* Help Menu */
 	case(IDM_ABOUT):  lpProc = MakeProcInstance(AboutCallB,hInstance);
 			  DialogBox(hInstance,"AboutBox",CanvWin,lpProc);
 			  FreeProcInstance(lpProc);
 			  break;
 
-	case(IDM_HELP):   if( _getcwd(fnamebuf,100) )
+	case(IDM_HELP):   if( getcwd(fnamebuf,100) )
 			  {   dst = fnamebuf;
 			      while( *dst ) dst++;
 			      if( *(dst-1) != '\\' ) 
@@ -1336,54 +1376,62 @@ static BOOL HandleMenu( option )
 
 	/* Display Menu */
 	case(IDM_WIREFRAME):  DisableSpacefill();
-			      EnableWireFrame(True,0);
+			      EnableWireframe(WireFlag,0);
 			      SetRibbonStatus(False,0,0);
-			      DisableBackBone();
+			      DisableBackbone();
 			      ReDrawFlag |= RFRefresh;
 			      break;
 
 	case(IDM_BACKBONE):   DisableSpacefill();
-			      DisableWireFrame();
+			      DisableWireframe();
 			      SetRibbonStatus(False,0,0);
-			      EnableBackBone(False,80);
+			      EnableBackbone(CylinderFlag,80);
 			      ReDrawFlag |= RFRefresh;
 			      break;
 
 	case(IDM_STICKS):     DisableSpacefill();
 			      if( MainAtomCount<256 )
-			      {   EnableWireFrame(False,40);
-			      } else EnableWireFrame(False,80);
+			      {   EnableWireframe(CylinderFlag,40);
+			      } else EnableWireframe(CylinderFlag,80);
 			      SetRibbonStatus(False,0,0);
-			      DisableBackBone();
+			      DisableBackbone();
 			      ReDrawFlag |= RFRefresh;
 			      break;
 
 	case(IDM_SPHERES):    SetVanWaalRadius();
-			      DisableWireFrame();
+			      DisableWireframe();
 			      SetRibbonStatus(False,0,0);
-			      DisableBackBone();
+			      DisableBackbone();
 			      ReDrawFlag |= RFRefresh;
 			      break;
 
 	case(IDM_BALLSTICK):  SetRadiusValue(120);
-			      EnableWireFrame(False,40);
+			      EnableWireframe(CylinderFlag,40);
 			      SetRibbonStatus(False,0,0);
-			      DisableBackBone();
+			      DisableBackbone();
 			      ReDrawFlag |= RFRefresh;
 			      break;
 
 	case(IDM_RIBBONS):    DisableSpacefill();
-			      DisableWireFrame();
+			      DisableWireframe();
 			      SetRibbonStatus(True,RibbonFlag,0);
-			      DisableBackBone();
+			      DisableBackbone();
 			      ReDrawFlag |= RFRefresh;
 			      break;
 
 	case(IDM_STRANDS):    DisableSpacefill();
-			      DisableWireFrame();
+			      DisableWireframe();
 			      SetRibbonStatus(True,StrandFlag,0);
-			      DisableBackBone();
+			      DisableBackbone();
 			      ReDrawFlag |= RFRefresh;
+			      break;
+
+	case(IDM_CARTOONS):   /* Cartoons */
+                              DisableSpacefill();
+                              DisableWireframe();
+                              SetRibbonCartoons();
+                              DisableBackbone();
+                              ReDrawFlag |= RFRefresh;
 			      break;
 
 	/* Colours Menu */
@@ -1449,6 +1497,18 @@ static BOOL HandleMenu( option )
 			     }
 			     break;
 
+	case(IDM_STEREO):    /* Stereo */
+                             if( UseStereo )
+                             {   SetStereoMode(False);
+                             } else SetStereoMode(True);
+                             ReDrawFlag |= RFRefresh;
+			     break;
+
+        case(IDM_LABELS):    /* Labels */
+                             LabelOptFlag = !LabelOptFlag;
+                             DefaultLabels(LabelOptFlag);
+                             ReDrawFlag |= RFRefresh;
+                             break;
 
 	/* Save Menu */
 	case(IDM_BMP):   case(IDM_GIF):
@@ -1479,7 +1539,7 @@ static void InitiateServer( hWinCli, lParam )
 	    
     if( aApplIn = LOWORD(lParam) )
     {   GlobalGetAtomName(aApplIn,ApplName,14);
-	if( _stricmp(ApplName,"RasWin") )
+	if( stricmp(ApplName,"RasWin") )
 	    return;
     } else return;
     
@@ -1694,18 +1754,14 @@ long FAR PASCAL MainCallB(hWin,uMsg,wArg,lArg)
     CanvWin = hWin;
     
     switch(uMsg)
-    {   case(WM_DROPFILES):   ZapDatabase();
+    {   case(WM_DROPFILES):   /* Disable Drag & Drop */
+                              if( IsPaused ) break;
+
+                              ZapDatabase();
 			      *fnamebuf = '\0';
 			      DragQueryFile((HDROP)wArg,0,fnamebuf,127);
 			      FetchFile(FormatPDB,False,fnamebuf);
-
-			      if( Database )
-			      {   ReDrawFlag |= RFRefresh | RFColour;
-				  if( InfoBondCount < 1 )
-				  {   EnableBackBone(False,80);
-				  } else EnableWireFrame(True,0);
-				  CPKColourAttrib();
-			      }
+                              DefaultRepresentation();
 			      DragFinish((HDROP)wArg);
 			      break;
 
@@ -1747,7 +1803,7 @@ long FAR PASCAL MainCallB(hWin,uMsg,wArg,lArg)
 			      
 			     
 	case(WM_INITMENUPOPUP):  /* Initialise Checks */
-			      if( lArg == 3 )
+			      if( lArg == 4 )
 			      {   /* Options Menu */
 				  hMenu = (HMENU)wArg;
 
@@ -1770,6 +1826,14 @@ long FAR PASCAL MainCallB(hWin,uMsg,wArg,lArg)
 				  status = UseShadow ? MF_CHECKED 
 						     : MF_UNCHECKED;
 				  CheckMenuItem(hMenu,IDM_SHADOW,status);
+
+				  status = UseStereo ? MF_CHECKED
+						     : MF_UNCHECKED;
+				  CheckMenuItem(hMenu,IDM_STEREO,status);
+
+				  status = LabelOptFlag ? MF_CHECKED 
+						        : MF_UNCHECKED;
+				  CheckMenuItem(hMenu,IDM_LABELS,status);
 			      }
 			      return( 0L );                      
 
@@ -1855,11 +1919,12 @@ long FAR PASCAL MainCallB(hWin,uMsg,wArg,lArg)
 			      ReleaseCapture();
 
 			      if( Database )
-			      {   PointX = LOWORD(lArg);
-				  PointY = HIWORD(lArg);
-				  if( IsClose(PointX,InitX) &&
-				      IsClose(PointY,InitY) )
-				  {   IdentifyAtom(PointX,YRange-PointY);
+			      {   PointX = dx = LOWORD(lArg);
+				  PointY = dy = HIWORD(lArg);
+				  if( IsClose(dx,InitX) && IsClose(dy,InitY) )
+				  {   if( wArg & (MK_SHIFT|MK_CONTROL) )
+                                      {      PickAtom(True,dx,YRange-dy);
+                                      } else PickAtom(False,dx,YRange-dy);
 				      AdviseUpdate(AdvPickNumber);
 				      AdviseUpdate(AdvPickAtom);
 				  }
@@ -1978,7 +2043,7 @@ long FAR PASCAL MainCallB(hWin,uMsg,wArg,lArg)
 			      InitiateServer((HWND)wArg,lArg);
 			      return( 0L );
 					      
-	case(WM_COMMAND):     if( HandleMenu(wArg) )
+	case(WM_COMMAND):     if( !IsPaused && HandleMenu(wArg) )
 				  break;
 			      
 	default:              return( DefWindowProc(hWin,uMsg,wArg,lArg) );
@@ -1999,13 +2064,13 @@ static int InitialiseApplication()
 {
     WNDCLASS wc;
     
-    wc.style = 0;
     wc.hIcon = LoadIcon(hInstance,"RasWinIcon");
     wc.hInstance = hInstance;
     wc.cbWndExtra = 0;
     wc.cbClsExtra= 0;
 
     /* Canvas Window Class */
+    wc.style = 0;
     wc.lpfnWndProc = MainCallB;
     wc.hbrBackground = CreateSolidBrush(RGB(0,0,0));
     wc.hCursor = LoadCursor(hInstance,"RasWinCursor");
@@ -2016,6 +2081,7 @@ static int InitialiseApplication()
 	return( False );
 
     /* Terminal Window Class */
+    wc.style = CS_NOCLOSE;
     wc.lpfnWndProc = CmndCallB;
     wc.hbrBackground = (HBRUSH)(COLOR_WINDOW+1);
     wc.hCursor = LoadCursor(NULL,IDC_ARROW);
@@ -2045,34 +2111,73 @@ static char *RegisterFormat( buffer, desc, ext )
 }
 
 
+static void InitDefaultValues()
+{
+    register int i;
+
+    Interactive = True;
+
+    ConvCount = 0;
+    AdviseCount = 0;
+    for( i=0; i<MaxConvNum; i++ )
+        ConvData[i].server = NULL;
+    for( i=0; i<MaxAdviseNum; i++ )
+        AdviseData[i].server = NULL;
+    LabelOptFlag = False;
+    RasWinReady = True;
+    HeldButton = False;
+
+    fnamebuf[0] = '\0';
+    snamebuf[0] = '\0';
+
+    FileFormat = FormatPDB;
+    CalcBondsFlag = True;
+}
+
+
+#define FORMATOPTMAX   15
+static struct {
+        char *ident;
+        int format, len;
+    } FormatOpt[FORMATOPTMAX] = {
+            { "alchemy",    FormatAlchemy,   7 },
+            { "biosym",     FormatBiosym,    6 },
+            { "cif",        FormatCIF,       3 },
+            { "charmm",     FormatCharmm,    6 },
+            { "fdat",       FormatFDAT,      4 },
+            { "gaussian",   FormatGaussian,  8 },
+            { "macromodel", FormatMacroMod, 10 },
+            { "mdl",        FormatMDL,       3 },
+            { "mmdb",       FormatMMDB,      4 },
+            { "mol2",       FormatMol2,      4 },
+            { "mopac",      FormatMOPAC,     5 },
+            { "nmrpdb",     FormatNMRPDB,    6 },
+            { "pdb",        FormatPDB,       3 },
+            { "shelx",      FormatSHELX,     5 },
+            { "xyz",        FormatXYZ,       3 }
+                                };
+   
+
 static int ProcessOptions( ptr )
     char __far *ptr;
 {
     register char *dst;
-
-    FileFormat = FormatPDB;
-    fnamebuf[0] = '\0';
-    snamebuf[0] = '\0';
+    register int i;
 
     while( *ptr )
     {   if( (*ptr==' ') || (*ptr=='=') )
 	{   ptr++;
 	} else if( (*ptr=='/') || (*ptr=='-') )
 	{   ptr++;
-	    if( !_fstrnicmp(ptr,"pdb",3) )
-	    {   FileFormat = FormatPDB;      ptr += 3;
-	    } else if( !_fstrnicmp(ptr,"mdl",3) )
-	    {   FileFormat = FormatMDL;      ptr += 3;
-	    } else if( !_fstrnicmp(ptr,"charmm",6) )
-	    {   FileFormat = FormatCharmm;   ptr += 6;
-	    } else if( !_fstrnicmp(ptr,"alchemy",7) )
-	    {   FileFormat = FormatAlchemy;  ptr += 7;
-	    } else if( !_fstrnicmp(ptr,"mol2",4) )
-	    {   FileFormat = FormatMol2;     ptr += 4;
+            for( i=0; i<FORMATOPTMAX; i++ )
+	        if( !_fstrnicmp(ptr,FormatOpt[i].ident,FormatOpt[i].len) )
+                    break;
+
+            if( i < FORMATOPTMAX )
+	    {   FileFormat = FormatOpt[i].format;
+                ptr += FormatOpt[i].len;
 	    } else if( !_fstrnicmp(ptr,"sybyl",5) )
 	    {   FileFormat = FormatMol2;     ptr += 4;
-	    } else if( !_fstrnicmp(ptr,"xyz",3) )
-	    {   FileFormat = FormatXYZ;      ptr+= 3;
 
 	    } else if( !_fstrnicmp(ptr,"script",6) )
 	    {   ptr += 6;
@@ -2105,7 +2210,6 @@ int PASCAL WinMain(hCurrent,hPrevious,lpCmdLine,nCmdShow)
 {
     register char *dst;
     register FILE *fp;
-    register int i;
     MSG event;
 
 
@@ -2121,6 +2225,7 @@ int PASCAL WinMain(hCurrent,hPrevious,lpCmdLine,nCmdShow)
     dst = RegisterFormat(dst,"MDL Mol File Format","*.MDL;*.MOL");
     dst = RegisterFormat(dst,"MSC (XMol) XYZ Format","*.XYZ");
     dst = RegisterFormat(dst,"CHARMm File Format","*.CHM");
+    dst = RegisterFormat(dst,"MOPAC File Format","*.MOP");
     *dst = '\0';
 
     /* Load File Common Dialog Box */
@@ -2142,13 +2247,15 @@ int PASCAL WinMain(hCurrent,hPrevious,lpCmdLine,nCmdShow)
     dst = RegisterFormat(dst,"CompuServe GIF","*.GIF");
     dst = RegisterFormat(dst,"Colour PostScript","*.PS;*.EPS");
     dst = RegisterFormat(dst,"Mono PostScript","*.PS;*.EPS");
+    dst = RegisterFormat(dst,"Vector PostScript","*.PS;*.EPS");
     dst = RegisterFormat(dst,"Raw Portable Pixmap","*.PPM");
     dst = RegisterFormat(dst,"ASCII Portable Pixmap","*.PPM");
+    dst = RegisterFormat(dst,"Apple Macintosh PICT","*.PIC");
+    dst = RegisterFormat(dst,"Silicon Graphics RGB","*.RGB");
     dst = RegisterFormat(dst,"RLE Sun Rasterfile","*.RAS;*.IM8");
     dst = RegisterFormat(dst,"Sun Rasterfile","*.RAS");
     *dst = '\0';
     
-   
     /* Save File Common Dialog Box */
     ofn2.lStructSize=sizeof(OPENFILENAME);
     ofn2.Flags = OFN_NOCHANGEDIR | OFN_HIDEREADONLY | OFN_NOREADONLYRETURN
@@ -2163,28 +2270,18 @@ int PASCAL WinMain(hCurrent,hPrevious,lpCmdLine,nCmdShow)
     ofn2.lpstrFileTitle = NULL;
     ofn2.hwndOwner = NULL;
 
-
-    ConvCount = 0;
-    AdviseCount = 0;
-    for( i=0; i<MaxConvNum; i++ )
-	ConvData[i].server = NULL;
-    for( i=0; i<MaxAdviseNum; i++ )
-	AdviseData[i].server = NULL;
-    RasWinReady = True;
-    HeldButton = False;
-
     if( !GetProfileString("extensions","pdb","",fnamebuf,128) )
 	WriteProfileString("extensions","pdb","raswin.exe ^.pdb");
     if( !GetProfileString("extensions","ent","",fnamebuf,128) )
 	WriteProfileString("extensions","ent","raswin.exe ^.ent");
     DDETimeOut = GetPrivateProfileInt("RasWin","DDETimeOut",
 				      DefaultTimeOut,"RASWIN.INI"); 
-   
 
-    Interactive = True;
-    ReDrawFlag = RFInitial;
+    InitDefaultValues();
+    ProcessOptions(lpCmdLine);
 
     /* Avoid Windows NT problems! */
+    ReDrawFlag = RFInitial;
     CommandActive = True;
 
     if( !InitTerminal(hInstance) ||
@@ -2192,8 +2289,8 @@ int PASCAL WinMain(hCurrent,hPrevious,lpCmdLine,nCmdShow)
        return(False);
 
     WriteString("RasMol Molecular Renderer\n");
-    WriteString("Roger Sayle, October 1994\n");
-    WriteString("Version 2.5.1\n\n");
+    WriteString("Roger Sayle, August 1995\n");
+    WriteString("Version 2.6\n\n");
 	    
     InitialiseCommand(); 
     InitialiseTransform();
@@ -2202,32 +2299,23 @@ int PASCAL WinMain(hCurrent,hPrevious,lpCmdLine,nCmdShow)
     InitialisePixUtils();
     InitialiseAbstree();
     InitialiseOutFile();
+    InitialiseRepres();
    
-    
-    ProcessOptions(lpCmdLine);
     if( *fnamebuf && FetchFile(FileFormat,True,fnamebuf) )
-    {   ReDrawFlag |= RFRefresh | RFColour;
-	if( InfoBondCount < 1 )
-	{   EnableBackBone(False,80);
-	} else EnableWireFrame(True,0);
-	CPKColourAttrib();
-    }
+        DefaultRepresentation();
 
     ResetCommandLine(1);
     LoadInitFile();
 
     if( *snamebuf )
-    {   if( (fp=fopen(snamebuf,"r")) )
-	{   LoadScriptFile(fp,snamebuf);
-	    fclose(fp);
-	} else 
+    {   if( !(fp=fopen(snamebuf,"r")) )
 	{   if( CommandActive )
 		WriteChar('\n');
 	    WriteString("Error: File '");
 	    WriteString(snamebuf);
 	    WriteString("' not found!\n");
 	    CommandActive = False;
-	}
+	} else LoadScriptFile(fp,snamebuf);
     }
 
     RefreshScreen();

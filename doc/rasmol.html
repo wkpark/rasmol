@@ -1,9 +1,9 @@
-<title>RasMol V2.5 Molecular Visualisation Program</title>
-<h1>RasMol V2.5</h1><p>
+<title>RasMol V2.6 Molecular Visualisation Program</title>
+<h1>RasMol V2.6</h1><p>
 <h2>Molecular Visualisation Program</h2><p>
 <h3>Roger Sayle</h3>
-<h3>Glaxo Research and Development</h3>
-<h3>Greenford, Middlesex, U.K.</h3><p><p>
+<h3>Glaxo Wellcome Research and Development</h3>
+<h3>Stevenage, Hertfordshire, U.K.</h3><p><p>
 <h2>Table of Contents</h2>
 <ol>
 <li><a href="#chintro">Introduction</a>
@@ -14,8 +14,8 @@
 <li><a href="#chcolours">Colour Schemes</a>
 </ol>
 <p><hr>
-<p><p>Copyright (c) 1992,1993,1994 by Roger Sayle
-<address>rasmol@ggr.co.uk</address>
+&lt;p&gt;&lt;p&gt;Copyright (c) 1992-1995 by Roger Sayle
+&lt;address&gt;rasmol@ggr.co.uk&lt;/address&gt;
 <p>
 The information supplied in this document is believed to be true but
 no liability is assumed for its use or for the infringements of the
@@ -545,7 +545,7 @@ Syntax:  rotate &lt;axis&gt; {-} &lt;value&gt;
 </pre><p>
 Rotate the molecule about the specified axis.
 Permited values for the axis parameter are
-"<tt><b>x</b></tt>", "<tt><b>y</b></tt>" and "<tt><b>z</b></tt>".
+"&lt;tt&gt;&lt;b&gt;x&lt;/b&gt;&lt;/tt&gt;", "&lt;tt&gt;&lt;b&gt;y&lt;/b&gt;&lt;/tt&gt;" and "&lt;tt&gt;&lt;b&gt;z&lt;/b&gt;&lt;/tt&gt;".
 The integer parameter states the angle in degrees for the structure to
 be rotated. For the X and Y axes, positive values move the closest point
 up and right, and negative values move it down and left respectively. For
@@ -814,12 +814,12 @@ screen. The axis parameter specifies along which axis the molecule
 is to be moved and the integer parameter specifies the absolute
 position of the molecule centre from the middle of the screen.
 Permited values for the axis parameter are
-"<tt><b>x</b></tt>", "<tt><b>y</b></tt>" and "<tt><b>z</b></tt>".
+"&lt;tt&gt;&lt;b&gt;x&lt;/b&gt;&lt;/tt&gt;", "&lt;tt&gt;&lt;b&gt;y&lt;/b&gt;&lt;/tt&gt;" and "&lt;tt&gt;&lt;b&gt;z&lt;/b&gt;&lt;/tt&gt;".
 Displacement values must be between -100 and 100 which correspond to
 moving the current molecule just off the screen. A positive
-"<tt><b>x</b></tt>"
+"&lt;tt&gt;&lt;b&gt;x&lt;/b&gt;&lt;/tt&gt;"
 displacement moves the molecule to the right, and a positive
-"<tt><b>y</b></tt>"
+"&lt;tt&gt;&lt;b&gt;y&lt;/b&gt;&lt;/tt&gt;"
 displacement moves the molecule down the screen. The pair of commands
 <tt><b>translate x 0</b></tt>
 and
@@ -910,8 +910,10 @@ Syntax:  zoom {&lt;boolean&gt;}
 </pre><p>
 Change the magnification of the currently displayed image. Boolean
 parameters either magnify or reset the scale of current molecule. An
-integer parameter between 10 and 200 specifies the desired magnification
-as a percentage of the default scale.
+integer parameter specifies the desired magnification as a percentage
+of the default scale. The minimum parameter value is 10, the maximum
+parameter value is dependent upon the size of the molecule being
+displayed. For medium sized proteins this is about 500.
 <p><hr>
 <a name="chsetopt"><h2>Internal Parameters</h2></a>
 RasMol has a number of internal parameters that may be modified using the
@@ -1075,7 +1077,7 @@ parameter.
 <p><hr>
 <a name="setfontsize"><h3>Set FontSize</h3></a><p>
 <pre>
-Syntax:  set fontsize {&lt;boolean&gt;}
+Syntax:  set fontsize {&lt;value&gt;}
 </pre><p>
 The RasMol
 <tt><b>set fontsize</b></tt>
@@ -1295,9 +1297,9 @@ The RasMol
 <tt><b>slabmode</b></tt>
 parameter controls the rendering method of objects cut by the
 slabbing (z-clipping) plane. Valid slabmode parameters are
-"<tt><b>reject</b></tt>", "<tt><b>half</b></tt>",
-"<tt><b>hollow</b></tt>", "<tt><b>solid</b></tt>" and
-"<tt><b>section</b></tt>".
+"&lt;tt&gt;&lt;b&gt;reject&lt;/b&gt;&lt;/tt&gt;", "&lt;tt&gt;&lt;b&gt;half&lt;/b&gt;&lt;/tt&gt;",
+"&lt;tt&gt;&lt;b&gt;hollow&lt;/b&gt;&lt;/tt&gt;", "&lt;tt&gt;&lt;b&gt;solid&lt;/b&gt;&lt;/tt&gt;" and
+"&lt;tt&gt;&lt;b&gt;section&lt;/b&gt;&lt;/tt&gt;".
 <p><hr>
 <a name="setsolvent"><h3>Set Solvent</h3></a><p>
 <pre>
@@ -1455,7 +1457,7 @@ simpler ones using the standard boolean connectives
 and
 <tt><b>not.</b></tt>
 These may be abbreviated by the symbols
-"<tt>&amp;</tt>", "<tt>|</tt>" and "<tt>!</tt>"
+"&lt;tt&gt;&amp;amp;&lt;/tt&gt;", "&lt;tt&gt;|&lt;/tt&gt;" and "&lt;tt&gt;!&lt;/tt&gt;"
 respectively. Parentheses (brackets) may be used to alter the
 precedence of the operators. For convenience, a comma may also
 be used for boolean disjunction.
@@ -1571,18 +1573,18 @@ as a sphere) and
 for the PDB anisotropic temperature value.
 <p>
 The equality operator is denoted either
-"<tt><b>=</b></tt>" or "<tt><b>==</b></tt>".
+"&lt;tt&gt;&lt;b&gt;=&lt;/b&gt;&lt;/tt&gt;" or "&lt;tt&gt;&lt;b&gt;==&lt;/b&gt;&lt;/tt&gt;".
 The inequality operator as either
-"<tt><b>&lt;&gt;</b></tt>", "<tt><b>!=</b></tt>" or
-"<tt><b>/=</b></tt>".
+"&lt;tt&gt;&lt;b&gt;&amp;lt;&amp;gt;&lt;/b&gt;&lt;/tt&gt;", "&lt;tt&gt;&lt;b&gt;!=&lt;/b&gt;&lt;/tt&gt;" or
+"&lt;tt&gt;&lt;b&gt;/=&lt;/b&gt;&lt;/tt&gt;".
 The ordering operators are
-"<tt><b>&lt;</b></tt>"
+"&lt;tt&gt;&lt;b&gt;&amp;lt;&lt;/b&gt;&lt;/tt&gt;"
 for less than,
-"<tt><b>&lt;=</b></tt>"
+"&lt;tt&gt;&lt;b&gt;&amp;lt;=&lt;/b&gt;&lt;/tt&gt;"
 for less than or equal to,
-"<tt><b>&gt;</b></tt>"
+"&lt;tt&gt;&lt;b&gt;&amp;gt;&lt;/b&gt;&lt;/tt&gt;"
 for greater than, and
-"<tt><b>&gt;=</b></tt>"
+"&lt;tt&gt;&lt;b&gt;&amp;gt;=&lt;/b&gt;&lt;/tt&gt;"
 for greater than or equal to.
 <p>
 <pre>
